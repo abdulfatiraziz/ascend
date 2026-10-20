@@ -151,9 +151,15 @@ differ enough to mislead. **Save as note** keeps the result as an Insight note t
 chats can see.
 
 Comparisons are only fair from the same angle in the same light; each area shows a tip.
+To talk them through with Ask Ascend, click **Ask Ascend** on the comparison (or right-click
+a photo → Ask Ascend about this photo), or in the chat use **Photo ▾ → From progress photos…**.
+Up to four album photos attach to your next message, each labelled with its area, angle and
+date. Ask Ascend otherwise knows only which areas, angles and dates your album has, so if
+you ask it to look without attaching, it tells you which photos to attach.
+
 Copies are stored up to 2048 px in `Progress/` beside tracker.json, with location and camera
-data removed. Progress photos are never part of Ask Ascend chats, and the phone app doesn't
-take them.
+data removed. Images reach Claude only when you compare or attach them. The phone app
+doesn't take progress photos.
 
 ## Ask Ascend (Claude)
 

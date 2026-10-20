@@ -26,6 +26,7 @@ struct AssistantPanel: View {
     @State private var draft = ""
     @State private var confirmApply = false
     @State private var loggedUrge = false
+    @State private var pickingProgress = false
     @State private var showChats = false
     @State private var renaming: ChatThread?
     @State private var newTitle = ""
@@ -62,6 +63,9 @@ struct AssistantPanel: View {
                 Button("Cancel", role: .cancel) { deleting = nil }
             } message: { Text("Removes the chat from Ascend, its photos and its Claude Code session. Your plan is not affected.") }
             .sheet(item: $controller.noteDraft) { NoteEditor(store: store, note: $0) }
+            .sheet(isPresented: $pickingProgress) {
+                ProgressPhotoPicker(store: store, limit: max(1, ChatPhotos.maxPerMessage - controller.pendingPhotos.count)) { store.askAscend(about: $0) }
+            }
             .alert("Rename chat", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
                 TextField("Title", text: $newTitle)
                 Button("Save") { if let id = renaming?.id { controller.rename(id, to: newTitle) }; renaming = nil }
@@ -174,7 +178,7 @@ struct AssistantPanel: View {
             .onChange(of: controller.working) { _, _ in proxy.scrollTo("bottom", anchor: .bottom) }
         }
         Spacer(minLength: 0)
-        Text((controller.shareHistory ? "Sends your plan, progress, last 14 days of check-ins and habit notes to Claude through your personal Claude profile. Urges, health and daily journal entries stay on this Mac." : "Sends your plan to Claude through your personal Claude profile. Check-ins, habit notes, urges, health and daily journal entries stay on this Mac.") + " Notes you let Ascend see are included." + " Photos are sent only when you attach them; location data is removed.").font(.system(size: 10)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
+        Text((controller.shareHistory ? "Sends your plan, progress, last 14 days of check-ins and habit notes to Claude through your personal Claude profile. Urges, health and daily journal entries stay on this Mac." : "Sends your plan to Claude through your personal Claude profile. Check-ins, habit notes, urges, health and daily journal entries stay on this Mac.") + " Notes you let Ascend see are included." + " Photos are sent only when you attach them; location data is removed. From your Photos album, Claude sees only areas, angles and dates until you attach one.").font(.system(size: 10)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
         if !controller.pendingPhotos.isEmpty {
             HStack(spacing: 8) {
                 ForEach(controller.pendingPhotos, id: \.self) { url in
@@ -192,6 +196,7 @@ struct AssistantPanel: View {
             Menu {
                 Button("Choose photos…") { choosePhotos() }
                 Button("Paste from clipboard") { controller.pastePhoto() }
+                Button("From progress photos…") { pickingProgress = true }.disabled(store.document.photos.photos.isEmpty)
             } label: { Label("Photo", systemImage: "photo.badge.plus").font(.system(size: 11)) }
                 .menuStyle(.borderlessButton).fixedSize().disabled(controller.working || controller.pendingPhotos.count >= ChatPhotos.maxPerMessage)
                 .help("Attach up to \(ChatPhotos.maxPerMessage) photos, or drag them onto this panel")

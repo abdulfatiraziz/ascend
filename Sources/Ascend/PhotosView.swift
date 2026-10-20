@@ -81,7 +81,7 @@ struct PhotosView: View {
                 if let currentAngle { compare(currentAngle) }
                 timeline
             }
-            Text("Photos stay on this Mac in Ascend’s Progress folder with their location data removed. They’re never part of Ask Ascend chats; only Compare sends the two photos you picked to Claude through your personal Claude profile.").font(.system(size: 11)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
+            Text("Photos stay on this Mac in Ascend’s Progress folder with their location data removed. Ask Ascend sees only which areas, angles and dates you have; an image reaches Claude only when you compare it or attach it to a chat, through your personal Claude profile.").font(.system(size: 11)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
         }.padding(.bottom, 10)
     }
     private var areaTabs: some View {
@@ -131,6 +131,7 @@ struct PhotosView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(label(only)).font(.system(size: 15, weight: .semibold))
                     Text("Your first \(angle.label.lowercased()) photo of your \(area.label.lowercased()). Add another from the same angle in a week or two to compare.").font(.system(size: 12)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
+                    Button { store.askAscend(about: [only]) } label: { Label("Ask Ascend about it", systemImage: "sparkles").font(.system(size: 11)) }
                 }
             }.frame(maxWidth: .infinity, alignment: .leading).panel(padding: 16)
         } else if let first = list.first, let last = list.last {
@@ -144,6 +145,8 @@ struct PhotosView: View {
                     picker("After", list: list, selection: after) { afterID = $0 }
                     Text(days == 0 ? "Same day" : "\(abs(days)) day\(abs(days) == 1 ? "" : "s") \(days > 0 ? "apart" : "earlier")").font(.system(size: 11)).foregroundStyle(Ink.muted)
                     Spacer()
+                    Button { store.askAscend(about: before.id == after.id ? [after] : [before, after]) } label: { Label("Ask Ascend", systemImage: "sparkles").font(.system(size: 11)) }
+                        .help("Attach these photos to a chat message so you can discuss them with Claude")
                     Picker("View", selection: $overlay) { Text("Side by side").tag(false); Text("Overlay").tag(true) }.pickerStyle(.segmented).labelsHidden().fixedSize()
                 }
                 if overlay {
@@ -225,6 +228,7 @@ struct PhotosView: View {
                         .contextMenu {
                             Button("Compare as before") { angle = photo.angle; beforeID = photo.id; if afterID.flatMap({ id in album.photos(area, angle: photo.angle).first { $0.id == id } }) == nil { afterID = nil } }
                             Button("Compare as after") { angle = photo.angle; afterID = photo.id; if beforeID.flatMap({ id in album.photos(area, angle: photo.angle).first { $0.id == id } }) == nil { beforeID = nil } }
+                            Button("Ask Ascend about this photo") { store.askAscend(about: [photo]) }
                             Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([store.progressPhotoURL(photo)]) }
                         }
                 }
@@ -358,5 +362,55 @@ private struct PhotoEditor: View {
     private func save() {
         let changed = abs(date.timeIntervalSince1970 - photo.takenAt) >= 60 || area != photo.area || angle != photo.angle || note != photo.note
         if changed { store.updateProgressPhoto(photo.id, takenAt: date, area: area, angle: angle, note: note) }
+    }
+}
+
+/// Picks album photos to attach to an Ask Ascend message.
+struct ProgressPhotoPicker: View {
+    @ObservedObject var store: TrackerStore
+    var limit: Int
+    var attach: ([ProgressPhoto]) -> Void
+    @State private var area = PhotoArea.hair
+    @State private var picked: [UUID] = []
+    @Environment(\.dismiss) private var dismiss
+    var body: some View {
+        let album = store.document.photos
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Attach progress photos").font(.system(size: 20, weight: .semibold))
+            Text("Pick up to \(limit). Each one is labelled with its area, angle and date so Claude knows what it's looking at.").font(.system(size: 12)).foregroundStyle(Ink.muted)
+            Picker("Area", selection: $area) { ForEach(PhotoArea.allCases, id: \.self) { Text("\($0.label) · \(album.photos($0).count)").tag($0) } }.pickerStyle(.segmented).labelsHidden()
+            ScrollView {
+                let list = album.photos(area).reversed().map { $0 }
+                if list.isEmpty { Text("No \(area.label.lowercased()) photos yet. Add them on the Photos screen.").font(.system(size: 12)).foregroundStyle(Ink.muted).frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 20) }
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 108), spacing: 10)], alignment: .leading, spacing: 10) {
+                    ForEach(list) { photo in
+                        let index = picked.firstIndex(of: photo.id)
+                        Button { toggle(photo.id) } label: {
+                            VStack(alignment: .leading, spacing: 4) {
+                                AlbumImage(url: store.progressPhotoURL(photo), maxPixel: 400, fill: true).frame(width: 108, height: 134).clipped().clipShape(RoundedRectangle(cornerRadius: 8))
+                                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(index == nil ? Ink.line : Ink.accent, lineWidth: index == nil ? 1 : 2))
+                                    .overlay(alignment: .topTrailing) {
+                                        if let index { Text("\(index + 1)").font(.system(size: 11, weight: .bold)).frame(width: 20, height: 20).background(Ink.accent, in: Circle()).foregroundStyle(Ink.background).padding(5) }
+                                    }
+                                Text(dateText(photo.day, engine: store.engine, pattern: "d MMM yyyy")).font(.system(size: 11, weight: .medium))
+                                Text(photo.angle.label).font(.system(size: 10)).foregroundStyle(Ink.muted)
+                            }.frame(width: 108, alignment: .leading)
+                        }.buttonStyle(.plain).disabled(index == nil && picked.count >= limit)
+                    }
+                }
+            }.frame(height: 380)
+            HStack {
+                Text(picked.isEmpty ? "Tip: pick the oldest and newest of the same angle." : "\(picked.count) of \(limit) picked").font(.system(size: 11)).foregroundStyle(Ink.muted)
+                Spacer()
+                Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
+                PrimaryButton(label: picked.count == 1 ? "Attach 1 photo" : "Attach \(picked.count) photos") {
+                    attach(picked.compactMap { id in album.photos.first { $0.id == id } }); dismiss()
+                }.disabled(picked.isEmpty).keyboardShortcut(.defaultAction)
+            }
+        }.padding(22).frame(width: 640).background(Ink.background)
+            .onAppear { if album.photos(area).isEmpty, let first = PhotoArea.allCases.first(where: { !album.photos($0).isEmpty }) { area = first } }
+    }
+    private func toggle(_ id: UUID) {
+        if let i = picked.firstIndex(of: id) { picked.remove(at: i) } else if picked.count < limit { picked.append(id) }
     }
 }

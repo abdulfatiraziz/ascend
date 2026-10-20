@@ -10,6 +10,8 @@ import AscendCore
     @Published var draftEffort: ClaudeEffort
     /// Photos picked for the next message; they are copied into the chat when it is sent.
     @Published private(set) var pendingPhotos: [URL] = []
+    /// What each attached progress photo shows, added to the message so Claude knows which photo is which.
+    private var pendingCaptions: [URL: String] = [:]
     @Published private(set) var working = false
     @Published private(set) var proposal: PreparedProposal?
     @Published var error: String?
@@ -83,7 +85,14 @@ import AscendCore
             pendingPhotos.append(url)
         }
     }
-    func removePendingPhoto(_ url: URL) { pendingPhotos.removeAll { $0 == url } }
+    func removePendingPhoto(_ url: URL) { pendingPhotos.removeAll { $0 == url }; pendingCaptions[url] = nil }
+    /// Attaches photos from the Photos album, each with a caption like "Hair · top · 2 Oct 2026".
+    func attachProgressPhotos(_ photos: [(url: URL, caption: String)]) {
+        for photo in photos where !pendingPhotos.contains(photo.url) {
+            guard pendingPhotos.count < ChatPhotos.maxPerMessage else { error = "Attach up to \(ChatPhotos.maxPerMessage) photos per message."; break }
+            pendingPhotos.append(photo.url); pendingCaptions[photo.url] = photo.caption
+        }
+    }
     /// Adds image files or image data (such as a ⌃⇧⌘4 screenshot) from the clipboard.
     func pastePhoto() {
         let board = NSPasteboard.general
@@ -97,8 +106,9 @@ import AscendCore
     }
 
     func submit(_ text: String, document: TrackerDocument, today: String) {
-        let message = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        var message = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !message.isEmpty || !pendingPhotos.isEmpty, !working else { return }
+        message = ClaudeAssistant.captioned(message, captions: pendingPhotos.map { pendingCaptions[$0] })
         guard let executable else { error = "Claude Code wasn’t found. Install it or set its path in Claude settings."; return }
         guard message.count <= ClaudeAssistant.maxPromptLength else { error = "Use \(ClaudeAssistant.maxPromptLength.formatted()) characters or fewer."; return }
         cancel(); error = nil; proposal = nil
@@ -110,7 +120,7 @@ import AscendCore
             self.error = error.localizedDescription; return
         }
         for url in pendingPhotos where url.lastPathComponent.hasPrefix("ascend-pasted-") { try? FileManager.default.removeItem(at: url) }
-        pendingPhotos = []
+        pendingPhotos = []; pendingCaptions = [:]
         if currentID == nil { archive.insert(ChatThread(id: id, model: draftModel, effort: draftEffort)); currentID = id }
         archive.append(ChatMessage(fromUser: true, text: message, attachments: stored), to: id); persist()
         send(message, photos: stored, chat: id, executable: executable, document: document, today: today)

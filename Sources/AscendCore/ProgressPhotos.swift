@@ -139,9 +139,48 @@ public extension TrackerDocument {
         guard day >= cycle.start, day <= cycle.end else { return nil }
         return TrackerEngine(document: self).days(from: cycle.start, through: day).count
     }
+    /// What a progress photo shows, for a chat message: "Hair · top · 2026-10-02 (cycle day 3) · note: hair damp".
+    func caption(_ photo: ProgressPhoto) -> String {
+        var text = "\(photo.area.label) · \(photo.angle.label.lowercased()) · \(photo.day)"
+        if let day = cycleDay(photo.day) { text += " (cycle day \(day))" }
+        if !photo.note.isEmpty { text += " · note: \(photo.note.prefix(120))" }
+        return text
+    }
+}
+/// What Ask Ascend knows about the album without seeing it: which areas and angles have photos, and when.
+public struct PhotoAlbumSummary: Codable, Equatable, Sendable {
+    public var area: String
+    public var angle: String
+    public var count: Int
+    public var first: String
+    public var latest: String
+    public var dates: [String]
+    public init(area: String, angle: String, count: Int, first: String, latest: String, dates: [String]) {
+        self.area = area; self.angle = angle; self.count = count; self.first = first; self.latest = latest; self.dates = dates
+    }
+}
+public extension PhotoAlbum {
+    /// Dates only (the 12 most recent per angle); no images, notes or reviews.
+    var summary: [PhotoAlbumSummary] {
+        PhotoArea.allCases.flatMap { area in
+            angles(area).map { angle in
+                let list = photos(area, angle: angle)
+                var seen = Set<String>()
+                let days = list.map(\.day).filter { seen.insert($0).inserted }
+                return PhotoAlbumSummary(area: area.rawValue, angle: angle.rawValue, count: list.count, first: list.first?.day ?? "", latest: list.last?.day ?? "",
+                                         dates: Array(days.suffix(12)))
+            }
+        }
+    }
 }
 
 extension ClaudeAssistant {
+    /// Adds what each attached album photo shows, numbered in attachment order. Photos without a caption (picked from disk) are left out.
+    public static func captioned(_ message: String, captions: [String?]) -> String {
+        let lines = captions.enumerated().compactMap { i, caption in caption.map { "\(i + 1). \($0)" } }
+        guard !lines.isEmpty else { return message }
+        return (message.isEmpty ? "" : message + "\n\n") + "[Attached from my Photos album]\n" + lines.joined(separator: "\n")
+    }
     // MARK: Progress photos — an unsaved run that compares two photos of the same area and angle.
     public static func photoArguments(model: ClaudeModel, effort: ClaudeEffort = defaultEffort) -> [String] {
         ["-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose", "--model", model.rawValue, "--effort", effort.rawValue,

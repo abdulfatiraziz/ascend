@@ -341,6 +341,11 @@ import UniformTypeIdentifiers
             doc.photos.photos[i].note = String(note.trimmingCharacters(in: .whitespacesAndNewlines).prefix(500))
         }
     }
+    /// Attaches album photos to the next Ask Ascend message and opens the chat.
+    func askAscend(about photos: [ProgressPhoto]) {
+        assistant.attachProgressPhotos(photos.map { (progressPhotoURL($0), document.caption($0)) })
+        pendingScreen = "Assistant"
+    }
     func deleteProgressPhoto(_ id: UUID) { protectedChange(label: "photo-deletion") { $0.photos.remove(id) } }
     func saveReview(before: UUID, after: UUID, comparison: PhotoComparison) {
         change { doc in

@@ -53,7 +53,8 @@ Full usage instructions: [User guide](docs/USER-GUIDE.md).
 - Meals: photos from Ascend Bridge or dropped on the Mac get a Claude estimate of
   calories and macros; confirmed meals fill the Calorie and Protein target check-ins.
 - Progress photos: dated hair, hairline, face and body photos by angle, before/after side by
-  side or as a blended overlay, and an optional Claude comparison you can save as a note.
+  side or as a blended overlay, an optional Claude comparison you can save as a note, and
+  album photos you can attach to Ask Ascend (which otherwise sees only their areas and dates).
   [User guide](docs/USER-GUIDE.md#progress-photos).
 - Ask Ascend: a Claude chat drawer (Cmd-J) that runs on your own Claude Code account
   (`claude --personal`). Discuss goals and progress, or ask it to create/edit goals,
@@ -122,6 +123,7 @@ mode with `CLAUDE_CONFIG_DIR=~/.claude-personal`, the same profile as `claude --
 There is no API key in the app; `ANTHROPIC_*` variables are removed so usage stays on your
 Claude login. Only messages you send go to Anthropic. Each one includes the current plan and,
 unless turned off in Claude settings, progress, the last 14 days of check-ins and habit notes.
+The Photos album is described by area, angle and date only; images go only when attached.
 Urge records, health records and the wellbeing journal are never included.
 
 Claude runs with no tools, no MCP servers and no user settings or hooks, and must answer with

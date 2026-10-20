@@ -118,13 +118,18 @@ func runPhotoChecks() async -> (count: Int, failures: Int) {
         let decoded = try ClaudeAssistant.decodePhotoComparison(ClaudeProcessOutput(status: 0, stdout: Data(line.utf8)))
         try expect(decoded.trend == "same" && decoded.changes == ["Temples: same position"] && decoded.confidence == "low")
     }
-    check("progress photos never reach Ask Ascend's chat context, and cycle days count from the cycle start") {
+    check("Ask Ascend sees which areas, angles and dates the album has, never notes, reviews or file names; cycle days count from the cycle start") {
         var doc = original
         let p = photo("2026-10-02", .body, .front, note: "PHOTO_NOTE_SENTINEL")
-        doc.photos.photos = [p]
+        let again = photo("2026-10-02", .body, .front, hour: 18), later = photo("2026-10-04", .body, .front), crown = photo("2026-10-03", .hair, .top)
+        doc.photos.photos = [later, p, crown, again]
         doc.photos.reviews = [PhotoReview(before: p.id, after: p.id, comparison: PhotoComparison(trend: "same", summary: "REVIEW_SENTINEL"))]
         let context = String(decoding: try ClaudeAssistant.contextData(document: doc, today: "2026-10-05"), as: UTF8.self)
-        try expect(!context.contains("PHOTO_NOTE_SENTINEL") && !context.contains("REVIEW_SENTINEL"))
+        try expect(!context.contains("PHOTO_NOTE_SENTINEL") && !context.contains("REVIEW_SENTINEL") && !context.contains(p.photo))
+        try expect(doc.photos.summary == [
+            PhotoAlbumSummary(area: "hair", angle: "top", count: 1, first: "2026-10-03", latest: "2026-10-03", dates: ["2026-10-03"]),
+            PhotoAlbumSummary(area: "body", angle: "front", count: 3, first: "2026-10-02", latest: "2026-10-04", dates: ["2026-10-02", "2026-10-04"])])
+        try expect(context.contains("photoAlbum") && context.contains("2026-10-04"))
         try expect(doc.cycleDay(doc.cycle.start) == 1 && doc.cycleDay(engine.adding(9, to: doc.cycle.start)) == 10)
         try expect(doc.cycleDay(engine.adding(-1, to: doc.cycle.start)) == nil && doc.cycleDay(engine.adding(1, to: doc.cycle.end)) == nil)
     }
@@ -166,6 +171,37 @@ func runPhotoChecks() async -> (count: Int, failures: Int) {
             try expect(PhotoComparison.trends.contains(c.trend) && c.trend != "worse", "Denser hair shouldn't read as worse")
             print("PASS: live Claude compares two progress photos")
         } catch { failures += 1; print("FAIL: live Claude compares two progress photos: \(error)") }
+        // Asked to "check the photos in the app" with none attached, Ask Ascend should say which to attach and how, not claim to see them.
+        count += 1
+        let workspace = FileManager.default.temporaryDirectory.appendingPathComponent("ascend-live-\(UUID().uuidString)")
+        let session = UUID()
+        do {
+            guard let executable = ClaudeAssistant.locateExecutable(override: "") else { throw PhotoFailure(message: "Claude Code not found") }
+            try FileManager.default.createDirectory(at: workspace, withIntermediateDirectories: true)
+            var doc = original
+            doc.photos.photos = [photo("2026-10-02", .hair, .top), photo("2026-10-16", .hair, .top), photo("2026-10-16", .hairline, .front), photo("2026-10-16", .hair, .back)]
+            let output = try await ProcessClaudeLauncher(timeout: 240).run(ClaudeInvocation(executable: executable,
+                arguments: ClaudeAssistant.arguments(model: .sonnet, session: session, resume: false),
+                environment: ClaudeAssistant.environment(base: ProcessInfo.processInfo.environment, configDirectory: ClaudeAssistant.defaultConfigDirectory),
+                directory: workspace, input: try ClaudeAssistant.inputLine(ClaudeAssistant.prompt("its in the photos database in the app, pls check my norwood", document: doc, today: "2026-10-20", shareHistory: false))))
+            let reply = try ClaudeAssistant.decode(output).message
+            print("  live album reply: \(reply.replacingOccurrences(of: "\n", with: " ").prefix(500))")
+            try expect(reply.localizedCaseInsensitiveContains("progress photos") && reply.contains("2"), "Should point to Photo ▾ → From progress photos and name dates")
+            print("PASS: live Claude asks for specific album photos when none are attached")
+        } catch { failures += 1; print("FAIL: live Claude asks for specific album photos when none are attached: \(error)") }
+        try? FileManager.default.removeItem(at: ClaudeAssistant.transcriptURL(session: session, workspace: workspace, configDirectory: ClaudeAssistant.defaultConfigDirectory).deletingLastPathComponent())
+        try? FileManager.default.removeItem(at: workspace)
+    }
+    check("attached album photos are captioned in attachment order so Claude knows which image is which") {
+        var doc = original
+        doc.cycle.start = "2026-10-01"
+        let crown = photo("2026-10-03", .hair, .top, note: "hair damp")
+        try expect(doc.caption(crown) == "Hair · top · 2026-10-03 (cycle day 3) · note: hair damp")
+        try expect(ClaudeAssistant.captioned("how is it?", captions: [nil, nil]) == "how is it?")
+        let text = ClaudeAssistant.captioned("check my crown", captions: [nil, doc.caption(crown), "Face · front · 2026-10-04"])
+        try expect(text == "check my crown\n\n[Attached from my Photos album]\n2. Hair · top · 2026-10-03 (cycle day 3) · note: hair damp\n3. Face · front · 2026-10-04")
+        try expect(ClaudeAssistant.captioned("", captions: ["Body · back · 2026-10-02"]) == "[Attached from my Photos album]\n1. Body · back · 2026-10-02")
+        try expect(ClaudeAssistant.systemPrompt.contains("From progress photos"))
     }
     return (count, failures)
 }
