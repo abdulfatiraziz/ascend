@@ -18,6 +18,18 @@ Everything stays on your devices: no account, server, telemetry or cloud sync.
 The only network calls are the phone-to-Mac link on your local network and the
 Claude Code CLI when you use the AI features.
 
+## Screenshots
+
+![Today: avatar, day's progress and today's habits](docs/screenshots/today.png)
+
+| Ask Ascend chat | Goals |
+|---|---|
+| ![Full-screen Claude chat with saved chats and a reviewed plan change](docs/screenshots/chat.png) | ![Goals with recurring habits and milestones](docs/screenshots/goals.png) |
+
+![Routine: 24-hour clock with the next steps](docs/screenshots/routine.png)
+
+Shown with the neutral starter plan and sample chats.
+
 ## Run
 
 Requires macOS 14 or later and Apple Command Line Tools / Swift 6. The AI features
