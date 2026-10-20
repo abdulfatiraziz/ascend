@@ -1,0 +1,13 @@
+.build/
+build/
+.DS_Store
+*.blend1
+node_modules/
+assets/avatar/source/*.zip
+assets/avatar/source/human-base-meshes-bundle-v1.4.1/
+.claude/
+
+# Third-party APKs and local signing material never belong in the repo
+*.apk
+*.p12
+*.keystore

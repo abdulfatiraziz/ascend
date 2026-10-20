@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.abdul.ascend.bridge" android:versionCode="14" android:versionName="0.6.2">
+<uses-sdk android:minSdkVersion="34" android:targetSdkVersion="36"/>
+<uses-permission android:name="android.permission.health.READ_HEART_RATE"/>
+<uses-permission android:name="android.permission.health.READ_STEPS"/>
+<uses-permission android:name="android.permission.health.READ_SLEEP"/>
+<uses-permission android:name="android.permission.health.READ_OXYGEN_SATURATION"/>
+<uses-permission android:name="android.permission.health.READ_DISTANCE"/>
+<uses-permission android:name="android.permission.health.READ_ACTIVE_CALORIES_BURNED"/>
+<uses-permission android:name="android.permission.health.READ_SPEED"/>
+<uses-permission android:name="android.permission.health.READ_ELEVATION_GAINED"/>
+<uses-permission android:name="android.permission.health.READ_EXERCISE"/>
+<!-- Optional hourly sync on Wi-Fi while the app is closed. -->
+<uses-permission android:name="android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND"/>
+<!-- Sockets to Ascend on the Mac; the client refuses non-local addresses. -->
+<uses-permission android:name="android.permission.INTERNET"/>
+<!-- Required by JobScheduler for the Wi-Fi-only background sync job. -->
+<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+<uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK"/>
+<!-- Medicine reminders at the prescribed times, re-armed after a reboot. -->
+<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+<uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
+<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+<queries>
+<intent><action android:name="android.media.action.IMAGE_CAPTURE"/></intent>
+</queries>
+<application android:label="Ascend Bridge" android:icon="@mipmap/ic_launcher" android:theme="@android:style/Theme.Material.NoActionBar" android:allowBackup="false" android:usesCleartextTraffic="false">
+<activity android:name=".BridgeActivity" android:exported="true" android:launchMode="singleTop">
+<intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+</activity>
+<activity-alias android:name="ViewPermissionUsageActivity" android:exported="true" android:targetActivity=".BridgeActivity" android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
+<intent-filter><action android:name="android.intent.action.VIEW_PERMISSION_USAGE"/><category android:name="android.intent.category.HEALTH_PERMISSIONS"/></intent-filter>
+</activity-alias>
+<receiver android:name=".ReminderReceiver" android:exported="false">
+<intent-filter><action android:name="android.intent.action.BOOT_COMPLETED"/><action android:name="android.intent.action.MY_PACKAGE_REPLACED"/><action android:name="android.intent.action.TIME_SET"/><action android:name="android.intent.action.TIMEZONE_CHANGED"/></intent-filter>
+</receiver>
+<service android:name=".SyncJob" android:permission="android.permission.BIND_JOB_SERVICE" android:exported="false"/>
+<provider android:name=".PhotoProvider" android:authorities="com.abdul.ascend.bridge.photos" android:exported="false" android:grantUriPermissions="true"/>
+</application></manifest>

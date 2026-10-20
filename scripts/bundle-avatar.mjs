@@ -1,0 +1,11 @@
+import { build } from 'esbuild';
+import { mkdir, readFile, writeFile, copyFile } from 'node:fs/promises';
+const target='Sources/Ascend/Resources/Avatar';
+await mkdir(target,{recursive:true});
+await build({entryPoints:['web/avatar.js'],bundle:true,minify:true,format:'iife',target:['safari17'],outfile:`${target}/viewer.js`,legalComments:'eof'});
+const model=await readFile('assets/avatar/ascend-obsidian.glb');
+await writeFile(`${target}/model.js`,`window.ASCEND_MODEL="${model.toString('base64')}";\n`);
+await copyFile('web/index.html',`${target}/index.html`);
+await copyFile('node_modules/three/LICENSE',`${target}/THREE-LICENSE.txt`);
+await writeFile(`${target}/MODEL-SOURCE.txt`,'Blender Studio Human Base Meshes v1.4.1, CC0; customized faceless shell and inlays for Ascend.\nhttps://www.blender.org/download/demo-files/#assets\nSee assets/avatar/README.md in the source project.\n');
+console.log(`Offline avatar runtime bundled (${(model.length/1e6).toFixed(2)} MB model).`);

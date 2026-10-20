@@ -1,0 +1,3 @@
+Blender Studio Human Base Meshes v1.4.1, CC0; customized faceless shell and inlays for Ascend.
+https://www.blender.org/download/demo-files/#assets
+See assets/avatar/README.md in the source project.

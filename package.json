@@ -1,0 +1,10 @@
+{
+  "name": "ascend-avatar-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build:avatar": "node scripts/bundle-avatar.mjs"
+  },
+  "dependencies": { "three": "0.170.0" },
+  "devDependencies": { "esbuild": "0.25.5" }
+}
