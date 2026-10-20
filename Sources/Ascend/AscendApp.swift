@@ -3,6 +3,9 @@ import AppKit
 
 @main struct AscendApp: App {
     @StateObject private var store = TrackerStore()
+    /// Ascend is dark-only. preferredColorScheme doesn't reach the menu bar window's AppKit controls
+    /// (segmented pickers, scrollers, plain buttons), so set the app's appearance itself.
+    init() { NSApplication.shared.appearance = NSAppearance(named: .darkAqua) }
     var body: some Scene {
         Window("Ascend", id: "main") {
             MainView(store: store).preferredColorScheme(.dark)

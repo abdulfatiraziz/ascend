@@ -157,7 +157,7 @@ struct MenuBarPanel: View {
                     }.font(.system(size: 11)).foregroundStyle(Ink.muted)
                 }.buttonStyle(.plain)
             }
-            Button { loggedUrgeID = store.recordUrge() } label: { Label("Log an urge", systemImage: "circle.dotted").font(.system(size: 12)).frame(maxWidth: .infinity).padding(.vertical, 9).background(Ink.panel, in: RoundedRectangle(cornerRadius: 7)) }.buttonStyle(.plain).accessibilityLabel("Log an urge")
+            Button { loggedUrgeID = store.recordUrge() } label: { Label("Log an urge", systemImage: "circle.dotted").font(.system(size: 12)).foregroundStyle(.white.opacity(0.9)).frame(maxWidth: .infinity).padding(.vertical, 9).background(Ink.panel, in: RoundedRectangle(cornerRadius: 7)) }.buttonStyle(.plain).accessibilityLabel("Log an urge")
             if let id = loggedUrgeID, store.document.urgeLogs.contains(where: { $0.id == id }) {
                 HStack {
                     Text("Time saved").foregroundStyle(Ink.muted)
@@ -179,7 +179,7 @@ struct MenuBarPanel: View {
                     }
                     if tasks.isEmpty { Text(score.scheduled > 0 ? "All done. You showed up." : "No check-ins scheduled.").font(.system(size: 12)).foregroundStyle(Ink.muted).padding(.vertical, 24) }
                 }
-            }.frame(height: min(165, max(65, CGFloat(tasks.count) * 61)))
+            }.frame(height: min(250, max(65, CGFloat(tasks.count) * 61)))
             if let error = store.saveError { Text(error).font(.system(size: 11)).foregroundStyle(.orange).lineLimit(3) }
             PrimaryButton(label: "Open your space  ↗", fullWidth: true) { open("Today") }
             HStack {
