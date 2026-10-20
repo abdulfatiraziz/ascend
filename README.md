@@ -7,7 +7,7 @@ An avatar evolves (Obsidian → Titanium → Ascendant) as you earn the cycle.
 
 - **Mac app** (SwiftUI): Today checklist, goals, routine clock, calendar, patterns,
   urges, meals, medicines, notes, progress photos, health charts and a menu bar panel.
-- **Ask Ascend**: a chat drawer that runs on your own [Claude Code](https://claude.com/claude-code)
+- **Ask Ascend**: a full-screen chat that runs on your own [Claude Code](https://claude.com/claude-code)
   install. It talks through your plan and proposes edits you review before anything is saved.
 - **Ascend Bridge** (Android): today's habits and avatar, meal and medicine photos,
   dose reminders and urge logging. It also brings Health Connect data (for example
@@ -56,7 +56,7 @@ Full usage instructions: [User guide](docs/USER-GUIDE.md).
   side or as a blended overlay, an optional Claude comparison you can save as a note, and
   album photos you can attach to Ask Ascend (which otherwise sees only their areas and dates).
   [User guide](docs/USER-GUIDE.md#progress-photos).
-- Ask Ascend: a Claude chat drawer (Cmd-J) that runs on your own Claude Code account
+- Ask Ascend: a full-screen Claude chat (the Chat tab, Cmd-J) that runs on your own Claude Code account
   (`claude --personal`). Discuss goals and progress, or ask it to create/edit goals,
   habits, habit notes, cycle dates, routine windows and dated check-ins. Chats are saved
   with history, each with its own model (Opus, Sonnet, Haiku, Fable) and effort level

@@ -3,8 +3,8 @@ import AppKit
 import AscendCore
 
 enum Screen: String, CaseIterable {
-    case today = "Today", goals = "Goals", routine = "Routine", meals = "Meals", meds = "Meds", notes = "Notes", photos = "Photos", health = "Health", patterns = "Patterns", urges = "Urges", calendar = "Calendar", cycle = "Cycle"
-    var symbol: String { switch self { case .today: "circle.hexagongrid"; case .goals: "scope"; case .routine: "clock"; case .meals: "fork.knife"; case .meds: "pills"; case .notes: "note.text"; case .photos: "person.crop.rectangle.stack"; case .health: "heart.text.square"; case .patterns: "point.3.connected.trianglepath.dotted"; case .urges: "circle.dotted"; case .calendar: "calendar"; case .cycle: "chart.bar.xaxis" } }
+    case today = "Today", chat = "Chat", goals = "Goals", routine = "Routine", meals = "Meals", meds = "Meds", notes = "Notes", photos = "Photos", health = "Health", patterns = "Patterns", urges = "Urges", calendar = "Calendar", cycle = "Cycle"
+    var symbol: String { switch self { case .today: "circle.hexagongrid"; case .chat: "sparkles"; case .goals: "scope"; case .routine: "clock"; case .meals: "fork.knife"; case .meds: "pills"; case .notes: "note.text"; case .photos: "person.crop.rectangle.stack"; case .health: "heart.text.square"; case .patterns: "point.3.connected.trianglepath.dotted"; case .urges: "circle.dotted"; case .calendar: "calendar"; case .cycle: "chart.bar.xaxis" } }
 }
 enum Editor: Identifiable {
     case goal(Goal?), habit(Habit?, UUID?), metric(Habit, String), urge(UUID), observation(String), caffeine(CaffeineEntry?, String), routine, aiSettings, settings, quick
@@ -30,12 +30,13 @@ struct MainView: View {
         : Screen(rawValue: ProcessInfo.processInfo.environment["ASCEND_OPEN_SCREEN"] ?? "") ?? .today
     @State private var selectedDay: String
     @State private var editor: Editor?
-    @State private var showAssistant = false
     @Environment(\.openWindow) private var openWindow
     init(store: TrackerStore) { self.store = store; _selectedDay = State(initialValue: store.today) }
     var body: some View {
         HStack(spacing: 0) {
             sidebar
+            // The chat fills the whole content area, like a chat app; other screens keep the header and goals footer.
+            if screen == .chat { ChatView(store: store, settings: { editor = .aiSettings }) } else {
             VStack(alignment: .leading, spacing: 22) {
                 header
                 if let error = store.saveError {
@@ -48,6 +49,7 @@ struct MainView: View {
                 Group {
                     switch screen {
                     case .today: TodayView(store: store, day: $selectedDay, editor: $editor)
+                    case .chat: EmptyView()
                     case .goals: GoalsView(store: store, editor: $editor)
                     case .routine: RoutineView(store: store, editor: $editor)
                     case .meals: MealsView(store: store)
@@ -63,12 +65,10 @@ struct MainView: View {
                 }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 footer
             }.padding(.horizontal, 28).padding(.top, 24).padding(.bottom, 20)
+            }
         }
         .frame(minWidth: 980, minHeight: 720).background(Ink.background).foregroundStyle(.white)
         .tint(Ink.accent)
-        .overlay(alignment: .trailing) {
-            if showAssistant { AssistantPanel(store: store, controller: store.assistant, close: { showAssistant = false }, settings: { editor = .aiSettings }).shadow(color: .black.opacity(0.35), radius: 18, x: -7) }
-        }
         .sheet(item: $editor) { item in
             Group {
                 switch item {
@@ -102,7 +102,7 @@ struct MainView: View {
             if value == "Meds" { screen = .meds }
             if value == "Notes" { screen = .notes }
             if value == "Photos" { screen = .photos }
-            if value == "Assistant" { showAssistant = true }
+            if value == "Assistant" { screen = .chat }
             if value == "AISettings" { editor = .aiSettings }
             if value == "RoutineSettings" { editor = .routine }
             if value == "Calendar" { screen = .calendar; selectedDay = store.today }
@@ -118,14 +118,14 @@ struct MainView: View {
         }
     }
     private var sidebar: some View {
-        VStack(spacing: 18) {
+        VStack(spacing: 12) {
             Text("A↗").font(.system(size: 26, weight: .bold)).tracking(-3).foregroundStyle(.white)
-            // Twelve screens don't fit a short window; the list scrolls instead of clipping.
-            ScrollView(.vertical, showsIndicators: false) { VStack(spacing: 6) {
+            // Thirteen screens don't fit a short window; the list scrolls instead of clipping.
+            ScrollView(.vertical, showsIndicators: false) { VStack(spacing: 2) {
                 ForEach(Screen.allCases, id: \.self) { item in
                     Button { screen = item; if item == .today { selectedDay = store.today } } label: {
-                        VStack(spacing: 6) { Image(systemName: item.symbol).font(.system(size: 18)); Text(item.rawValue).font(.system(size: 10)) }
-                            .frame(width: 58, height: 52).background(screen == item ? Ink.accent.opacity(0.12) : .clear, in: RoundedRectangle(cornerRadius: 9))
+                        VStack(spacing: 3) { Image(systemName: item.symbol).font(.system(size: 16)); Text(item.rawValue).font(.system(size: 10)) }
+                            .frame(width: 58, height: 43).background(screen == item ? Ink.accent.opacity(0.12) : .clear, in: RoundedRectangle(cornerRadius: 9))
                     }.buttonStyle(.plain).foregroundStyle(screen == item ? Ink.accent : Ink.muted).accessibilityLabel(item.rawValue)
                 }
             } }.scrollBounceBehavior(.basedOnSize)
@@ -145,7 +145,7 @@ struct MainView: View {
             Button { editor = .quick } label: { Label("Quick check-in", systemImage: "menubar.rectangle").font(.system(size: 11)).padding(8) }
                 .buttonStyle(.plain).background(Ink.panel, in: RoundedRectangle(cornerRadius: 7)).keyboardShortcut("k", modifiers: [.command, .shift])
             Button { store.recordUrge() } label: { Label("Urge", systemImage: "circle.dotted").font(.system(size: 11)).padding(8) }.buttonStyle(.plain).background(Ink.panel, in: RoundedRectangle(cornerRadius: 7)).accessibilityLabel("Log an urge").keyboardShortcut("u", modifiers: [.command, .shift]).help("Log an urge · ⌘⇧U · time saved immediately")
-            Button { showAssistant.toggle() } label: { Label("Ask Ascend", systemImage: "sparkles").font(.system(size: 11)).padding(8) }.buttonStyle(.plain).background(showAssistant ? Ink.accent.opacity(0.18) : Ink.panel, in: RoundedRectangle(cornerRadius: 7)).keyboardShortcut("j", modifiers: [.command])
+            Button { screen = .chat } label: { Label("Ask Ascend", systemImage: "sparkles").font(.system(size: 11)).padding(8) }.buttonStyle(.plain).background(Ink.panel, in: RoundedRectangle(cornerRadius: 7)).help("Open the Ascend chat · ⌘J").keyboardShortcut("j", modifiers: [.command])
             VStack(alignment: .trailing, spacing: 6) {
                 Kicker(store.document.cycle.title).lineLimit(1).help(store.document.cycle.title)
                 Text("Day \(store.engine.dayNumber(store.today)) / \(store.engine.days(from: store.document.cycle.start, through: store.document.cycle.end).count)").font(.system(size: 18, weight: .medium))

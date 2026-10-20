@@ -166,7 +166,8 @@ doesn't take progress photos.
 Ask Ascend uses Claude Code with your personal account, the same as `claude --personal`.
 
 1. Sign in once: run `claude --personal` in Terminal if you haven't already.
-2. Press **⌘J** (or **Ask Ascend**). Claude settings (gear icon) shows the detected
+2. Open **Chat** in the sidebar (or press **⌘J** / **Ask Ascend**). **Claude settings**, at the
+   bottom of the chat list, shows the detected
    Claude Code path, the profile folder (`~/.claude-personal`), the model for new chats
    and whether to share recent check-ins. **Send test message** confirms it works.
 3. Chat normally: ask how your cycle is going, talk through a setback, or plan a week.
@@ -175,22 +176,25 @@ Ask Ascend uses Claude Code with your personal account, the same as `claude --pe
 
 Chats:
 
-- The clock icon lists saved chats; the pencil icon starts a new one. Right-click a chat
-  to rename or delete it.
-- The model menu (Opus 5.5, Sonnet 5.5, Haiku 5.5, Fable 5.1) applies to the open chat and
+- Chat is a full screen: saved chats on the left (grouped by Today, Previous 7 days, Previous
+  30 days and Older, with search), the conversation in the middle and the message box at the
+  bottom. **New chat** (⌘N) starts one; the sidebar icon hides the list. Right-click a chat
+  to rename or delete it. Each reply has Copy and Save-as-note buttons.
+- The model menu at the top (Opus 5.5, Sonnet 5.5, Haiku 5.5, Fable 5.1) applies to the open chat and
   can be changed mid-conversation. Fable 5.1 may need usage credits on your plan.
 - The effort menu (Low, Medium, High, Extra high, Max) sits beside it and also applies
   per chat. Every model defaults to Medium; higher effort thinks longer and uses more of
   your plan. Claude settings sets the effort for new chats.
-- **Photo** attaches up to four photos per message: choose files, paste from the clipboard
-  (for example a ⌃⇧⌘4 screenshot), or drag them onto the drawer. A message can be photos
+- **+** in the message box attaches up to four photos per message: choose files, paste from
+  the clipboard (for example a ⌃⇧⌘4 screenshot), pick from your progress photos, or drag
+  them onto the chat. The lock icon shows exactly what is sent to Claude. A message can be photos
   only. Photos stay in the chat as thumbnails (click to open), Claude can refer back to them
   later in the same chat, and deleting the chat deletes them. Large photos are resized and
   location data is removed before anything is saved or sent.
 - **Copy Terminal command** in a chat's ⋯ menu copies
   `cd … && claude --personal --resume <id>` to continue that conversation in Terminal.
 - **Stop** cancels a reply. Errors from Claude (sign-in, limits, unavailable model) are
-  shown in the drawer with a retry button.
+  shown in the chat with a retry button.
 
 Example requests:
 
@@ -207,7 +211,7 @@ Ascend validates the entire proposal before saving. A bad operation rejects the
 whole proposal. Changing the plan or date while a proposal is open makes it stale;
 send the request again to generate a fresh preview. Destructive changes receive an
 additional confirmation. Every applied proposal creates a dated backup and Undo.
-The drawer also exposes Undo after an AI edit.
+The chat also offers Undo after an AI edit.
 
 Each message sends your text plus your goals, habits, schedules, targets, routine windows
 and current cycle to Anthropic through Claude Code. With **Share recent check-ins, progress
@@ -241,9 +245,10 @@ preserved, and a valid backup is recovered when available.
 ## Shortcuts
 
 - **⌘⇧K:** Quick check-in
-- **⌘J:** Open/close Ask Ascend
+- **⌘J:** Open the Chat screen
+- **⌘N:** New chat (on the Chat screen)
 - **⌘⇧U:** Log an urge while Ascend is active
-- **⌘Return:** Send from the AI drawer
+- **⌘Return:** Send a chat message
 - **⌘⇧E:** Export backup
 
 The app is locally ad-hoc signed. Keep using `build/Ascend.app`; no account,
