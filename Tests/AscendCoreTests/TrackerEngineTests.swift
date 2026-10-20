@@ -304,7 +304,8 @@ struct TrackerEngineChecks {
         let link = await runLinkChecks(); failures += link.failures
         let meds = await runMedChecks(); failures += meds.failures
         let notes = await runNoteChecks(); failures += notes.failures
-        print("\(cases.count + features.count + patterns.count + link.count + meds.count + notes.count) checks, \(failures) failures")
+        let photos = await runPhotoChecks(); failures += photos.failures
+        print("\(cases.count + features.count + patterns.count + link.count + meds.count + notes.count + photos.count) checks, \(failures) failures")
         if failures > 0 { exit(1) }
     }
 }

@@ -135,6 +135,26 @@ Decisions) and later chats include that note, so Ascend can follow up on it. Onl
 notes are sent: pinned first, then the 12 most recent. Notes live in your tracker data
 and backups.
 
+## Progress photos
+
+Photos keeps dated pictures of your **Hair**, **Hairline**, **Face** and **Body**. Click
+**Add photos…** or drag photos onto the window. Ascend reads when each photo was taken from
+the camera's data (or the file date), and you set the area, the angle (front, left, right,
+back, top) and an optional note before adding. Click a photo later to fix its date, area,
+angle or note, or to delete it (Undo is available until your next edit).
+
+Pick an area and an angle, then a **Before** and an **After** photo (the oldest and newest
+by default). View them side by side, or as an overlay with a slider that blends one into
+the other. **Ask Claude to compare** sends just those two photos to Claude, which describes
+what changed (better, same, worse or unclear), where, and whether light, angle or distance
+differ enough to mislead. **Save as note** keeps the result as an Insight note that later
+chats can see.
+
+Comparisons are only fair from the same angle in the same light; each area shows a tip.
+Copies are stored up to 2048 px in `Progress/` beside tracker.json, with location and camera
+data removed. Progress photos are never part of Ask Ascend chats, and the phone app doesn't
+take them.
+
 ## Ask Ascend (Claude)
 
 Ask Ascend uses Claude Code with your personal account, the same as `claude --personal`.

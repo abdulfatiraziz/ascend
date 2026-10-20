@@ -3,8 +3,8 @@ import AppKit
 import AscendCore
 
 enum Screen: String, CaseIterable {
-    case today = "Today", goals = "Goals", routine = "Routine", meals = "Meals", meds = "Meds", notes = "Notes", health = "Health", patterns = "Patterns", urges = "Urges", calendar = "Calendar", cycle = "Cycle"
-    var symbol: String { switch self { case .today: "circle.hexagongrid"; case .goals: "scope"; case .routine: "clock"; case .meals: "fork.knife"; case .meds: "pills"; case .notes: "note.text"; case .health: "heart.text.square"; case .patterns: "point.3.connected.trianglepath.dotted"; case .urges: "circle.dotted"; case .calendar: "calendar"; case .cycle: "chart.bar.xaxis" } }
+    case today = "Today", goals = "Goals", routine = "Routine", meals = "Meals", meds = "Meds", notes = "Notes", photos = "Photos", health = "Health", patterns = "Patterns", urges = "Urges", calendar = "Calendar", cycle = "Cycle"
+    var symbol: String { switch self { case .today: "circle.hexagongrid"; case .goals: "scope"; case .routine: "clock"; case .meals: "fork.knife"; case .meds: "pills"; case .notes: "note.text"; case .photos: "person.crop.rectangle.stack"; case .health: "heart.text.square"; case .patterns: "point.3.connected.trianglepath.dotted"; case .urges: "circle.dotted"; case .calendar: "calendar"; case .cycle: "chart.bar.xaxis" } }
 }
 enum Editor: Identifiable {
     case goal(Goal?), habit(Habit?, UUID?), metric(Habit, String), urge(UUID), observation(String), caffeine(CaffeineEntry?, String), routine, aiSettings, settings, quick
@@ -53,6 +53,7 @@ struct MainView: View {
                     case .meals: MealsView(store: store)
                     case .meds: MedsView(store: store)
                     case .notes: NotesView(store: store)
+                    case .photos: PhotosView(store: store)
                     case .health: HealthView(store: store)
                     case .patterns: PatternsView(store: store, editor: $editor)
                     case .urges: UrgesView(store: store, editor: $editor)
@@ -100,6 +101,7 @@ struct MainView: View {
             if value == "Urges" { screen = .urges }
             if value == "Meds" { screen = .meds }
             if value == "Notes" { screen = .notes }
+            if value == "Photos" { screen = .photos }
             if value == "Assistant" { showAssistant = true }
             if value == "AISettings" { editor = .aiSettings }
             if value == "RoutineSettings" { editor = .routine }
@@ -118,15 +120,16 @@ struct MainView: View {
     private var sidebar: some View {
         VStack(spacing: 18) {
             Text("A↗").font(.system(size: 26, weight: .bold)).tracking(-3).foregroundStyle(.white)
-            VStack(spacing: 6) {
+            // Twelve screens don't fit a short window; the list scrolls instead of clipping.
+            ScrollView(.vertical, showsIndicators: false) { VStack(spacing: 6) {
                 ForEach(Screen.allCases, id: \.self) { item in
                     Button { screen = item; if item == .today { selectedDay = store.today } } label: {
                         VStack(spacing: 6) { Image(systemName: item.symbol).font(.system(size: 18)); Text(item.rawValue).font(.system(size: 10)) }
                             .frame(width: 58, height: 52).background(screen == item ? Ink.accent.opacity(0.12) : .clear, in: RoundedRectangle(cornerRadius: 9))
                     }.buttonStyle(.plain).foregroundStyle(screen == item ? Ink.accent : Ink.muted).accessibilityLabel(item.rawValue)
                 }
-            }
-            Spacer()
+            } }.scrollBounceBehavior(.basedOnSize)
+            Spacer(minLength: 0)
             Button { editor = .settings } label: { Image(systemName: "slider.horizontal.3").font(.system(size: 18)).frame(width: 44, height: 44) }.buttonStyle(.plain).foregroundStyle(Ink.muted).help("Settings, avatar finish and backups")
             VStack(spacing: 8) { Circle().fill(Ink.muted).frame(width: 4, height: 4); Kicker("Local") }
         }.padding(.top, 26).padding(.bottom, 18).frame(width: 78).frame(maxHeight: .infinity).overlay(alignment: .trailing) { Rectangle().fill(Ink.line).frame(width: 1) }
@@ -135,7 +138,7 @@ struct MainView: View {
         HStack(alignment: .center) {
             VStack(alignment: .leading, spacing: 7) {
                 Kicker("Your next version starts here")
-                Text(screen == .today ? "Build yourself." : screen == .goals ? "The blueprint." : screen == .calendar ? "Every day counts." : screen == .routine ? "Find your rhythm." : screen == .patterns ? "Connect the dots." : screen == .meals ? "Eat with intent." : screen == .meds ? "Take it as prescribed." : screen == .notes ? "Remember what matters." : screen == .health ? "Know your rhythm." : screen == .urges ? "Notice the pattern." : "The long game.")
+                Text(screen == .today ? "Build yourself." : screen == .goals ? "The blueprint." : screen == .calendar ? "Every day counts." : screen == .routine ? "Find your rhythm." : screen == .patterns ? "Connect the dots." : screen == .meals ? "Eat with intent." : screen == .meds ? "Take it as prescribed." : screen == .notes ? "Remember what matters." : screen == .photos ? "See the change." : screen == .health ? "Know your rhythm." : screen == .urges ? "Notice the pattern." : "The long game.")
                     .font(.system(size: 36, weight: .semibold)).tracking(-1.5).lineLimit(1).minimumScaleFactor(0.8)
             }
             Spacer()

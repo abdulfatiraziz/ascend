@@ -6,7 +6,7 @@ phone, and let your watch, meal photos and medicine schedule fill in the numbers
 An avatar evolves (Obsidian → Titanium → Ascendant) as you earn the cycle.
 
 - **Mac app** (SwiftUI): Today checklist, goals, routine clock, calendar, patterns,
-  urges, meals, medicines, notes, health charts and a menu bar panel.
+  urges, meals, medicines, notes, progress photos, health charts and a menu bar panel.
 - **Ask Ascend**: a chat drawer that runs on your own [Claude Code](https://claude.com/claude-code)
   install. It talks through your plan and proposes edits you review before anything is saved.
 - **Ascend Bridge** (Android): today's habits and avatar, meal and medicine photos,
@@ -52,6 +52,9 @@ Full usage instructions: [User guide](docs/USER-GUIDE.md).
   in the background on Wi-Fi, encrypted, with no developer options. See [phone setup](docs/HEALTH-SYNC.md).
 - Meals: photos from Ascend Bridge or dropped on the Mac get a Claude estimate of
   calories and macros; confirmed meals fill the Calorie and Protein target check-ins.
+- Progress photos: dated hair, hairline, face and body photos by angle, before/after side by
+  side or as a blended overlay, and an optional Claude comparison you can save as a note.
+  [User guide](docs/USER-GUIDE.md#progress-photos).
 - Ask Ascend: a Claude chat drawer (Cmd-J) that runs on your own Claude Code account
   (`claude --personal`). Discuss goals and progress, or ask it to create/edit goals,
   habits, habit notes, cycle dates, routine windows and dated check-ins. Chats are saved

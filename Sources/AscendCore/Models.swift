@@ -141,8 +141,9 @@ public struct TrackerDocument: Codable, Equatable, Sendable {
     public var meals = MealLog()
     public var meds = MedCabinet()
     public var notes = NoteBook()
+    public var photos = PhotoAlbum()
     private enum CodingKeys: String, CodingKey {
-        case schemaVersion, timeZoneID, cycle, goals, habits, checkIns, avatarFinish, restDays, previousCycles, reminders, routine, urgeLogs, health, wellbeing, meals, meds, notes
+        case schemaVersion, timeZoneID, cycle, goals, habits, checkIns, avatarFinish, restDays, previousCycles, reminders, routine, urgeLogs, health, wellbeing, meals, meds, notes, photos
         case legacyUrges = "smokeUrges"
     }
     public init(from decoder: Decoder) throws {
@@ -165,6 +166,7 @@ public struct TrackerDocument: Codable, Equatable, Sendable {
         meals = try c.decodeIfPresent(MealLog.self, forKey: .meals) ?? MealLog()
         meds = try c.decodeIfPresent(MedCabinet.self, forKey: .meds) ?? MedCabinet()
         notes = try c.decodeIfPresent(NoteBook.self, forKey: .notes) ?? NoteBook()
+        photos = try c.decodeIfPresent(PhotoAlbum.self, forKey: .photos) ?? PhotoAlbum()
         for i in habits.indices {
             for j in habits[i].revisions.indices where habits[i].revisions[j].title == "No smoking" {
                 habits[i].revisions[j].title = "Stay intentional"
@@ -190,6 +192,7 @@ public struct TrackerDocument: Codable, Equatable, Sendable {
         try c.encode(meals, forKey: .meals)
         try c.encode(meds, forKey: .meds)
         try c.encode(notes, forKey: .notes)
+        try c.encode(photos, forKey: .photos)
     }
     public init(timeZoneID: String = "Asia/Kolkata", cycle: Cycle, goals: [Goal],
                 habits: [Habit], checkIns: [CheckIn] = [], avatarFinish: String = "Progress") {
@@ -210,6 +213,7 @@ public struct TrackerDocument: Codable, Equatable, Sendable {
         try meals.validate()
         try meds.validate(engine: TrackerEngine(document: self))
         try notes.validate(engine: TrackerEngine(document: self))
+        try photos.validate(engine: TrackerEngine(document: self))
         try require(Set(urgeLogs.map(\.id)).count == urgeLogs.count, "Duplicate urge logs.")
         for urge in urgeLogs {
             try require(urge.timestamp.timeIntervalSince1970.isFinite && (-2208988800...7289654399).contains(urge.timestamp.timeIntervalSince1970) && TrackerEngine(document: self).date(TrackerEngine(document: self).key(urge.timestamp)) != nil, "Invalid urge timestamp.")

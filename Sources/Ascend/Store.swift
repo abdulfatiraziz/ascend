@@ -15,6 +15,7 @@ import UniformTypeIdentifiers
     let assistant: ChatController
     let meals: MealController
     let medsReader: MedController
+    let photoReviews: PhotoReviewController
     let phoneLink: PhoneLinkService
     @Published private(set) var lastUrgeID: UUID?
     @Published var pendingUrge: UUID?
@@ -31,6 +32,7 @@ import UniformTypeIdentifiers
         assistant = ChatController(folder: folder.appendingPathComponent("Claude", isDirectory: true))
         meals = MealController()
         medsReader = MedController()
+        photoReviews = PhotoReviewController()
         // Isolated QA data folders don't advertise on the network unless asked to.
         phoneLink = PhoneLinkService(enabled: ProcessInfo.processInfo.environment["ASCEND_DATA_DIR"] == nil || ProcessInfo.processInfo.environment["ASCEND_PHONE_LINK"] == "1")
         let initial = TrackerDocument.seeded(today: "2026-01-01", timeZoneID: TimeZone.current.identifier)
@@ -63,8 +65,8 @@ import UniformTypeIdentifiers
         timer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.refreshDay() }
         }
-        meals.store = self; phoneLink.store = self; medsReader.store = self
-        removeOrphanMealPhotos(); removeOrphanMedPhotos()
+        meals.store = self; phoneLink.store = self; medsReader.store = self; photoReviews.store = self
+        removeOrphanMealPhotos(); removeOrphanMedPhotos(); removeOrphanProgressPhotos()
         meals.estimatePending(); medsReader.resumePending()
     }
     private static func read(_ url: URL) throws -> TrackerDocument {
@@ -311,6 +313,62 @@ import UniformTypeIdentifiers
         }
     }
     func deleteNote(_ id: UUID) { protectedChange(label: "note-deletion") { $0.notes.notes.removeAll { $0.id == id } } }
+
+    // MARK: Progress photos
+    var progressFolder: URL { storageURL.deletingLastPathComponent().appendingPathComponent("Progress", isDirectory: true) }
+    func progressPhotoURL(_ photo: ProgressPhoto) -> URL { progressFolder.appendingPathComponent(photo.photo) }
+    /// Copies a photo (resized, metadata removed) into the album. The date is read beforehand, so it survives the copy.
+    @discardableResult func addProgressPhoto(_ source: URL, takenAt: Date, area: PhotoArea, angle: PhotoAngle, note: String) throws -> ProgressPhoto {
+        refreshDay()
+        let when = min(takenAt, Date())
+        let name = try ChatPhotos.store(source, in: progressFolder, maxPixel: PhotoAlbum.maxPixelSize)
+        let photo = ProgressPhoto(takenAt: when.timeIntervalSince1970, day: engine.key(when), area: area, angle: angle, photo: name,
+                                  note: String(note.trimmingCharacters(in: .whitespacesAndNewlines).prefix(500)))
+        guard change({ $0.photos.photos.append(photo) }) else {
+            try? FileManager.default.removeItem(at: progressFolder.appendingPathComponent(name))
+            throw ValidationError(message: saveError ?? notice ?? "The photo couldn’t be saved.")
+        }
+        return photo
+    }
+    @discardableResult func updateProgressPhoto(_ id: UUID, takenAt: Date, area: PhotoArea, angle: PhotoAngle, note: String) -> Bool {
+        let when = min(takenAt, Date()), day = engine.key(when)
+        return change { doc in
+            guard let i = doc.photos.photos.firstIndex(where: { $0.id == id }) else { return }
+            // A review no longer describes the pair once a photo moves to another area or angle.
+            if doc.photos.photos[i].area != area || doc.photos.photos[i].angle != angle { doc.photos.reviews.removeAll { $0.before == id || $0.after == id } }
+            doc.photos.photos[i].takenAt = when.timeIntervalSince1970; doc.photos.photos[i].day = day
+            doc.photos.photos[i].area = area; doc.photos.photos[i].angle = angle
+            doc.photos.photos[i].note = String(note.trimmingCharacters(in: .whitespacesAndNewlines).prefix(500))
+        }
+    }
+    func deleteProgressPhoto(_ id: UUID) { protectedChange(label: "photo-deletion") { $0.photos.remove(id) } }
+    func saveReview(before: UUID, after: UUID, comparison: PhotoComparison) {
+        change { doc in
+            guard doc.photos.photos.contains(where: { $0.id == before }), doc.photos.photos.contains(where: { $0.id == after }) else { return }
+            doc.photos.reviews.removeAll { $0.before == before && $0.after == after }
+            doc.photos.reviews.append(PhotoReview(before: before, after: after, comparison: comparison.validated()))
+        }
+    }
+    /// Keeps a review as an Insight note that later chats can see.
+    @discardableResult func saveReviewAsNote(_ review: PhotoReview) -> Bool {
+        let album = document.photos
+        guard let before = album.photos.first(where: { $0.id == review.before }), let after = album.photos.first(where: { $0.id == review.after }) else { return false }
+        let e = engine, c = review.comparison
+        func label(_ p: ProgressPhoto) -> String { dateText(p.day, engine: e, pattern: "d MMM") }
+        var lines = ["- \(c.summary)"] + c.changes.map { "- \($0)" }
+        if !c.conditions.isEmpty { lines.append("- Photo conditions: \(c.conditions)") }
+        var note = JournalNote(kind: .insight, title: "\(after.area.label) · \(after.angle.label.lowercased()): \(label(before)) → \(label(after)) (\(c.trend))",
+                               body: lines.joined(separator: "\n"), day: today)
+        note.shareWithClaude = true
+        return saveNote(note)
+    }
+    /// Deleted photos keep their file until the next launch so Undo can restore them.
+    private func removeOrphanProgressPhotos() {
+        let used = Set(document.photos.photos.map(\.photo))
+        for name in (try? FileManager.default.contentsOfDirectory(atPath: progressFolder.path)) ?? [] where !used.contains(name) {
+            try? FileManager.default.removeItem(at: progressFolder.appendingPathComponent(name))
+        }
+    }
 
     // MARK: Medicines
     var medsFolder: URL { storageURL.deletingLastPathComponent().appendingPathComponent("Meds", isDirectory: true) }

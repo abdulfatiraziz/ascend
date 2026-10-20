@@ -17,13 +17,13 @@ public enum ChatPhotos {
         (UTType(filenameExtension: url.pathExtension)?.conforms(to: .image) ?? false)
     }
     /// Downscales and re-encodes a readable image (PNG when it has transparency, otherwise JPEG). Returns the stored file name.
-    public static func store(_ source: URL, in folder: URL) throws -> String {
+    public static func store(_ source: URL, in folder: URL, maxPixel: Int = maxPixelSize) throws -> String {
         let name = source.lastPathComponent
         if let size = try? source.resourceValues(forKeys: [.fileSizeKey]).fileSize, size > maxSourceBytes {
             throw ValidationError(message: "“\(name)” is larger than 40 MB. Choose a smaller photo.")
         }
         let options: [CFString: Any] = [kCGImageSourceCreateThumbnailFromImageAlways: true, kCGImageSourceCreateThumbnailWithTransform: true,
-                                        kCGImageSourceThumbnailMaxPixelSize: maxPixelSize, kCGImageSourceShouldCacheImmediately: true]
+                                        kCGImageSourceThumbnailMaxPixelSize: maxPixel, kCGImageSourceShouldCacheImmediately: true]
         guard let reader = CGImageSourceCreateWithURL(source as CFURL, nil), CGImageSourceGetCount(reader) > 0,
               let image = CGImageSourceCreateThumbnailAtIndex(reader, 0, options as CFDictionary) else {
             throw ValidationError(message: "“\(name)” isn’t a readable image.")
