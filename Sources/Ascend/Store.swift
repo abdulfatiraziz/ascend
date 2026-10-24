@@ -21,6 +21,9 @@ import UniformTypeIdentifiers
     @Published var pendingUrge: UUID?
     @Published private(set) var saveError: String?
     let storageURL: URL
+    /// Watch data lives in its own file so a habit tick doesn't rewrite megabytes of heart rate.
+    var healthURL: URL { storageURL.deletingLastPathComponent().appendingPathComponent("health.json") }
+    private var savedHealth: HealthArchive?
     var engine: TrackerEngine { TrackerEngine(document: document) }
     private var timer: Timer?
     private var recoveryLocked = false
@@ -42,12 +45,12 @@ import UniformTypeIdentifiers
         do {
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
             if FileManager.default.fileExists(atPath: storageURL.path) {
-                do { document = try Self.read(storageURL) }
+                do { document = try Self.read(storageURL); loadHealth() }
                 catch {
                     let originalError = error.localizedDescription
                     let backup = storageURL.appendingPathExtension("backup")
                     if let recovered = try? Self.read(backup) {
-                        document = recovered
+                        document = recovered; loadHealth()
                         notice = "Recovered your last valid backup. The unreadable file is preserved. \(originalError)"
                         let recovery = folder.appendingPathComponent("unreadable-\(Int(Date().timeIntervalSince1970)).json")
                         try FileManager.default.copyItem(at: storageURL, to: recovery)
@@ -60,6 +63,8 @@ import UniformTypeIdentifiers
                 }
             } else { save() }
         } catch { saveError = error.localizedDescription }
+        if !recoveryLocked { migrateHealth() }
+        pruneSafetyBackups()
         today = engine.key(Date())
         notifications.refresh(document)
         timer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
@@ -68,6 +73,43 @@ import UniformTypeIdentifiers
         meals.store = self; phoneLink.store = self; medsReader.store = self; photoReviews.store = self
         removeOrphanMealPhotos(); removeOrphanMedPhotos(); removeOrphanProgressPhotos()
         meals.estimatePending(); medsReader.resumePending()
+    }
+    /// Reads health.json (or its backup) into the document. Without one, the document keeps any watch data an older tracker.json held.
+    private func loadHealth() {
+        let fm = FileManager.default, backup = healthURL.appendingPathExtension("backup")
+        guard fm.fileExists(atPath: healthURL.path) || fm.fileExists(atPath: backup.path) else { return }
+        for url in [healthURL, backup] {
+            guard let data = try? Data(contentsOf: url), let archive = try? JSONDecoder().decode(HealthArchive.self, from: data), (try? archive.validate()) != nil else { continue }
+            document.health = archive
+            if url == healthURL { savedHealth = archive } else { notice = "Recovered your watch data from its backup. The unreadable file is preserved." }
+            break
+        }
+        if savedHealth == nil, fm.fileExists(atPath: healthURL.path) {
+            try? fm.copyItem(at: healthURL, to: healthURL.deletingLastPathComponent().appendingPathComponent("health-unreadable-\(Int(Date().timeIntervalSince1970)).json"))
+            if notice == nil { notice = "Your watch data file couldn’t be read. It’s preserved; sync from your phone to restore the last 14 days." }
+        }
+    }
+    /// Once: moves watch data out of tracker.json (keeping a copy of the original). Every launch: summarizes readings older than 16 days.
+    private func migrateHealth() {
+        let fm = FileManager.default
+        let split = !fm.fileExists(atPath: healthURL.path) && !document.health.records.isEmpty
+        let compacted = document.health.compacted()
+        guard split || compacted != document.health else { return }
+        let original = storageURL.deletingLastPathComponent().appendingPathComponent("tracker-before-health-split.json")
+        if split, !fm.fileExists(atPath: original.path) { try? fm.copyItem(at: storageURL, to: original) }
+        let previous = document
+        document.health = compacted
+        if !save() { document = previous }
+    }
+    /// Safety copies ("before-…json") are full snapshots; keep the newest 20, and only the newest 2 from watch syncs (older app versions wrote one per sync).
+    private func pruneSafetyBackups() {
+        let folder = storageURL.deletingLastPathComponent(), fm = FileManager.default
+        let files = ((try? fm.contentsOfDirectory(at: folder, includingPropertiesForKeys: [.contentModificationDateKey])) ?? [])
+            .filter { $0.lastPathComponent.hasPrefix("before-") && $0.pathExtension == "json" }
+            .sorted { ((try? $0.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast) > ((try? $1.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast) }
+        let syncs = files.filter { $0.lastPathComponent.hasPrefix("before-watch-sync-") }
+        let others = files.filter { !$0.lastPathComponent.hasPrefix("before-watch-sync-") }
+        for url in syncs.dropFirst(2) + others.dropFirst(20) { try? fm.removeItem(at: url) }
     }
     private static func read(_ url: URL) throws -> TrackerDocument {
         let doc = try JSONDecoder().decode(TrackerDocument.self, from: Data(contentsOf: url))
@@ -82,7 +124,14 @@ import UniformTypeIdentifiers
         guard !recoveryLocked else { notice = "Restore a valid backup before making changes. Your unreadable data file is preserved."; return false }
         do {
             try document.validate()
+            if document.health != savedHealth {
+                let health = try JSONEncoder().encode(document.health)
+                if let previous = try? Data(contentsOf: healthURL) { try previous.write(to: healthURL.appendingPathExtension("backup"), options: .atomic) }
+                try health.write(to: healthURL, options: .atomic)
+                savedHealth = document.health
+            }
             let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            encoder.userInfo[TrackerDocument.omitHealth] = true
             let data = try encoder.encode(document)
             if FileManager.default.fileExists(atPath: storageURL.path), (try? Self.read(storageURL)) != nil {
                 let previous = try Data(contentsOf: storageURL)
@@ -239,7 +288,8 @@ import UniformTypeIdentifiers
         do {
             let archive = try document.health.merging(snapshot, expectedRequestID: requestID)
             let today = today
-            return protectedChange(label: "watch-sync") { $0.health = archive; $0.applyHealthReadings(today: today) }
+            // Routine hourly syncs skip the full safety copy: the phone resends 14 days each time and health.json keeps a backup.
+            return change { $0.health = archive; $0.applyHealthReadings(today: today) }
         } catch { notice = error.localizedDescription; return false }
     }
     var mealsFolder: URL { storageURL.deletingLastPathComponent().appendingPathComponent("Meals", isDirectory: true) }

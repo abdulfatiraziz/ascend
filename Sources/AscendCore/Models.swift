@@ -187,13 +187,16 @@ public struct TrackerDocument: Codable, Equatable, Sendable {
         try c.encode(reminders, forKey: .reminders)
         try c.encode(routine, forKey: .routine)
         try c.encode(urgeLogs, forKey: .urgeLogs)
-        try c.encode(health, forKey: .health)
+        // The app keeps watch data in its own file; exported backups still include it.
+        if encoder.userInfo[TrackerDocument.omitHealth] as? Bool != true { try c.encode(health, forKey: .health) }
         try c.encode(wellbeing, forKey: .wellbeing)
         try c.encode(meals, forKey: .meals)
         try c.encode(meds, forKey: .meds)
         try c.encode(notes, forKey: .notes)
         try c.encode(photos, forKey: .photos)
     }
+    /// Encoder option: leave `health` out (it is saved separately as health.json).
+    public static let omitHealth = CodingUserInfoKey(rawValue: "ascend.omitHealth")!
     public init(timeZoneID: String = "Asia/Kolkata", cycle: Cycle, goals: [Goal],
                 habits: [Habit], checkIns: [CheckIn] = [], avatarFinish: String = "Progress") {
         self.timeZoneID = timeZoneID; self.cycle = cycle; self.goals = goals

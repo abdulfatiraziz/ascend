@@ -47,13 +47,29 @@ public struct HealthRecord: Codable, Equatable, Identifiable, Sendable {
     public var device: String
     /// Sleep only, from Ascend Bridge 0.2.1+. Older imports have none.
     public var stages: [SleepStage]?
-    public init(id: String, metric: HealthMetric, start: Double, end: Double, value: Double, detail: String = "", device: String = "", stages: [SleepStage]? = nil) {
+    /// Set on 5-minute summaries of older heart-rate and SpO2 readings: `value` is their average.
+    public var low: Double?
+    public var high: Double?
+    public var samples: Int?
+    public init(id: String, metric: HealthMetric, start: Double, end: Double, value: Double, detail: String = "", device: String = "", stages: [SleepStage]? = nil,
+                low: Double? = nil, high: Double? = nil, samples: Int? = nil) {
         self.id = id; self.metric = metric; self.start = start; self.end = end; self.value = value; self.detail = detail; self.device = device; self.stages = stages
+        self.low = low; self.high = high; self.samples = samples
     }
+    /// Lowest, highest and number of readings, for a raw reading or a summary.
+    public var lowest: Double { low ?? value }
+    public var highest: Double { high ?? value }
+    public var weight: Int { samples ?? 1 }
     public func validate() throws {
         guard !id.isEmpty, id.count <= 200, start.isFinite, end.isFinite, (946684800...7289654399).contains(start), end >= start,
               end - start <= 7 * 86400, value.isFinite, metric.bounds.contains(value), detail.count <= 200, device.count <= 120 else {
             throw ValidationError(message: "Invalid watch record. No data was imported.")
+        }
+        if samples != nil || low != nil || high != nil {
+            guard [.heartRate, .oxygen].contains(metric), let samples, let low, let high, samples >= 1, samples <= 100_000,
+                  metric.bounds.contains(low), metric.bounds.contains(high), low <= value + 0.05, value <= high + 0.05 else {
+                throw ValidationError(message: "Invalid watch summary. No data was imported.")
+            }
         }
         if let stages {
             guard metric == .sleep, stages.count <= 1000, stages.allSatisfy({ $0.start.isFinite && $0.end.isFinite && $0.start < $0.end && $0.start >= start - 60 && $0.end <= end + 60 }) else {
@@ -74,6 +90,7 @@ public struct HealthRecord: Codable, Equatable, Identifiable, Sendable {
     }
 }
 public struct HealthSnapshot: Codable, Equatable, Sendable {
+    public static let maxRecords = 200_000
     public var version: Int
     public var requestID: String
     public var generatedAt: Double
@@ -96,7 +113,7 @@ public struct HealthSnapshot: Codable, Equatable, Sendable {
               rangeEnd <= generatedAt, generatedAt <= now.timeIntervalSince1970 + 300,
               now.timeIntervalSince1970 - generatedAt < 300,
               Set(permissions.keys) == known, Set(errors.keys).isSubset(of: known), errors.values.allSatisfy({ $0.count <= 300 }),
-              records.count <= 100_000, Set(records.map(\.identity)).count == records.count else {
+              records.count <= HealthSnapshot.maxRecords, Set(records.map(\.identity)).count == records.count else {
             throw ValidationError(message: "The phone returned an invalid or stale snapshot. Sync again.")
         }
         for record in records {
@@ -131,15 +148,56 @@ public struct HealthArchive: Codable, Equatable, Sendable {
         guard !readable.isEmpty else { throw ValidationError(message: "No watch data could be read. Choose permissions in Ascend Bridge on your phone, keep it open, then sync again.") }
         // Replace only successfully queried types in the refreshed window. Keep older history,
         // denied types and failed types intact. Stable IDs also handle edited source timestamps.
-        let incoming = snapshot.records.filter { readable.contains($0.metric) }
+        let incoming = Self.thinned(snapshot.records.filter { readable.contains($0.metric) })
         let incomingIDs = Set(incoming.map(\.identity))
         result.records.removeAll { incomingIDs.contains($0.identity) || (readable.contains($0.metric) && $0.end >= snapshot.rangeStart && $0.start <= snapshot.rangeEnd) }
         result.records.append(contentsOf: incoming)
         result.records.sort { $0.start < $1.start }
         result.lastSync = snapshot.generatedAt; result.permissions = snapshot.permissions; result.errors = snapshot.errors
+        result = result.compacted(now: now)
         try result.validate()
         return result
     }
+    // MARK: Long-term storage
+    /// Raw heart-rate and SpO2 readings are kept for this long; older ones become 5-minute summaries.
+    /// Longer than any sync window (14 days), so a sync never replaces a summary.
+    public static let rawDays = 16, bucketSeconds = 300.0, minimumSpacing = 5.0
+    static let summarized: Set<HealthMetric> = [.heartRate, .oxygen]
+    /// Workout heart rate can arrive every second; keep at most one reading per 5 seconds.
+    public static func thinned(_ records: [HealthRecord]) -> [HealthRecord] {
+        var last: Double = -.infinity
+        let heart = records.filter { $0.metric == .heartRate && $0.samples == nil }.sorted { $0.start < $1.start }.filter { r in
+            guard r.start - last >= minimumSpacing else { return false }
+            last = r.start; return true
+        }
+        return records.filter { $0.metric != .heartRate || $0.samples != nil } + heart
+    }
+    /// Turns raw heart-rate and SpO2 readings older than `rawDays` into one summary per 5 minutes (average, lowest, highest, count).
+    /// Resting heart rate, averages and sample counts come out the same; repeating it changes nothing.
+    public func compacted(now: Date = Date()) -> HealthArchive {
+        let cutoff = now.timeIntervalSince1970 - Double(Self.rawDays) * 86_400
+        let old = records.filter { Self.summarized.contains($0.metric) && $0.start < cutoff }
+        let rawBuckets = Set(old.filter { $0.samples == nil }.map { BucketKey(metric: $0.metric, start: ($0.start / Self.bucketSeconds).rounded(.down) * Self.bucketSeconds) })
+        guard !rawBuckets.isEmpty else { return self }
+        var groups: [BucketKey: [HealthRecord]] = [:]
+        for r in old {
+            let key = BucketKey(metric: r.metric, start: (r.start / Self.bucketSeconds).rounded(.down) * Self.bucketSeconds)
+            if rawBuckets.contains(key) { groups[key, default: []].append(r) }
+        }
+        let used = Set(groups.values.flatMap { $0.map(\.identity) })
+        var result = self
+        result.records.removeAll { used.contains($0.identity) }
+        for (key, group) in groups {
+            let count = group.map(\.weight).reduce(0, +)
+            let mean = group.map { $0.value * Double($0.weight) }.reduce(0, +) / Double(count)
+            result.records.append(HealthRecord(id: "5m-\(Int(key.start))", metric: key.metric, start: key.start, end: min(key.start + Self.bucketSeconds - 1, max(key.start, group.map(\.end).max()!)),
+                value: (mean * 10).rounded() / 10, detail: "5-minute summary", device: group.first { !$0.device.isEmpty }?.device ?? "",
+                low: group.map(\.lowest).min(), high: group.map(\.highest).max(), samples: count))
+        }
+        result.records.sort { $0.start < $1.start }
+        return result
+    }
+    private struct BucketKey: Hashable { var metric: HealthMetric; var start: Double }
     public func records(_ metric: HealthMetric, on day: String, engine: TrackerEngine) -> [HealthRecord] {
         records.filter { $0.metric == metric && engine.key(Date(timeIntervalSince1970: metric == .sleep ? $0.end : $0.start)) == day }
     }

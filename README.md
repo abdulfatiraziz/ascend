@@ -117,6 +117,10 @@ Data is saved atomically to:
 ~/Library/Application Support/Ascend/tracker.json
 ```
 
+Watch data is kept beside it in `health.json` (with `health.json.backup`), so everyday edits don't
+rewrite it. Heart-rate and SpO2 readings older than 16 days are stored as 5-minute summaries (average,
+lowest, highest, count), so resting heart rate and night averages stay the same while the file stays
+small; workout heart rate is kept at one reading per 5 seconds. Exported backups contain everything.
 The previous valid file is retained as `tracker.json.backup`. Invalid imports are
 rejected. An unreadable main file is preserved rather than silently replaced;
 the app recovers its backup when possible. Restoring creates a dated copy first.

@@ -37,6 +37,8 @@ final class SyncEngine {
     static final Class<?>[] TYPES = {HeartRateRecord.class,StepsRecord.class,SleepSessionRecord.class,OxygenSaturationRecord.class,DistanceRecord.class,ActiveCaloriesBurnedRecord.class,SpeedRecord.class,ElevationGainedRecord.class,ExerciseSessionRecord.class};
     static final String SERVICE = "_ascend-sync._tcp";
     static final int MAX_EDGE = 1568, MAX_MED_PHOTOS = 20;
+    /** Matches the Mac's HealthSnapshot.maxRecords. */
+    static final int MAX_RECORDS = 200000;
     /** One sync at a time, whether started by the screen or the background job. */
     static final AtomicBoolean RUNNING = new AtomicBoolean();
 
@@ -399,7 +401,7 @@ final class SyncEngine {
         } catch (Exception e) { try { errors.put("steps", "Steps access unavailable."); } catch (Exception ignored) {} typeIndex++; next(); }
     }
     @SuppressWarnings({"unchecked", "rawtypes"}) private void read(int index, long token, int pages) {
-        if (pages >= 80 || records.length() >= 100000) { fail("Health export exceeds the local safety limit. No health data was sent."); return; }
+        if (pages >= 200 || records.length() >= MAX_RECORDS) { fail("Health export exceeds the local safety limit. No health data was sent."); return; }
         ReadRecordsRequestUsingFilters.Builder builder = new ReadRecordsRequestUsingFilters.Builder(TYPES[index]);
         builder.addDataOrigins(new DataOrigin.Builder().setPackageName(SOURCE).build());
         builder.setTimeRangeFilter(new TimeInstantRangeFilter.Builder().setStartTime(start).setEndTime(end).build());
@@ -456,8 +458,13 @@ final class SyncEngine {
             }
         }
         if (r instanceof HeartRateRecord) {
-            HeartRateRecord x = (HeartRateRecord) r; int n = 0;
-            for (HeartRateRecord.HeartRateSample s : x.getSamples()) { int sample = n++; if (!s.getTime().isBefore(start) && !s.getTime().isAfter(end)) records.put(base(r, i, s.getTime(), s.getTime(), ":" + sample, s.getBeatsPerMinute(), "")); }
+            // Workouts record about one reading a second; keep at most one per 5 seconds. IDs keep the original sample index.
+            HeartRateRecord x = (HeartRateRecord) r; int n = 0; Instant kept = null;
+            for (HeartRateRecord.HeartRateSample s : x.getSamples()) {
+                int sample = n++;
+                if (s.getTime().isBefore(start) || s.getTime().isAfter(end) || (kept != null && Duration.between(kept, s.getTime()).abs().getSeconds() < 5)) continue;
+                kept = s.getTime(); records.put(base(r, i, s.getTime(), s.getTime(), ":" + sample, s.getBeatsPerMinute(), ""));
+            }
         } else if (r instanceof SpeedRecord) {
             SpeedRecord x = (SpeedRecord) r; int n = 0;
             for (SpeedRecord.SpeedRecordSample s : x.getSamples()) { int sample = n++; if (!s.getTime().isBefore(start) && !s.getTime().isAfter(end)) records.put(base(r, i, s.getTime(), s.getTime(), ":" + sample, s.getSpeed().getInMetersPerSecond(), "")); }
@@ -485,6 +492,6 @@ final class SyncEngine {
             if (stages != null && stages.length() > 0) record.put("stages", stages);
             records.put(record);
         }
-        if (records.length() > 100000) throw new IllegalStateException("Too many records");
+        if (records.length() > MAX_RECORDS) throw new IllegalStateException("Too many records");
     }
 }

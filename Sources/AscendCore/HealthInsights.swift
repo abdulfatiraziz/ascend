@@ -26,13 +26,20 @@ public extension HealthArchive {
     static let strideMeters = 0.75
 
     func nightVitals(_ night: HealthRecord) -> NightVitals {
-        let inside = { (r: HealthRecord) in r.start >= night.start && r.start <= night.end }
-        let heart = records.filter { $0.metric == .heartRate && inside($0) }.map(\.value)
-        let oxygen = records.filter { $0.metric == .oxygen && inside($0) }.map(\.value)
-        func mean(_ values: [Double]) -> Double? { values.isEmpty ? nil : values.reduce(0, +) / Double(values.count) }
-        return NightVitals(restingHeartRate: heart.min(), averageHeartRate: mean(heart), averageOxygen: mean(oxygen),
-                           lowestOxygen: oxygen.min(), heartSamples: heart.count, oxygenSamples: oxygen.count)
+        // A 5-minute summary can start just before sleep began, so summaries count when they overlap the night.
+        let inside = { (r: HealthRecord) in r.samples == nil ? r.start >= night.start && r.start <= night.end : r.end >= night.start && r.start <= night.end }
+        // Older nights are stored as 5-minute summaries; lowest, weighted average and counts match the raw readings.
+        let heart = records.filter { $0.metric == .heartRate && inside($0) }
+        let oxygen = records.filter { $0.metric == .oxygen && inside($0) }
+        return NightVitals(restingHeartRate: heart.map(\.lowest).min(), averageHeartRate: HealthArchive.mean(heart), averageOxygen: HealthArchive.mean(oxygen),
+                           lowestOxygen: oxygen.map(\.lowest).min(), heartSamples: heart.map(\.weight).reduce(0, +), oxygenSamples: oxygen.map(\.weight).reduce(0, +))
     }
+    /// Average of readings, weighting each summary by how many readings it stands for.
+    static func mean(_ records: [HealthRecord]) -> Double? {
+        let count = records.map(\.weight).reduce(0, +)
+        return count == 0 ? nil : records.map { $0.value * Double($0.weight) }.reduce(0, +) / Double(count)
+    }
+    public static func average(_ records: [HealthRecord]) -> Double? { mean(records) }
     /// The newest record of a type, so the app can show how fresh a reading is.
     func latest(_ metric: HealthMetric) -> HealthRecord? {
         records.filter { $0.metric == metric }.max { $0.end < $1.end }

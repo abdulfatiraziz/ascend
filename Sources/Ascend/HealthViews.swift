@@ -45,14 +45,14 @@ struct HealthView: View {
                 }
                 if let night = archive.sleepSessions(on: day, engine: store.engine).first { sleepPanel(night) }
                 VStack(alignment: .leading, spacing: 12) {
-                    HStack { Text("Heart rate through the day").font(.system(size: 15, weight: .semibold)); Spacer(); Text("\(heart.count) samples").font(.system(size: 11)).foregroundStyle(Ink.muted) }
+                    HStack { Text("Heart rate through the day").font(.system(size: 15, weight: .semibold)); Spacer(); Text("\(heart.map(\.weight).reduce(0, +)) samples").font(.system(size: 11)).foregroundStyle(Ink.muted) }
                     if heart.isEmpty {
                         Text("No heart-rate samples for this date. Sync Mi Fitness and check that heart-rate sharing is allowed.").font(.system(size: 12)).foregroundStyle(Ink.muted).frame(maxWidth: .infinity, minHeight: 110)
                     } else {
                         Chart(heart) { r in
                             PointMark(x: .value("Time", Date(timeIntervalSince1970: r.start)), y: .value("BPM", r.value)).symbolSize(9).foregroundStyle(Ink.accent)
                         }.chartYAxisLabel("bpm").frame(height: 150)
-                        Text("\(Int(heart.map(\.value).min() ?? 0))–\(Int(heart.map(\.value).max() ?? 0)) bpm observed. Dots show recorded samples; gaps are not filled in.").font(.system(size: 11)).foregroundStyle(Ink.muted)
+                        Text("\(Int(heart.map(\.lowest).min() ?? 0))–\(Int(heart.map(\.highest).max() ?? 0)) bpm observed. " + (heart.contains { $0.samples != nil } ? "Older days show 5-minute averages; gaps are not filled in." : "Dots show recorded samples; gaps are not filled in.")).font(.system(size: 11)).foregroundStyle(Ink.muted)
                     }
                 }.panel()
                 Text("Only records Mi Fitness writes to Health Connect can arrive here. This is a historical sync, not a live heart-rate stream. Values describe recorded activity; activity calories do not represent food intake. Interval records use their start date; sleep uses its ending date. Missing or denied types display no new data, and previously imported records remain local.").font(.system(size: 11)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
@@ -115,7 +115,7 @@ struct HealthView: View {
         let denied = archive.permissions[metric.rawValue] == false
         let failed = archive.errors[metric.rawValue] != nil
         let average = metric == .heartRate || metric == .oxygen || metric == .speed
-        let value = records.isEmpty ? nil : metric == .sleep ? records[0].value : (average ? records.map(\.value).reduce(0,+) / Double(records.count) : records.map(\.value).reduce(0,+))
+        let value = records.isEmpty ? nil : metric == .sleep ? records[0].value : (average ? HealthArchive.average(records) : records.map(\.value).reduce(0,+))
         let naps = records.dropFirst().map(\.value).reduce(0, +)
         let sleepDetail = records.first.map { main in
             let minutes = main.stageMinutes
@@ -153,7 +153,7 @@ struct HealthView: View {
     private func heartNote(_ records: [HealthRecord]) -> String {
         guard let last = records.map(\.start).max() else { return "" }
         let stale = day == store.today && Date().timeIntervalSince1970 - last > 3 * 3600
-        return "\(records.count) samples · latest \(timeText(Date(timeIntervalSince1970: last), engine: store.engine))" + (stale ? " · newer readings not shared yet" : "")
+        return "\(records.map(\.weight).reduce(0, +)) samples · latest \(timeText(Date(timeIntervalSince1970: last), engine: store.engine))" + (stale ? " · newer readings not shared yet" : "")
     }
     private var oxygenNote: String {
         guard let vitals, let average = vitals.averageOxygen, let low = vitals.lowestOxygen else { return "Average of recorded samples" }
