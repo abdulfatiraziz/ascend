@@ -121,6 +121,10 @@ taken vs missed for 7 days and the cycle. Taking every scheduled dose ticks your
 medication habit, such as “Take medication” (never overriding a tick you made). After changing a schedule on
 the Mac, tap **Sync to Mac** on the phone to refresh reminders.
 
+Forgot to log a dose? On the Mac's Meds screen, click a day in the last-7-days strip (or use
+the arrows and date picker) and tick **Taken**. A dose logged for an earlier day is saved at
+its scheduled time and updates that day's medication habit.
+
 ## Notes
 
 Keep what a chat settled. In Ask Ascend, click **Save as note** (or ••• → Save chat as note)

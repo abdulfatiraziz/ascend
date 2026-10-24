@@ -7,7 +7,8 @@ struct MedsView: View {
     @ObservedObject var store: TrackerStore
     @ObservedObject var reader: MedController
     @State private var showArchived = false
-    init(store: TrackerStore) { self.store = store; reader = store.medsReader }
+    @State private var day: String
+    init(store: TrackerStore) { self.store = store; reader = store.medsReader; _day = State(initialValue: store.today) }
     private var cabinet: MedCabinet { store.document.meds }
     var body: some View {
         ScrollView {
@@ -49,18 +50,26 @@ struct MedsView: View {
     }
     private var todayPanel: some View {
         let engine = store.engine
-        let slots = cabinet.slots(on: store.today, engine: engine)
+        let slots = cabinet.slots(on: day, engine: engine), isToday = day == store.today
         let week = cabinet.adherence(today: store.today, days: 7, engine: engine)
         let cycleDays = max(0, engine.days(from: store.document.cycle.start, through: store.today).count - 1)
         let cycle = cabinet.adherence(today: store.today, days: cycleDays, engine: engine)
         return VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text("Today").font(.system(size: 15, weight: .semibold))
-                Spacer()
+            HStack(spacing: 10) {
+                Text(isToday ? "Today" : dateText(day, engine: engine, pattern: "EEEE d MMM")).font(.system(size: 15, weight: .semibold))
                 Text("\(slots.filter { $0.taken != nil }.count) of \(slots.count) taken").font(.system(size: 12)).foregroundStyle(Ink.muted)
+                Spacer()
+                Button { day = engine.adding(-1, to: day) } label: { Image(systemName: "chevron.left") }.buttonStyle(.plain).accessibilityLabel("Previous day")
+                DatePicker("Dose date", selection: Binding(get: { engine.date(day) ?? Date() }, set: { day = engine.key($0) }), in: ...Date(), displayedComponents: .date).labelsHidden().fixedSize()
+                Button { day = engine.adding(1, to: day) } label: { Image(systemName: "chevron.right") }.buttonStyle(.plain).disabled(day >= store.today).accessibilityLabel("Next day")
+                Button("Today") { day = store.today }.buttonStyle(.plain).font(.system(size: 12)).disabled(isToday)
+            }
+            weekStrip
+            if !isToday && !slots.isEmpty {
+                Text("Forgot to log one? Tick it here; it’s saved at its scheduled time and updates that day’s habit.").font(.system(size: 11)).foregroundStyle(Ink.muted)
             }
             if slots.isEmpty {
-                Text("Nothing scheduled today. Confirm a medicine and add its schedule to see doses here.").font(.system(size: 12)).foregroundStyle(Ink.muted)
+                Text(isToday ? "Nothing scheduled today. Confirm a medicine and add its schedule to see doses here." : "Nothing was scheduled on this day.").font(.system(size: 12)).foregroundStyle(Ink.muted)
             }
             ForEach(slots) { slot in
                 HStack(spacing: 14) {
@@ -71,7 +80,9 @@ struct MedsView: View {
                     }
                     Spacer()
                     if let taken = slot.taken { Text("\(timeText(Date(timeIntervalSince1970: taken.takenAt), engine: engine)) · \(taken.source == "phone" ? "phone" : "Mac")").font(.system(size: 10)).foregroundStyle(Ink.muted) }
-                    Button { store.setDose(slot.medicine.id, day: slot.day, minute: slot.minute, taken: slot.taken == nil, source: "mac") } label: {
+                    // A dose logged for an earlier day is recorded at its scheduled time, not now.
+                    Button { store.setDose(slot.medicine.id, day: slot.day, minute: slot.minute, taken: slot.taken == nil,
+                                           at: isToday ? Date() : engine.time(on: slot.day, minute: slot.minute) ?? Date(), source: "mac") } label: {
                         Label(slot.taken == nil ? "Taken" : "Taken ✓", systemImage: slot.taken == nil ? "circle" : "checkmark.circle.fill")
                     }.buttonStyle(.plain).foregroundStyle(slot.taken == nil ? Color.primary : Ink.accent).font(.system(size: 12))
                 }
@@ -84,6 +95,27 @@ struct MedsView: View {
                 if let habit = store.document.medHabit { Text("Taking every dose ticks “\(habit.latest.title)”").font(.system(size: 11)).foregroundStyle(Ink.muted) }
             }
         }.panel(padding: 16)
+            .onChange(of: store.today) { old, new in if day == old { day = new } }
+    }
+    /// The last seven days: doses taken of scheduled, missed days in orange; click one to edit it.
+    private var weekStrip: some View {
+        let engine = store.engine
+        return HStack(spacing: 6) {
+            ForEach(engine.days(from: engine.adding(-6, to: store.today), through: store.today), id: \.self) { d in
+                let slots = cabinet.slots(on: d, engine: engine), taken = slots.filter { $0.taken != nil }.count
+                let missed = d < store.today && taken < slots.count
+                Button { day = d } label: {
+                    VStack(spacing: 3) {
+                        Text(dateText(d, engine: engine, pattern: "EEE")).font(.system(size: 10)).foregroundStyle(Ink.muted)
+                        Text(dateText(d, engine: engine, pattern: "d")).font(.system(size: 13, weight: .medium))
+                        Text(slots.isEmpty ? "–" : "\(taken)/\(slots.count)").font(.system(size: 10, design: .monospaced))
+                            .foregroundStyle(slots.isEmpty ? Ink.muted : missed ? Color.orange : taken == slots.count ? Ink.accent : Ink.muted)
+                    }.frame(maxWidth: .infinity).padding(.vertical, 6)
+                        .background(d == day ? Ink.accent.opacity(0.14) : Color.white.opacity(0.03), in: RoundedRectangle(cornerRadius: 8))
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(d == day ? Ink.accent.opacity(0.5) : .clear))
+                }.buttonStyle(.plain).help(slots.isEmpty ? "Nothing scheduled" : "\(taken) of \(slots.count) doses taken")
+            }
+        }
     }
     @ViewBuilder private var inbox: some View {
         ForEach(cabinet.batches) { batch in

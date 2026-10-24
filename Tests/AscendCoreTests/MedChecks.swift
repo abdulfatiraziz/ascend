@@ -81,6 +81,21 @@ func runMedChecks() async -> (count: Int, failures: Int) {
         let week = doc.meds.adherence(today: "2026-10-21", days: 7, engine: TrackerEngine(document: doc))
         try expect(week.taken == 2 && week.missed == 7, "18th–20th: 9 slots, 2 taken")
     }
+    check("a forgotten dose can be logged for an earlier day at its scheduled time, completing that day's habit only") {
+        var doc = original
+        let habit = doc.medHabit!
+        var fin = Medicine(name: "Finasteride"); fin.confirmed = true; fin.schedule = MedSchedule(start: "2026-10-18")
+        doc.meds.medicines = [fin]
+        let engine = TrackerEngine(document: doc), past = "2026-10-18", today = "2026-10-21"
+        let scheduled = engine.time(on: past, minute: 540)!
+        try doc.setDose(fin.id, day: past, minute: 540, taken: true, at: scheduled, source: "mac", today: today)
+        let dose = doc.meds.dose(fin.id, day: past, minute: 540)
+        try expect(dose?.takenAt == scheduled.timeIntervalSince1970 && dose?.source == "mac")
+        try expect(TrackerEngine(document: doc).entry(for: habit, day: past)?.completed == true && TrackerEngine(document: doc).entry(for: habit, day: today) == nil)
+        try expect(doc.meds.adherence(today: today, days: 3, engine: TrackerEngine(document: doc)) == (1, 2), "18th taken; 19th and 20th still missed")
+        try doc.setDose(fin.id, day: past, minute: 540, taken: false, at: scheduled, source: "mac", today: today)
+        try expect(TrackerEngine(document: doc).entry(for: habit, day: past) == nil, "Unticking an earlier day clears that day's tick")
+    }
     check("medicine list validation and older tracker files without medicines") {
         var doc = original
         var m = Medicine(name: "x", photos: ["../escape.jpg"]); doc.meds.medicines = [m]
