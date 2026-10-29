@@ -95,6 +95,15 @@ final class SyncEngine {
     }
     File mealsDir() { return dir("meals"); }
     File[] queuedMeals() { return json(mealsDir()); }
+    static final int MAX_MEAL_PHOTOS = 10;
+    /** Photo IDs of a queued meal in the order taken; a single-photo meal's photo shares the meal's ID. */
+    static List<String> mealPhotos(JSONObject meal) {
+        List<String> ids = new ArrayList<>();
+        JSONArray photos = meal.optJSONArray("photos");
+        if (photos == null) ids.add(meal.optString("id"));
+        else for (int i = 0; i < photos.length(); i++) ids.add(photos.optString(i));
+        return ids;
+    }
     File urgesDir() { return dir("urges"); }
     File[] queuedUrges() { return json(urgesDir()); }
     File medBatchesDir() { return dir("medbatches"); }
@@ -227,15 +236,23 @@ final class SyncEngine {
             int meals = 0;
             for (File meta : queuedMeals()) {
                 JSONObject m = readJSON(meta);
-                File photo = new File(mealsDir(), m.getString("id") + ".jpg");
-                if (!photo.exists()) { meta.delete(); continue; }
-                JSONObject meal = new JSONObject().put("id", m.getString("id")).put("takenAt", m.getLong("takenAt")).put("note", m.optString("note"))
-                    .put("mediaType", "image/jpeg").put("image", Base64.getEncoder().encodeToString(readAll(photo)));
-                JSONObject reply = send(target, "/v1/meal", envelope("meal").put("meal", meal));
-                if (reply.optBoolean("ok")) { photo.delete(); meta.delete(); meals++; }
-                else summary.append(reply.optString("message", "A meal photo was rejected.")).append('\n');
+                if (m.optBoolean("open")) continue;
+                // A meal with several photos sends each as part of one group; sent photos are deleted, so a retry resumes.
+                List<String> photos = mealPhotos(m);
+                boolean group = photos.size() > 1, rejected = false;
+                for (int part = 0; part < photos.size(); part++) {
+                    File photo = new File(mealsDir(), photos.get(part) + ".jpg");
+                    if (!photo.exists()) continue;
+                    JSONObject meal = new JSONObject().put("id", photos.get(part)).put("takenAt", m.getLong("takenAt")).put("note", m.optString("note"))
+                        .put("mediaType", "image/jpeg").put("image", Base64.getEncoder().encodeToString(readAll(photo)));
+                    if (group) meal.put("group", m.getString("id")).put("part", part).put("parts", photos.size());
+                    JSONObject reply = send(target, "/v1/meal", envelope("meal").put("meal", meal));
+                    if (reply.optBoolean("ok")) photo.delete();
+                    else { rejected = true; summary.append(reply.optString("message", "A meal photo was rejected.")).append('\n'); break; }
+                }
+                if (!rejected) { meta.delete(); meals++; }
             }
-            if (meals > 0) summary.append(meals == 1 ? "1 meal photo sent.\n" : meals + " meal photos sent.\n");
+            if (meals > 0) summary.append(meals == 1 ? "1 meal sent.\n" : meals + " meals sent.\n");
             int urges = 0;
             for (File file : queuedUrges()) {
                 JSONObject reply = send(target, "/v1/urge", envelope("urge").put("urge", readJSON(file)));

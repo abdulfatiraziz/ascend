@@ -548,7 +548,7 @@ public final class BridgeActivity extends Activity {
         LinearLayout col = page(holder, true);
         col.addView(header("Photo → Claude estimate on your Mac", "Meals", null));
         View snap = ui.iconButton("Take meal photo", "ic_camera", ui.round(Ui.ACCENT, 16, 0, 0), Ui.ON_ACCENT, 56, v -> { photoMode = "meal"; takePhoto(); });
-        View pick = ui.iconButton("Choose from gallery", "ic_gallery", ui.round(Ui.PANEL, 14, 0x1FFFFFFF, 1), Ui.TEXT, 48, v -> { photoMode = "meal"; choosePhotos(4); });
+        View pick = ui.iconButton("Choose from gallery", "ic_gallery", ui.round(Ui.PANEL, 14, 0x1FFFFFFF, 1), Ui.TEXT, 48, v -> { photoMode = "meal"; choosePhotos(SyncEngine.MAX_MEAL_PHOTOS); });
         LinearLayout buttons = ui.column(10); buttons.addView(snap, Ui.wide()); buttons.addView(pick, Ui.wide());
         col.addView(buttons);
         File[] waiting = engine.queuedMeals();
@@ -584,21 +584,24 @@ public final class BridgeActivity extends Activity {
         LinearLayout card = ui.column(0);
         card.setBackground(ui.round(Ui.PANEL, 16, Ui.LINE, 1)); card.setClipToOutline(true);
         String note = "", time = "";
-        File photo = null;
+        List<String> photos = new ArrayList<>();
+        boolean open = false;
         try {
             JSONObject m = SyncEngine.readJSON(meta);
-            note = m.optString("note"); time = clock(m.optLong("takenAt") * 1000);
-            photo = new File(engine.mealsDir(), m.getString("id") + ".jpg");
+            note = m.optString("note"); time = clock(m.optLong("takenAt") * 1000); open = m.optBoolean("open");
+            photos = SyncEngine.mealPhotos(m);
         } catch (Exception ignored) {}
-        card.addView(thumb(photo), new LinearLayout.LayoutParams(Ui.MATCH, ui.dp(104)));
+        File first = photos.isEmpty() ? null : new File(engine.mealsDir(), photos.get(0) + ".jpg");
+        card.addView(thumb(first), new LinearLayout.LayoutParams(Ui.MATCH, ui.dp(104)));
         LinearLayout text = ui.column(2); ui.pad(text, 12, 10, 12, 10);
-        text.addView(ui.oneLine(ui.text(note.isEmpty() ? "No note" : note, 13, note.isEmpty() ? Ui.MUTED : Ui.TEXT, 500)));
-        text.addView(ui.mono(time, 11, Ui.MUTED));
+        text.addView(ui.oneLine(ui.text(open ? "Tap to finish" : note.isEmpty() ? "No note" : note, 13, open ? Ui.ACCENT_TEXT : note.isEmpty() ? Ui.MUTED : Ui.TEXT, 500)));
+        text.addView(ui.mono(time + (photos.size() > 1 ? " · " + photos.size() + " photos" : ""), 11, Ui.MUTED));
         card.addView(text);
-        File photoFile = photo;
+        List<String> photoIds = photos;
+        if (open) card.setOnClickListener(Ui.tap(v -> askMealNote(meta)));
         card.setOnLongClickListener(v -> {
-            dialog().setTitle("Remove this meal photo?").setMessage("It hasn’t been sent yet.")
-                .setPositiveButton("Remove", (d, w) -> { if (photoFile != null) photoFile.delete(); meta.delete(); render(); })
+            dialog().setTitle(photoIds.size() > 1 ? "Remove this meal and its " + photoIds.size() + " photos?" : "Remove this meal photo?").setMessage("It hasn’t been sent yet.")
+                .setPositiveButton("Remove", (d, w) -> { for (String id : photoIds) new File(engine.mealsDir(), id + ".jpg").delete(); meta.delete(); render(); })
                 .setNegativeButton("Keep", null).show();
             return true;
         });
@@ -1122,10 +1125,17 @@ public final class BridgeActivity extends Activity {
         if (request == REQ_CAMERA) {
             File capture = captureName == null ? null : new File(new File(getFilesDir(), "capture"), captureName);
             captureName = null;
-            if (result != RESULT_OK || capture == null || capture.length() == 0) { if (capture != null) capture.delete(); return; }
+            if (result != RESULT_OK || capture == null || capture.length() == 0) {
+                if (capture != null) capture.delete();
+                // Backing out of "Add photo" returns to the meal so far rather than leaving it unfinished.
+                File open = photoMode.equals("mealMore") ? openMeal() : null;
+                if (open != null) askMealNote(open);
+                return;
+            }
             long now = System.currentTimeMillis();
             if (photoMode.equals("med")) { network.execute(() -> importMedPhotos(List.of(() -> new FileInputStream(capture)), List.of(now), capture)); return; }
-            askNote(note -> network.execute(() -> importMeal(() -> new FileInputStream(capture), now, note, capture)));
+            boolean more = photoMode.equals("mealMore");
+            network.execute(() -> addMealPhotos(List.of(() -> new FileInputStream(capture)), List.of(now), more, capture));
         } else if (request == REQ_PICK && result == RESULT_OK && data != null) {
             List<Uri> uris = new ArrayList<>();
             if (data.getClipData() != null) for (int i = 0; i < data.getClipData().getItemCount(); i++) uris.add(data.getClipData().getItemAt(i).getUri());
@@ -1136,8 +1146,101 @@ public final class BridgeActivity extends Activity {
                 for (Uri uri : uris) { sources.add(() -> getContentResolver().openInputStream(uri)); times.add(dateTaken(uri)); }
                 network.execute(() -> importMedPhotos(sources, times, null)); return;
             }
-            askNote(note -> { for (Uri uri : uris) { long taken = dateTaken(uri); network.execute(() -> importMeal(() -> getContentResolver().openInputStream(uri), taken, note, null)); } });
+            if (uris.size() == 1) {
+                Uri uri = uris.get(0); long taken = dateTaken(uri);
+                network.execute(() -> addMealPhotos(List.of(() -> getContentResolver().openInputStream(uri)), List.of(taken), false, null));
+                return;
+            }
+            Runnable oneMeal = () -> {
+                List<Uri> ordered = new ArrayList<>(uris);
+                Map<Uri, Long> taken = new HashMap<>();
+                for (Uri uri : ordered) taken.put(uri, dateTaken(uri));
+                ordered.sort(Comparator.comparing(taken::get));
+                List<SyncEngine.Source> sources = new ArrayList<>(); List<Long> times = new ArrayList<>();
+                for (Uri uri : ordered) { sources.add(() -> getContentResolver().openInputStream(uri)); times.add(taken.get(uri)); }
+                network.execute(() -> addMealPhotos(sources, times, false, null));
+            };
+            dialog().setTitle("Are these " + uris.size() + " photos one meal?")
+                .setMessage("Choose One meal for photos of the same plate, such as each food added on a kitchen scale. Claude counts every food once.")
+                .setPositiveButton("One meal", (d, w) -> oneMeal.run())
+                .setNegativeButton("Separate", (d, w) -> askNote(note -> { for (Uri uri : uris) { long taken = dateTaken(uri); network.execute(() -> importMeal(() -> getContentResolver().openInputStream(uri), taken, note, null)); } }))
+                .setCancelable(false).show();
         }
+    }
+    /** The meal still being photographed, if any. */
+    File openMeal() {
+        for (File meta : engine.queuedMeals()) {
+            try { if (SyncEngine.readJSON(meta).optBoolean("open")) return meta; } catch (Exception ignored) {}
+        }
+        return null;
+    }
+    /**
+     * Adds photos to a meal that stays open (not sent) until its note is saved: the open meal when `more`, otherwise a new
+     * one, finishing any meal left open earlier. Then asks for the note, offering another photo. Blocking: call off the main thread.
+     */
+    void addMealPhotos(List<SyncEngine.Source> sources, List<Long> times, boolean more, File cleanup) {
+        try {
+            File meta = more ? openMeal() : null;
+            if (!more) for (File stale = openMeal(); stale != null; stale = openMeal()) closeMeal(stale, null);
+            JSONObject m;
+            if (meta == null) {
+                String id = UUID.randomUUID().toString();
+                m = new JSONObject().put("id", id).put("takenAt", times.get(0) / 1000).put("note", "").put("photos", new JSONArray()).put("open", true);
+                meta = new File(engine.mealsDir(), id + ".json");
+            } else m = SyncEngine.readJSON(meta);
+            JSONArray photos = m.getJSONArray("photos");
+            int failed = 0;
+            for (int i = 0; i < sources.size() && photos.length() < SyncEngine.MAX_MEAL_PHOTOS; i++) {
+                // A meal's only photo shares its ID, so a single-photo meal syncs exactly as before.
+                String id = photos.length() == 0 ? m.getString("id") : UUID.randomUUID().toString();
+                try { SyncEngine.writeUpright(sources.get(i), new File(engine.mealsDir(), id + ".jpg")); photos.put(id); }
+                catch (Exception e) { failed++; }
+            }
+            if (cleanup != null) cleanup.delete();
+            if (photos.length() == 0) { runUi(() -> toast("That photo couldn’t be read. Try another one.")); return; }
+            try (FileOutputStream out = new FileOutputStream(meta)) { out.write(SyncEngine.bytes(m)); }
+            File saved = meta; int skipped = failed;
+            runUi(() -> { if (skipped > 0) toast(skipped == 1 ? "One photo couldn’t be read." : skipped + " photos couldn’t be read."); render(); askMealNote(saved); });
+        } catch (Exception e) {
+            if (cleanup != null) cleanup.delete();
+            runUi(() -> toast("That photo couldn’t be read. Try another one."));
+        }
+    }
+    /** Asks what's in the open meal, with Add photo for the next step on the scale. Save or Skip queues it to send. */
+    void askMealNote(File meta) {
+        JSONObject m;
+        try { m = SyncEngine.readJSON(meta); } catch (Exception e) { return; }
+        int count = SyncEngine.mealPhotos(m).size();
+        EditText field = new EditText(this);
+        field.setHint("e.g. 2 rotis, dal (optional)"); field.setSingleLine(false); field.setTextColor(Ui.TEXT); field.setHintTextColor(Ui.FAINT);
+        field.setText(m.optString("note"));
+        FrameLayout wrap = new FrameLayout(this); ui.pad(wrap, 20, 8, 20, 0); wrap.addView(field);
+        AlertDialog.Builder builder = dialog().setTitle("What’s in it?").setView(wrap)
+            .setMessage(count == 1 ? "Adding more food on the scale? Tap Add photo after each addition; Claude counts every food once."
+                : count + " photos · one meal")
+            .setPositiveButton("Save", (d, w) -> { closeMeal(meta, field.getText().toString().trim()); toast("Meal saved"); render(); sync(false, true); })
+            .setNegativeButton("Skip", (d, w) -> { closeMeal(meta, ""); toast("Meal saved"); render(); sync(false, true); })
+            .setCancelable(false);
+        if (count < SyncEngine.MAX_MEAL_PHOTOS) builder.setNeutralButton("Add photo", (d, w) -> {
+            saveMealNote(meta, field.getText().toString().trim());
+            photoMode = "mealMore"; takePhoto();
+        });
+        builder.show();
+    }
+    void saveMealNote(File meta, String note) {
+        try {
+            JSONObject m = SyncEngine.readJSON(meta).put("note", note.length() > 500 ? note.substring(0, 500) : note);
+            try (FileOutputStream out = new FileOutputStream(meta)) { out.write(SyncEngine.bytes(m)); }
+        } catch (Exception ignored) {}
+    }
+    /** Marks a meal ready to send, keeping its note when `note` is null. */
+    void closeMeal(File meta, String note) {
+        try {
+            JSONObject m = SyncEngine.readJSON(meta);
+            if (note != null) m.put("note", note.length() > 500 ? note.substring(0, 500) : note);
+            m.remove("open");
+            try (FileOutputStream out = new FileOutputStream(meta)) { out.write(SyncEngine.bytes(m)); }
+        } catch (Exception ignored) {}
     }
     void askNote(Consumer<String> done) {
         EditText field = new EditText(this);

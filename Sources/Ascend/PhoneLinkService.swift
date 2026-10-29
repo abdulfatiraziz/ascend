@@ -147,10 +147,20 @@ private struct KeychainPhoneKeyStore: PhoneKeyStore {
         case .meal(let meal, let phoneID):
             guard let store else { return PhoneLinkResult(ok: false, message: "Ascend isn’t ready.") }
             do {
-                let (id, data) = try meal.validated()
+                let (id, data, group) = try meal.validated()
                 let file = FileManager.default.temporaryDirectory.appendingPathComponent("ascend-meal-\(id.uuidString).\(meal.mediaType == "image/png" ? "png" : "jpg")")
                 try data.write(to: file); defer { try? FileManager.default.removeItem(at: file) }
-                guard let entry = try store.addMeal(id: id, photo: file, takenAt: Date(timeIntervalSince1970: meal.takenAt), note: meal.note, source: "phone") else {
+                if let group {
+                    guard let complete = try store.addPhoneMealPhoto(meal: group.meal, part: group.part, parts: group.parts, file: file,
+                                                                     takenAt: Date(timeIntervalSince1970: meal.takenAt), note: meal.note) else {
+                        return PhoneLinkResult(ok: true, message: "Already received")
+                    }
+                    touch(phoneID)
+                    if complete { store.meals.enqueue(group.meal) }
+                    activity = "Meal photo \(group.part + 1) of \(group.parts) received from \(name(phoneID))."
+                    return PhoneLinkResult(ok: true, message: "Meal received")
+                }
+                guard let entry = try store.addMeal(id: id, photos: [file], takenAt: Date(timeIntervalSince1970: meal.takenAt), note: meal.note, source: "phone") else {
                     return PhoneLinkResult(ok: true, message: "Already received")
                 }
                 touch(phoneID); store.meals.enqueue(entry.id)

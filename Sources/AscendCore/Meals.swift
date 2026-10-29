@@ -38,6 +38,10 @@ public struct MealEntry: Codable, Equatable, Identifiable, Sendable {
     public var note: String
     /// File name in the Meals folder beside tracker.json.
     public var photo: String
+    /// Further photos of the same meal, such as each step of a plate built up on a kitchen scale.
+    public var morePhotos: [String]?
+    /// How many photos the phone said this meal has; the estimate waits until they've all arrived.
+    public var expectedPhotos: Int?
     /// "phone" or "mac".
     public var source: String
     public var estimate: MealEstimate?
@@ -51,6 +55,10 @@ public struct MealEntry: Codable, Equatable, Identifiable, Sendable {
         self.id = id; self.takenAt = takenAt; self.day = day; self.note = note; self.photo = photo; self.source = source
         confirmed = false
     }
+    /// Every photo of the meal in the order taken. Photos of one meal are named `<meal id>-<part>`, so they sort by part.
+    public var photos: [String] { morePhotos.map { ([photo] + $0).sorted() } ?? [photo] }
+    /// Photos still on their way from the phone.
+    public var missingPhotos: Int { max(0, (expectedPhotos ?? 0) - photos.count) }
     /// Values the user accepted, falling back to the estimate.
     public var values: (kcal: Double, protein: Double, carbs: Double, fat: Double) {
         (kcal ?? estimate?.kcal ?? 0, protein ?? estimate?.protein ?? 0, carbs ?? estimate?.carbs ?? 0, fat ?? estimate?.fat ?? 0)
@@ -64,15 +72,19 @@ public struct MealLog: Codable, Equatable, Sendable {
     public var entries: [MealEntry] = []
     /// Days whose Calorie/Protein check-ins were written from meals, so removing the last meal can clear them.
     public var filledDays: Set<String> = []
+    public static let maxPhotos = 10
     public init() {}
+    /// File name for one photo of a multi-photo meal.
+    public static func photoName(meal: UUID, part: Int, ext: String) -> String { String(format: "%@-%02d.%@", meal.uuidString.lowercased(), part, ext) }
     public func validate() throws {
         guard entries.count <= 20_000, Set(entries.map(\.id)).count == entries.count, filledDays.count <= 20_000 else {
             throw ValidationError(message: "Invalid meal log.")
         }
         for e in entries {
             let numbers = [e.kcal, e.protein, e.carbs, e.fat].compactMap { $0 }
-            guard e.takenAt.isFinite, (946684800...7289654399).contains(e.takenAt), e.note.count <= 500, !e.photo.isEmpty, e.photo.count <= 100,
-                  !e.photo.contains("/"), ["phone", "mac"].contains(e.source), numbers.allSatisfy({ $0.isFinite && $0 >= 0 && $0 <= 10_000 }),
+            guard e.takenAt.isFinite, (946684800...7289654399).contains(e.takenAt), e.note.count <= 500,
+                  e.photos.count <= Self.maxPhotos, e.photos.allSatisfy({ !$0.isEmpty && $0.count <= 100 && !$0.contains("/") }),
+                  (1...Self.maxPhotos).contains(e.expectedPhotos ?? 1), ["phone", "mac"].contains(e.source), numbers.allSatisfy({ $0.isFinite && $0 >= 0 && $0 <= 10_000 }),
                   (e.error?.count ?? 0) <= 600 else { throw ValidationError(message: "Invalid meal entry.") }
             if let estimate = e.estimate { _ = try estimate.validated() }
         }

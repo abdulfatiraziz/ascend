@@ -182,6 +182,12 @@ func runLinkChecks() async -> (count: Int, failures: Int) {
         try expect(badMeal["ok"] as? Bool == false)
         try refuses { _ = try PhoneMeal(id: UUID().uuidString, takenAt: Date().timeIntervalSince1970 + 3600, image: jpegBase64()).validated() }
         try refuses { _ = try PhoneMeal(id: UUID().uuidString, takenAt: 1_800_000_000, mediaType: "image/gif", image: jpegBase64()).validated(now: Date(timeIntervalSince1970: 1_800_000_000)) }
+        let plate = UUID(), now = Date().timeIntervalSince1970 - 60
+        let step = try PhoneMeal(id: UUID().uuidString, takenAt: now, image: jpegBase64(), group: plate.uuidString, part: 2, parts: 3).validated()
+        try expect(step.group?.meal == plate && step.group?.part == 2 && step.group?.parts == 3, "Multi-photo meals keep their group and part")
+        try refuses { _ = try PhoneMeal(id: UUID().uuidString, takenAt: now, image: jpegBase64(), group: plate.uuidString, part: 3, parts: 3).validated() }
+        try refuses { _ = try PhoneMeal(id: UUID().uuidString, takenAt: now, image: jpegBase64(), group: plate.uuidString, part: 0, parts: MealLog.maxPhotos + 1).validated() }
+        try refuses { _ = try PhoneMeal(id: UUID().uuidString, takenAt: now, image: jpegBase64(), part: 0, parts: 2).validated() }
         let urge = PhoneUrge(id: UUID().uuidString, takenAt: Date().timeIntervalSince1970 - 30, outcome: "Let it pass", intensity: 4, trigger: "Boredom", note: " bathroom ")
         let urgeReply = try phone.reply(await hub.handle(try phone.request("/v1/urge", LinkEnvelope(kind: "urge", urge: urge))))
         try expect(urgeReply["message"] as? String == "urge ok" && (urgeReply["urges"] as? [String: Int])?["todayPassed"] == 1 && recorder.urges == [urge], "Urges arrive with counts in the reply")
@@ -416,6 +422,25 @@ func runLinkChecks() async -> (count: Int, failures: Int) {
         let legacy = try JSONDecoder().decode(TrackerDocument.self, from: JSONSerialization.data(withJSONObject: json))
         try expect(legacy.meals.entries.isEmpty)
     }
+    check("a meal with several photos keeps them in order, waits for missing ones and sends them all to Claude") {
+        let id = UUID()
+        var meal = MealEntry(id: id, takenAt: 1_790_000_000, day: day, photo: MealLog.photoName(meal: id, part: 1, ext: "jpg"), source: "phone")
+        meal.morePhotos = [MealLog.photoName(meal: id, part: 2, ext: "jpg"), MealLog.photoName(meal: id, part: 0, ext: "jpg")]
+        meal.expectedPhotos = 4
+        try expect(meal.photos.map { String($0.suffix(6)) } == ["00.jpg", "01.jpg", "02.jpg"] && meal.missingPhotos == 1, "\(meal.photos)")
+        var doc = original; doc.meals.entries = [meal]
+        try doc.validate()
+        doc.meals.entries[0].morePhotos = (0..<MealLog.maxPhotos).map { "p\($0).jpg" }
+        try refuses { try doc.validate() }
+        doc.meals.entries[0].morePhotos = ["../escape.jpg"]
+        try refuses { try doc.validate() }
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("ascend-meal-steps-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true); defer { try? FileManager.default.removeItem(at: folder) }
+        let urls = try (0..<3).map { i -> URL in let u = folder.appendingPathComponent("\(i).jpg"); try Data(base64Encoded: jpegBase64())!.write(to: u); return u }
+        let line = try ClaudeAssistant.mealInput(photos: urls, note: "rice then dal", takenAt: Date(), timeZone: "Asia/Kolkata")
+        try expect(line.components(separatedBy: "\"type\":\"image\"").count == 4 && line.contains("3 photos are steps of the same meal"), "All steps go in one request")
+        try expect(ClaudeAssistant.mealSystemPrompt.contains("tared"), "The prompt explains scale readings")
+    }
     check("chat context lists confirmed meals only when sharing history") {
         var doc = original
         let at = TrackerEngine(document: doc).date(day)!.timeIntervalSince1970 + 13 * 3600
@@ -447,7 +472,7 @@ func runLinkChecks() async -> (count: Int, failures: Int) {
                 arguments: ClaudeAssistant.mealArguments(model: .haiku, effort: .medium),
                 environment: ClaudeAssistant.environment(base: ProcessInfo.processInfo.environment, configDirectory: ClaudeAssistant.defaultConfigDirectory),
                 directory: FileManager.default.temporaryDirectory,
-                input: try ClaudeAssistant.mealInput(photo: photo, note: "a plain red test card, not food", takenAt: Date(), timeZone: "Asia/Kolkata")))
+                input: try ClaudeAssistant.mealInput(photos: [photo], note: "a plain red test card, not food", takenAt: Date(), timeZone: "Asia/Kolkata")))
             let estimate = try ClaudeAssistant.decodeMeal(output)
             print("  live meal: \(estimate.name) · \(Int(estimate.kcal)) kcal · \(estimate.confidence)")
             try expect(estimate.kcal < 200, "A test card should not be estimated as a meal")

@@ -33,23 +33,35 @@ public enum PhoneLinkCrypto {
     public static func open(_ data: Data, key: SymmetricKey) throws -> Data { try AES.GCM.open(AES.GCM.SealedBox(combined: data), using: key) }
 }
 
-/// A meal photo queued on the phone.
+/// A meal photo queued on the phone. A meal with several photos sends each one separately with the same `group`
+/// (the meal's ID), its position `part` and the photo count `parts`, so each request stays small.
 public struct PhoneMeal: Codable, Equatable, Sendable {
     public var id: String
     public var takenAt: Double
     public var note: String
     public var mediaType: String
     public var image: String
-    public init(id: String, takenAt: Double, note: String = "", mediaType: String = "image/jpeg", image: String) {
+    public var group: String?
+    public var part: Int?
+    public var parts: Int?
+    public init(id: String, takenAt: Double, note: String = "", mediaType: String = "image/jpeg", image: String, group: String? = nil, part: Int? = nil, parts: Int? = nil) {
         self.id = id; self.takenAt = takenAt; self.note = note; self.mediaType = mediaType; self.image = image
+        self.group = group; self.part = part; self.parts = parts
     }
-    public func validated(now: Date = Date()) throws -> (id: UUID, data: Data) {
+    public func validated(now: Date = Date()) throws -> (id: UUID, data: Data, group: (meal: UUID, part: Int, parts: Int)?) {
         guard let uuid = UUID(uuidString: id), takenAt.isFinite, takenAt >= 946684800, takenAt <= now.timeIntervalSince1970 + 300,
               note.count <= 500, ["image/jpeg", "image/png"].contains(mediaType),
               let data = Data(base64Encoded: image), !data.isEmpty, data.count <= 8_000_000 else {
             throw ValidationError(message: "The phone sent an invalid meal photo.")
         }
-        return (uuid, data)
+        guard let group else {
+            guard part == nil, parts == nil else { throw ValidationError(message: "The phone sent an invalid meal photo.") }
+            return (uuid, data, nil)
+        }
+        guard let meal = UUID(uuidString: group), let part, let parts, (2...MealLog.maxPhotos).contains(parts), (0..<parts).contains(part) else {
+            throw ValidationError(message: "The phone sent an invalid meal photo.")
+        }
+        return (uuid, data, (meal, part, parts))
     }
 }
 /// An urge logged on the phone. The ID is stable across retries, so a resend is not logged twice.

@@ -98,6 +98,14 @@ meal's calories and macros as a range. Adjust the numbers and click **Confirm me
 confirmed meals set that day's Calorie target and Protein target check-ins. The
 header shows the day's totals against your targets. Photo estimates are rough, often
 20–30% off, mostly from oil and portion size, so notes help.
+
+A meal can have up to 10 photos, for example a plate built up on a kitchen scale
+with a photo after each food is added. On the phone, tap **Add photo** in the note
+dialog after each step, or pick several photos from the gallery and choose **One
+meal**; on the Mac, choose **One meal** when you add several photos. Claude reads
+all the photos together, uses the scale readings (zeroed or running total) and
+counts each food once. The meal is estimated once every photo has arrived; **Estimate
+now** skips waiting for the rest.
 No health records are invented when access or a metric is unavailable.
 
 ## Medicines

@@ -294,19 +294,68 @@ import UniformTypeIdentifiers
     }
     var mealsFolder: URL { storageURL.deletingLastPathComponent().appendingPathComponent("Meals", isDirectory: true) }
     func mealPhotoURL(_ meal: MealEntry) -> URL { mealsFolder.appendingPathComponent(meal.photo) }
-    /// Copies a meal photo (resized, metadata removed) and adds it for estimating. Returns nil when that meal ID already exists.
-    @discardableResult func addMeal(id: UUID = UUID(), photo source: URL, takenAt: Date, note: String, source kind: String) throws -> MealEntry? {
+    func mealPhotoURLs(_ meal: MealEntry) -> [URL] { meal.photos.map { mealsFolder.appendingPathComponent($0) } }
+    /// Copies a photo (resized, metadata removed) as part `part` of a meal, so its parts sort in order.
+    private func storeMealPhoto(_ source: URL, meal: UUID, part: Int) throws -> String {
+        let stored = try ChatPhotos.store(source, in: mealsFolder)
+        let name = MealLog.photoName(meal: meal, part: part, ext: (stored as NSString).pathExtension)
+        try? FileManager.default.removeItem(at: mealsFolder.appendingPathComponent(name))
+        try FileManager.default.moveItem(at: mealsFolder.appendingPathComponent(stored), to: mealsFolder.appendingPathComponent(name))
+        return name
+    }
+    /// Copies meal photos (resized, metadata removed) and adds them as one meal for estimating. Several photos are steps
+    /// of the same meal, in order. Returns nil when that meal ID already exists.
+    @discardableResult func addMeal(id: UUID = UUID(), photos sources: [URL], takenAt: Date, note: String, source kind: String) throws -> MealEntry? {
         refreshDay()
-        guard !document.meals.entries.contains(where: { $0.id == id }) else { return nil }
+        guard !sources.isEmpty, !document.meals.entries.contains(where: { $0.id == id }) else { return nil }
+        guard sources.count <= MealLog.maxPhotos else { throw ValidationError(message: "A meal can have up to \(MealLog.maxPhotos) photos.") }
         let when = min(takenAt, Date())
-        let name = try ChatPhotos.store(source, in: mealsFolder)
-        let entry = MealEntry(id: id, takenAt: when.timeIntervalSince1970, day: engine.key(when),
-                              note: String(note.trimmingCharacters(in: .whitespacesAndNewlines).prefix(500)), photo: name, source: kind)
+        var names: [String] = []
+        do {
+            if sources.count == 1 { names = [try ChatPhotos.store(sources[0], in: mealsFolder)] }
+            else { for (part, url) in sources.enumerated() { names.append(try storeMealPhoto(url, meal: id, part: part)) } }
+        } catch { for name in names { try? FileManager.default.removeItem(at: mealsFolder.appendingPathComponent(name)) }; throw error }
+        var entry = MealEntry(id: id, takenAt: when.timeIntervalSince1970, day: engine.key(when),
+                              note: String(note.trimmingCharacters(in: .whitespacesAndNewlines).prefix(500)), photo: names[0], source: kind)
+        if names.count > 1 { entry.morePhotos = Array(names.dropFirst()) }
         guard change({ $0.meals.entries.append(entry) }) else {
-            try? FileManager.default.removeItem(at: mealsFolder.appendingPathComponent(name))
+            for name in names { try? FileManager.default.removeItem(at: mealsFolder.appendingPathComponent(name)) }
             throw ValidationError(message: saveError ?? notice ?? "The meal couldn’t be saved.")
         }
         return entry
+    }
+    /// Adds one photo of a multi-photo phone meal. Returns nil when that photo was already received, otherwise
+    /// whether every photo has now arrived. A photo arriving after an early estimate clears it so the meal is estimated again.
+    func addPhoneMealPhoto(meal id: UUID, part: Int, parts: Int, file: URL, takenAt: Date, note: String) throws -> Bool? {
+        refreshDay()
+        let existing = document.meals.entries.first { $0.id == id }
+        guard existing?.confirmed != true, !(existing?.photos.contains { $0.hasPrefix(MealLog.photoName(meal: id, part: part, ext: "")) } ?? false) else { return nil }
+        let name = try storeMealPhoto(file, meal: id, part: part)
+        let when = min(takenAt, Date()), trimmed = String(note.trimmingCharacters(in: .whitespacesAndNewlines).prefix(500))
+        guard change({ doc in
+            if let i = doc.meals.entries.firstIndex(where: { $0.id == id }) {
+                doc.meals.entries[i].morePhotos = (doc.meals.entries[i].morePhotos ?? []) + [name]
+                doc.meals.entries[i].expectedPhotos = max(parts, doc.meals.entries[i].photos.count)
+                if doc.meals.entries[i].note.isEmpty { doc.meals.entries[i].note = trimmed }
+                if doc.meals.entries[i].estimate != nil || doc.meals.entries[i].error != nil { doc.meals.entries[i].estimate = nil; doc.meals.entries[i].error = nil }
+            } else {
+                var entry = MealEntry(id: id, takenAt: when.timeIntervalSince1970, day: engine.key(when), note: trimmed, photo: name, source: "phone")
+                entry.expectedPhotos = parts
+                doc.meals.entries.append(entry)
+            }
+        }) else {
+            try? FileManager.default.removeItem(at: mealsFolder.appendingPathComponent(name))
+            throw ValidationError(message: saveError ?? notice ?? "The meal photo couldn’t be saved.")
+        }
+        return document.meals.entries.first { $0.id == id }.map { $0.missingPhotos == 0 } ?? false
+    }
+    /// Estimates a phone meal with the photos received so far.
+    func estimateMealNow(_ id: UUID) {
+        change { doc in
+            guard let i = doc.meals.entries.firstIndex(where: { $0.id == id }) else { return }
+            doc.meals.entries[i].expectedPhotos = doc.meals.entries[i].photos.count; doc.meals.entries[i].error = nil
+        }
+        meals.enqueue(id)
     }
     func setMealEstimate(_ id: UUID, estimate: MealEstimate?, error: String?) {
         change { doc in
@@ -578,7 +627,7 @@ import UniformTypeIdentifiers
     }
     /// Deleted meals keep their photo until the next launch so Undo can restore them.
     private func removeOrphanMealPhotos() {
-        let used = Set(document.meals.entries.map(\.photo))
+        let used = Set(document.meals.entries.flatMap(\.photos))
         for name in (try? FileManager.default.contentsOfDirectory(atPath: mealsFolder.path)) ?? [] where !used.contains(name) {
             try? FileManager.default.removeItem(at: mealsFolder.appendingPathComponent(name))
         }

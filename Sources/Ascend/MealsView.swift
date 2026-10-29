@@ -67,12 +67,30 @@ struct MealsView: View {
         let panel = NSOpenPanel(); panel.allowedContentTypes = [.image]; panel.allowsMultipleSelection = true; panel.message = "Choose meal photos"
         if panel.runModal() == .OK { add(panel.urls) }
     }
-    /// Uses each file's creation time (not later than now) as the meal time.
+    /// Several photos can be one meal (each step of a plate on a scale) or separate meals. Uses each file's creation time
+    /// (not later than now) as the meal time; a single meal takes the earliest.
     private func add(_ urls: [URL]) {
-        for url in urls.prefix(10) {
-            let created = (try? url.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? Date()
-            do { if let meal = try store.addMeal(photo: url, takenAt: created, note: "", source: "mac") { meals.enqueue(meal.id); day = meal.day } }
-            catch { store.notice = error.localizedDescription }
+        let urls = Array(urls.prefix(MealLog.maxPhotos))
+        guard !urls.isEmpty else { return }
+        let created = urls.map { (try? $0.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? Date() }
+        var groups = urls.indices.map { [$0] }
+        if urls.count > 1 {
+            let alert = NSAlert()
+            alert.messageText = "Are these \(urls.count) photos one meal?"
+            alert.informativeText = "Choose One meal for photos of the same plate, such as each food added on a kitchen scale. Claude counts every food once."
+            alert.addButton(withTitle: "One meal"); alert.addButton(withTitle: "Separate meals"); alert.addButton(withTitle: "Cancel")
+            switch alert.runModal() {
+            case .alertFirstButtonReturn: groups = [urls.indices.sorted { created[$0] < created[$1] }]
+            case .alertSecondButtonReturn: break
+            default: return
+            }
+        }
+        for group in groups {
+            do {
+                if let meal = try store.addMeal(photos: group.map { urls[$0] }, takenAt: group.map { created[$0] }.min() ?? Date(), note: "", source: "mac") {
+                    meals.enqueue(meal.id); day = meal.day
+                }
+            } catch { store.notice = error.localizedDescription }
         }
     }
 }
@@ -88,10 +106,10 @@ private struct MealCard: View {
     @State private var confirmDelete = false
     var body: some View {
         HStack(alignment: .top, spacing: 16) {
-            PhotoThumbnail(url: store.mealPhotoURL(meal), size: 120)
+            photos
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Text(meal.estimate?.name ?? (meals.estimating.contains(meal.id) ? "Estimating…" : meal.error == nil ? "Waiting to estimate" : "Estimate failed")).font(.system(size: 15, weight: .semibold))
+                    Text(title).font(.system(size: 15, weight: .semibold))
                     if meal.confirmed { Label("Logged", systemImage: "checkmark.circle.fill").font(.system(size: 11)).foregroundStyle(Ink.accent) }
                     Spacer()
                     Text("\(Date(timeIntervalSince1970: meal.takenAt).formatted(date: .omitted, time: .shortened)) · \(meal.source == "phone" ? "Phone" : "Mac")").font(.system(size: 11)).foregroundStyle(Ink.muted)
@@ -101,6 +119,12 @@ private struct MealCard: View {
                     if !estimate.notes.isEmpty { Text(estimate.notes).font(.system(size: 11)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true) }
                 }
                 if meals.estimating.contains(meal.id) { ProgressView().controlSize(.small) }
+                if meal.missingPhotos > 0 && meal.estimate == nil && !meals.estimating.contains(meal.id) {
+                    HStack {
+                        Text("\(meal.photos.count) of \(meal.expectedPhotos ?? 0) photos here. The rest arrive on the phone's next sync.").font(.system(size: 11)).foregroundStyle(Ink.muted)
+                        Button("Estimate now") { store.estimateMealNow(meal.id) }.font(.system(size: 11))
+                    }
+                }
                 if let error = meal.error {
                     HStack { Text(error).font(.system(size: 11)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true); Button("Retry") { meals.retry(meal.id) }.font(.system(size: 11)) }
                 }
@@ -122,6 +146,25 @@ private struct MealCard: View {
             .confirmationDialog("Delete this meal?", isPresented: $confirmDelete, titleVisibility: .visible) {
                 Button("Delete meal", role: .destructive) { store.deleteMeal(meal.id) }; Button("Cancel", role: .cancel) {}
             } message: { Text(meal.confirmed ? "Its calories and protein are removed from that day's totals. Undo is available until your next edit." : "Undo is available until your next edit.") }
+    }
+    private var title: String {
+        if let name = meal.estimate?.name { return name }
+        if meals.estimating.contains(meal.id) { return "Estimating…" }
+        if meal.error != nil { return "Estimate failed" }
+        return meal.missingPhotos > 0 ? "Waiting for \(meal.missingPhotos) more photo\(meal.missingPhotos == 1 ? "" : "s")" : "Waiting to estimate"
+    }
+    /// The first photo large, any later steps of the same meal small beneath it.
+    private var photos: some View {
+        let urls = store.mealPhotoURLs(meal)
+        return VStack(alignment: .leading, spacing: 6) {
+            PhotoThumbnail(url: urls[0], size: 120)
+            if urls.count > 1 {
+                LazyVGrid(columns: Array(repeating: GridItem(.fixed(36), spacing: 6), count: 3), alignment: .leading, spacing: 6) {
+                    ForEach(urls.dropFirst(), id: \.self) { PhotoThumbnail(url: $0, size: 36) }
+                }
+                Text("\(urls.count) photos · one meal").font(.system(size: 10)).foregroundStyle(Ink.muted)
+            }
+        }.frame(width: 120, alignment: .leading)
     }
     private func field(_ label: String, _ value: Binding<Double>) -> some View {
         VStack(alignment: .leading, spacing: 3) {

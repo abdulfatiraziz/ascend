@@ -16,7 +16,7 @@ import AscendCore
     }
     /// Meals that arrived while Claude was unavailable, or before the app quit, get estimated on launch.
     func estimatePending() {
-        for meal in store?.document.meals.entries ?? [] where meal.estimate == nil && meal.error == nil && !meal.confirmed { enqueue(meal.id) }
+        for meal in store?.document.meals.entries ?? [] where meal.estimate == nil && meal.error == nil && !meal.confirmed && meal.missingPhotos == 0 { enqueue(meal.id) }
     }
     func retry(_ id: UUID) { store?.setMealEstimate(id, estimate: nil, error: nil); enqueue(id) }
     private func runNext() {
@@ -31,7 +31,7 @@ import AscendCore
         do {
             invocation = ClaudeInvocation(executable: executable, arguments: ClaudeAssistant.mealArguments(model: chat.defaultModel, effort: chat.defaultEffort),
                 environment: ClaudeAssistant.environment(base: ProcessInfo.processInfo.environment, configDirectory: chat.configDirectory),
-                directory: chat.workspace, input: try ClaudeAssistant.mealInput(photo: store.mealPhotoURL(meal), note: meal.note,
+                directory: chat.workspace, input: try ClaudeAssistant.mealInput(photos: store.mealPhotoURLs(meal), note: meal.note,
                     takenAt: Date(timeIntervalSince1970: meal.takenAt), timeZone: store.document.timeZoneID))
         } catch { store.setMealEstimate(id, estimate: nil, error: error.localizedDescription); runNext(); return }
         running = true; estimating.insert(id)
