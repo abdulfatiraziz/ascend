@@ -63,6 +63,7 @@ struct BodySettingsEditor: View {
   @State private var fat = ""
   @State private var weight = ""
   @State private var age = ""
+  @State private var height = ""
   @State private var due = Date()
   @State private var hasDue = false
   @State private var formError: String?
@@ -83,7 +84,18 @@ struct BodySettingsEditor: View {
             Toggle("Use a target date", isOn: $hasDue)
             if hasDue { DatePicker("Target date", selection: $due, displayedComponents: .date) }
             DatePicker("Week 1 starts", selection: $draft.weekOne, displayedComponents: .date)
-            TextField("Age for estimated HR zones (optional)", text: $age)
+            TextField("Age for HR / maintenance estimates (optional)", text: $age)
+            TextField("Height cm for maintenance (optional)", text: $height)
+            Picker(
+              "Formula sex coefficient",
+              selection: Binding(
+                get: { draft.maintenanceSex?.rawValue ?? "" },
+                set: { draft.maintenanceSex = MaintenanceSex(rawValue: $0) })
+            ) {
+              Text("Not set").tag("")
+              Text("Male").tag("male")
+              Text("Female").tag("female")
+            }
           }
           Section("Goal checkpoints") {
             ForEach($draft.goal.checkpoints) { $p in
@@ -190,6 +202,7 @@ struct BodySettingsEditor: View {
       fat = draft.goal.targetFat.map { String($0) } ?? ""
       weight = draft.goal.targetWeight.map { String($0) } ?? ""
       age = draft.age.map { String($0) } ?? ""
+      height = draft.heightCM.map { String($0) } ?? ""
       due = draft.goal.targetDate ?? Date().addingTimeInterval(90 * 86400)
       hasDue = draft.goal.targetDate != nil
     }
@@ -215,7 +228,7 @@ struct BodySettingsEditor: View {
   }
   private func save() {
     guard fat.isEmpty || Double(fat) != nil, weight.isEmpty || Double(weight) != nil,
-      age.isEmpty || Int(age) != nil
+      age.isEmpty || Int(age) != nil, height.isEmpty || Double(height) != nil
     else {
       formError =
         "Enter numeric goal values and a whole-number age, or leave optional fields blank."
@@ -225,6 +238,7 @@ struct BodySettingsEditor: View {
     draft.goal.targetWeight = Double(weight)
     draft.goal.targetDate = hasDue ? due : nil
     draft.age = Int(age)
+    draft.heightCM = Double(height)
     if store.save(draft) { dismiss() }
   }
 }

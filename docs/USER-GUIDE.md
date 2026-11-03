@@ -360,3 +360,43 @@ and hamstrings. Warnings distinguish planned weekly sets from hard sets logged
 so far; they do not automatically alter your plan. The minimum and priority list
 are editable. The plan editor supports adjacent exercise supersets and rest
 intervals; timed holds use seconds and do not display an estimated 1RM.
+
+### Your maintenance
+
+The Body tab compares three sources over the previous **14 or 28 closed local
+days**. Today is excluded because its food and activity are still incomplete.
+
+- **Measured · from logs:** an estimate from confirmed meal intake and changing
+  weight. It appears after at least 12/14 days (24/28 days) are fully logged and
+  at least four weigh-ins cover both ends, with two distinct weigh-in dates in
+  each end's seven-day block. A full day has at least two confirmed meals and
+  1,200 kcal, or your explicit completion mark in Review full-day logging. That
+  threshold is a completeness heuristic, not an intake recommendation. Missing
+  days are excluded from the intake average, never silently counted as zero.
+- **Formula:** add age, height and the Mifflin–St Jeor sex coefficient in Goal &
+  coach settings. The latest saved weight and at least three days of watch steps
+  provide BMR and a visible activity multiplier. Steps and completed strength
+  days determine the multiplier; the steps thresholds are product heuristics.
+- **Device estimate · active only:** current Bridge data contains active calories,
+  not total daily energy. It is labelled separately, with observed-day coverage;
+  it is never treated as total maintenance or used to suggest more food.
+
+The intake/weight calculation is average full-day intake **minus** the change
+in weight times 7,700 divided by the observed spacing of the two weight averages.
+A negative end-minus-start change (loss) therefore raises inferred expenditure
+above intake. The seven-day average weights typically sit seven days apart in a
+14-day window or 21 days apart in a 28-day window; actual observation centroids
+handle gaps. Multiple weigh-ins on a date first become one daily average.
+
+The card shows the implied deficit and approximate pace at your existing calorie
+habit target, a suggested planning target when the goal pace is moderate and an
+adult profile is available, and quiet/active-day **formula scenarios**. Suggestions
+never change your habit target. Short-term water shifts, incomplete food records,
+scale noise and changing energy expenditure limit the estimate; it is not a
+metabolic measurement or a guarantee. Very aggressive/low targets are withheld.
+
+Formula reference: [Mifflin et al., 1990](https://pubmed.ncbi.nlm.nih.gov/2305711/).
+For a dynamic physiological planning model, see the
+[NIDDK Body Weight Planner](https://www.niddk.nih.gov/bwp).
+Height, formula coefficient and full-day override marks stay in `training.json`;
+they are not added to the existing short Ask Ascend Body summary.

@@ -25,6 +25,8 @@ func write<T: Encodable>(_ value: T, _ name: String) throws {
 }
 var a = TrainingArchive(now: now, calendar: cal)
 a.age = 36
+a.heightCM = 184
+a.maintenanceSex = .male
 a.weekOne = day(-56)
 a.goal = BodyGoal(targetFat: 18, targetDate: day(100))
 var checkpoint = BodyCheckpoint()
@@ -43,8 +45,8 @@ for (name, tags, equipment, weight, compound) in definitions {
   e.muscles = tags
   e.equipment = equipment
   e.startingWeight = weight
-  let art=name.lowercased().replacingOccurrences(of:" ",with:"-")
-  e.animationID=["goblet-squat","chest-supported-row","hip-thrust"].contains(art) ? art:nil
+  let art = name.lowercased().replacingOccurrences(of: " ", with: "-")
+  e.animationID = ["goblet-squat", "chest-supported-row", "hip-thrust"].contains(art) ? art : nil
   e.compound = compound
   e.priorityTags =
     tags.contains(.quadriceps)
@@ -82,7 +84,7 @@ for offset in [-35, -28, -21, -14, -7, -3, -2, -1] {
       .init(
         exerciseID: e.id, date: day(offset).addingTimeInterval(13 * 3600),
         sets: Array(repeating: .init(weight: weight, reps: 12, rpe: 8), count: count),
-        muscles: e.muscles,priorityTags:e.priorityTags))
+        muscles: e.muscles, priorityTags: e.priorityTags))
   }
 }
 try a.validate()
@@ -105,6 +107,23 @@ try write(body, "body-measurements.json")
 var doc = TrackerDocument.seeded(today: "2026-01-01", timeZoneID: cal.timeZone.identifier)
 let engine = TrackerEngine(document: doc)
 doc = TrackerDocument.seeded(today: engine.key(now), timeZoneID: cal.timeZone.identifier)
+for offset in -28..<0 {
+  for hour in [12, 19] {
+    let when = day(offset).addingTimeInterval(Double(hour) * 3600)
+    var meal = MealEntry(
+      takenAt: when.timeIntervalSince1970, day: engine.key(when), note: "Generated sample meal",
+      photo: "generated-placeholder.png", source: "mac")
+    meal.confirmed = true
+    meal.kcal = 1200
+    meal.protein = 50
+    meal.carbs = 130
+    meal.fat = 40
+    doc.meals.entries.append(meal)
+  }
+}
+if let id = doc.mealHabits.calories?.id, let i = doc.habits.firstIndex(where: { $0.id == id }) {
+  for j in doc.habits[i].revisions.indices { doc.habits[i].revisions[j].target?.maximum = 2500 }
+}
 try doc.validate()
 try write(doc, "tracker.json")
 var health = HealthArchive()

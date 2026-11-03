@@ -72,6 +72,7 @@ struct BodyView: View {
           Text(error).foregroundStyle(.orange).textSelection(.enabled)
         }
         goalHeader
+        BodyMaintenanceCard(store:store,training:training,measurements:measurements)
         weightTrend
         todayCard
         stepsToday

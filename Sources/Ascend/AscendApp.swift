@@ -15,6 +15,7 @@ import AppKit
     var body: some Scene {
         Window("Ascend", id: "main") {
             MainView(store: store).preferredColorScheme(.dark)
+                .onAppear { SampleCapture.export(MainView(store:store).environment(\.calendar,store.engine.calendar).environment(\.timeZone,store.engine.calendar.timeZone)) }
                 .environment(\.calendar, store.engine.calendar)
                 .environment(\.timeZone, store.engine.calendar.timeZone)
         }

@@ -145,6 +145,9 @@ public struct TrainingArchive: Codable, Equatable, Sendable {
   public var goal = BodyGoal()
   public var weekOne: Date
   public var age: Int?
+  public var heightCM: Double?
+  public var maintenanceSex: MaintenanceSex?
+  public var completedNutritionDays: [String]?
   public var rules = CoachRules()
   public init(now: Date = Date(), calendar: Calendar = Calendar.current) {
     var c = calendar
@@ -186,6 +189,11 @@ public struct TrainingArchive: Codable, Equatable, Sendable {
     guard (1...30).contains(rules.priorityMinimum),
       Set(rules.priorities).count == rules.priorities.count
     else { throw ValidationError(message: "Invalid priority-muscle settings.") }
+    guard heightCM.map({ $0.isFinite && (100...250).contains($0) }) ?? true,
+      (completedNutritionDays?.count ?? 0) <= 5000,
+      completedNutritionDays?.allSatisfy(BodyMaintenanceReport.validDay) ?? true,
+      Set(completedNutritionDays ?? []).count == (completedNutritionDays?.count ?? 0)
+    else { throw ValidationError(message: "Invalid maintenance settings.") }
     let ids = Set(exercises.map(\.id))
     for e in exercises {
       guard !e.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, e.name.count <= 120,
