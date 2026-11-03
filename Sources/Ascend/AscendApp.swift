@@ -15,7 +15,6 @@ import AppKit
     var body: some Scene {
         Window("Ascend", id: "main") {
             MainView(store: store).preferredColorScheme(.dark)
-                .onAppear { SampleCapture.export(MainView(store:store).environment(\.calendar,store.engine.calendar).environment(\.timeZone,store.engine.calendar.timeZone)) }
                 .environment(\.calendar, store.engine.calendar)
                 .environment(\.timeZone, store.engine.calendar.timeZone)
         }
@@ -28,13 +27,11 @@ import AppKit
                 Button("Export backup…") { store.exportBackup() }.keyboardShortcut("e", modifiers: [.command, .shift])
             }
         }
-        MenuBarExtra {
-            MenuBarPanel(store: store).preferredColorScheme(.dark)
-                .environment(\.calendar, store.engine.calendar)
-                .environment(\.timeZone, store.engine.calendar.timeZone)
+        MenuBarExtra(isInserted:.constant(ProcessInfo.processInfo.environment["ASCEND_DATA_DIR"] == nil)) {
+            StatusMenu(store:store)
         } label: {
             let score = store.engine.score(on: store.today)
             Label("\(score.completed)/\(score.scheduled)", systemImage: "circle.hexagongrid")
-        }.menuBarExtraStyle(.window)
+        }.menuBarExtraStyle(.menu)
     }
 }

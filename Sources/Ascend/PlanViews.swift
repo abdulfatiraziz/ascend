@@ -161,7 +161,7 @@ struct MenuBarPanel: View {
             if let id = loggedUrgeID, store.document.urgeLogs.contains(where: { $0.id == id }) {
                 HStack {
                     Text("Time saved").foregroundStyle(Ink.muted)
-                    Button("Details") { open(nil); Task { @MainActor in try? await Task.sleep(for: .milliseconds(200)); store.pendingUrge = id } }
+                    Button("Details") { store.pendingUrge = id; open(nil) }
                     Spacer(); Button("Undo") { store.undoProgressAction(); loggedUrgeID = nil }.disabled(store.undoLabel != "urge log" || store.lastUrgeID != id)
                 }.font(.system(size: 11)).buttonStyle(.borderless)
             }
@@ -189,13 +189,9 @@ struct MenuBarPanel: View {
             }.buttonStyle(.plain).font(.system(size: 11)).foregroundStyle(Ink.muted)
         }.padding(18).frame(width: 370).background(Ink.background).tint(Ink.accent).onAppear { store.refreshDay() }.onDisappear { loggedUrgeID = nil }
     }
-    private func open(_ destination: String?) {
-        if isModal { dismiss() }
-        openWindow(id: "main"); NSApp.activate(ignoringOtherApps: true)
-        // Let the quick sheet finish dismissing before presenting another editor.
-        Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(180))
-            if let destination { store.pendingScreen = destination }
-        }
+    private func open(_ destination:String?){
+        if let destination{store.pendingScreen=destination}
+        if isModal {dismiss();return}
+        DispatchQueue.main.async{openWindow(id:"main");NSApp.activate(ignoringOtherApps:true)}
     }
 }

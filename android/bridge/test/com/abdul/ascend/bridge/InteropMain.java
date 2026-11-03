@@ -17,6 +17,8 @@ import javax.imageio.ImageIO;
 public final class InteropMain {
     static final String KINDS = "\"heartRate\",\"steps\",\"sleep\",\"oxygen\",\"distance\",\"activeEnergy\",\"speed\",\"elevation\",\"workout\"";
     public static void main(String[] args) throws Exception {
+        // ImageIO fixtures need no desktop toolkit or Dock app, even on macOS.
+        System.setProperty("java.awt.headless", "true");
         InetAddress host = InetAddress.getByName(args[0]);
         int port = Integer.parseInt(args[1]);
         String phoneID = UUID.randomUUID().toString();

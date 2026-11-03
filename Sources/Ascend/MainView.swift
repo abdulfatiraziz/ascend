@@ -30,6 +30,9 @@ struct MainView: View {
         : Screen(rawValue: ProcessInfo.processInfo.environment["ASCEND_OPEN_SCREEN"] ?? "") ?? .today
     @State private var selectedDay: String
     @State private var editor: Editor?
+    @State private var sheetIsPresented=false
+    @State private var queuedEditor:Editor?
+    @State private var queuedDestination:String?
     @Environment(\.openWindow) private var openWindow
     init(store: TrackerStore) { self.store = store; _selectedDay = State(initialValue: store.today) }
     var body: some View {
@@ -71,7 +74,7 @@ struct MainView: View {
         }
         .frame(minWidth: 980, minHeight: 720).background(Ink.background).foregroundStyle(.white)
         .tint(Ink.accent)
-        .sheet(item: $editor) { item in
+        .sheet(item: $editor,onDismiss:editorDismissed) { item in
             Group {
                 switch item {
                 case .goal(let goal): GoalEditor(store: store, goal: goal)
@@ -85,24 +88,51 @@ struct MainView: View {
                 case .settings: SettingsEditor(store: store)
                 case .quick: MenuBarPanel(store: store, isModal: true)
                 }
-            }.preferredColorScheme(.dark).environment(\.calendar, store.engine.calendar).environment(\.timeZone, store.engine.calendar.timeZone)
+            }.preferredColorScheme(.dark).environment(\.calendar, store.engine.calendar).environment(\.timeZone, store.engine.calendar.timeZone).onAppear{sheetIsPresented=true}
         }
         .alert("Ascend", isPresented: Binding(get: { store.notice != nil }, set: { if !$0 { store.notice = nil } })) { Button("OK") { store.notice = nil } } message: { Text(store.notice ?? "") }
         .onChange(of: store.today) { old, new in if selectedDay == old { selectedDay = new } }
         .onChange(of: store.pendingLog, initial: true) { _, id in
-            if let id, let habit = store.document.habits.first(where: { $0.id == id }) { editor = .metric(habit, store.today); store.pendingLog = nil }
+            if let id, let habit = store.document.habits.first(where: { $0.id == id }) { present(.metric(habit, store.today)); store.pendingLog = nil }
         }
         .onChange(of: store.pendingUrge) { _, id in
-            if let id { editor = .urge(id); store.pendingUrge = nil }
+            if let id { present(.urge(id)); store.pendingUrge = nil }
         }
         .onChange(of: store.pendingScreen) { _, value in
+            guard let value else{return}
+            store.pendingScreen=nil
+            if sheetIsPresented || editor != nil {
+                queuedDestination=value;queuedEditor=nil;editor=nil
+            } else {navigate(value)}
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .ascendNotificationOpened)) { _ in
+            screen = .today; selectedDay = store.today; openWindow(id: "main")
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            store.refreshDay(); store.notifications.refresh(store.document)
+        }
+    }
+    private func present(_ next:Editor){
+        if sheetIsPresented || editor != nil {queuedEditor=next;queuedDestination=nil;editor=nil}
+        else{editor=next}
+    }
+    private func editorDismissed(){
+        sheetIsPresented=false
+        if let destination=queuedDestination{queuedDestination=nil;navigate(destination)}
+        else if let next=queuedEditor{queuedEditor=nil;editor=next}
+    }
+    private func navigate(_ value:String){
             if value == "Routine" { screen = .routine }
             if value == "Patterns" { screen = .patterns }
             if value == "DailyCheckIn" { editor = .observation(store.today) }
             if value == "Caffeine" { editor = .caffeine(nil, store.today) }
             if value == "Urges" { screen = .urges }
             if value == "Meds" { screen = .meds }
+            if value == "Health" { screen = .health }
+            if value == "Meals" { screen = .meals }
             if value == "Notes" { screen = .notes }
+            if value == "ScreenTime" { screen = .screenTime }
+            if value == "QuickCheckIn" { editor = .quick }
             if value == "Body" { screen = .body }
             if value == "Photos" { screen = .photos }
             if value == "Assistant" { screen = .chat }
@@ -111,14 +141,6 @@ struct MainView: View {
             if value == "Calendar" { screen = .calendar; selectedDay = store.today }
             if value == "Settings" { editor = .settings }
             if value == "Today" { screen = .today; selectedDay = store.today }
-            store.pendingScreen = nil
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .ascendNotificationOpened)) { _ in
-            screen = .today; selectedDay = store.today; openWindow(id: "main")
-        }
-        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-            store.refreshDay(); store.notifications.refresh(store.document)
-        }
     }
     private var sidebar: some View {
         VStack(spacing: 12) {

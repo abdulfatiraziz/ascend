@@ -10,7 +10,7 @@ rm -rf "$classes"; mkdir -p "$classes"
   android/bridge/src/com/abdul/ascend/bridge/LinkClient.java \
   android/bridge/test/com/abdul/ascend/bridge/InteropMain.java
 "$jdk/bin/javac" -d "$classes" android/bridge/src/com/abdul/ascend/bridge/ScreenTimeMath.java android/bridge/test/com/abdul/ascend/bridge/ScreenTimeMathChecks.java
-"$jdk/bin/java" -cp "$classes" com.abdul.ascend.bridge.ScreenTimeMathChecks
+"$jdk/bin/java" -Djava.awt.headless=true -cp "$classes" com.abdul.ascend.bridge.ScreenTimeMathChecks
 export CLANG_MODULE_CACHE_PATH="${TMPDIR:-/private/tmp/}ascend-module-cache"
 ASCEND_JAVA_INTEROP="$jdk/bin/java" ASCEND_JAVA_CP="$classes" \
   swift run --disable-sandbox --cache-path "${TMPDIR:-/private/tmp/}ascend-swift-cache" AscendChecks

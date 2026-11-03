@@ -280,7 +280,7 @@ func runLinkChecks() async -> (count: Int, failures: Int) {
             var port: UInt16?
             for _ in 0..<100 { port = server.port; if port != nil && port != 0 { break }; try await Task.sleep(for: .milliseconds(20)) }
             let output = try await ProcessClaudeLauncher(timeout: 90).run(ClaudeInvocation(executable: URL(fileURLWithPath: java),
-                arguments: ["-cp", classpath, "com.abdul.ascend.bridge.InteropMain", "127.0.0.1", "\(port!)"], environment: ["PATH": "/usr/bin:/bin"],
+                arguments: ["-Djava.awt.headless=true", "-cp", classpath, "com.abdul.ascend.bridge.InteropMain", "127.0.0.1", "\(port!)"], environment: ["PATH": "/usr/bin:/bin"],
                 directory: FileManager.default.temporaryDirectory, input: ""))
             let lines = String(decoding: output.stdout, as: UTF8.self).split(separator: "\n").map(String.init)
             func line(_ prefix: String) -> String { lines.first { $0.hasPrefix(prefix + " ") } ?? "" }
