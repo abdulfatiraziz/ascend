@@ -313,7 +313,8 @@ struct TrackerEngineChecks {
         let screenTime = runScreenTimeChecks(); failures += screenTime.failures
         var macScreenTime = (count:0,failures:0)
         do { macScreenTime=try runMacScreenTimeChecks();failures+=macScreenTime.failures } catch { failure("Mac usage fixture setup failed: \(error)") }
-        print("\(cases.count + features.count + patterns.count + link.count + meds.count + notes.count + photos.count + storage.count + xiaomi.count + report.count + body.count + drTrust.count + screenTime.count + macScreenTime.count) checks, \(failures) failures")
+        let training=runTrainingChecks();failures+=training.failures
+        print("\(cases.count + features.count + patterns.count + link.count + meds.count + notes.count + photos.count + storage.count + xiaomi.count + report.count + body.count + drTrust.count + screenTime.count + macScreenTime.count + training.count) checks, \(failures) failures")
         if failures > 0 { exit(1) }
     }
 }

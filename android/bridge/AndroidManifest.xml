@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.abdul.ascend.bridge" android:versionCode="17" android:versionName="0.7.0">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.abdul.ascend.bridge" android:versionCode="19" android:versionName="0.8.1">
 <uses-sdk android:minSdkVersion="34" android:targetSdkVersion="36"/>
 <uses-permission android:name="android.permission.health.READ_HEART_RATE"/>
 <uses-permission android:name="android.permission.health.READ_STEPS"/>
@@ -31,6 +31,7 @@
 <activity android:name=".BridgeActivity" android:exported="true" android:launchMode="singleTop">
 <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
 </activity>
+<activity android:name=".ExerciseDemoActivity" android:exported="false"/>
 <activity-alias android:name="ViewPermissionUsageActivity" android:exported="true" android:targetActivity=".BridgeActivity" android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
 <intent-filter><action android:name="android.intent.action.VIEW_PERMISSION_USAGE"/><category android:name="android.intent.category.HEALTH_PERMISSIONS"/></intent-filter>
 </activity-alias>

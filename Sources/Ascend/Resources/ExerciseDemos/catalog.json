@@ -1,0 +1,26 @@
+[
+  {
+    "id": "incline-dumbbell-press",
+    "name": "Incline dumbbell press"
+  },
+  {
+    "id": "chest-supported-row",
+    "name": "Chest-supported row"
+  },
+  {
+    "id": "leg-press",
+    "name": "Leg press"
+  },
+  {
+    "id": "lateral-raise",
+    "name": "Lateral raise"
+  },
+  {
+    "id": "assisted-pull-up",
+    "name": "Assisted pull-up"
+  },
+  {
+    "id": "plank",
+    "name": "Plank"
+  }
+]

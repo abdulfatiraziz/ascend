@@ -42,13 +42,15 @@ struct PhotosView: View {
     @State private var importing: [ImportItem] = []
     @State private var editing: ProgressPhoto?
     @State private var savedNotes: Set<UUID> = []
-    init(store: TrackerStore) { self.store = store; reviews = store.photoReviews }
+    private var initialArea:PhotoArea?
+    init(store: TrackerStore, initialArea: PhotoArea? = nil, initialAngle: PhotoAngle? = nil) { self.store = store; self.initialArea=initialArea; reviews = store.photoReviews; _angle = State(initialValue:initialAngle); if let initialArea { _areaValue = AppStorage(wrappedValue:initialArea.rawValue,"ascend.photos.area") } }
     private var area: PhotoArea { PhotoArea(rawValue: areaValue) ?? .hair }
     private var album: PhotoAlbum { store.document.photos }
     private var currentAngle: PhotoAngle? { let used = album.angles(area); return angle.flatMap { used.contains($0) ? $0 : nil } ?? used.first }
 
     var body: some View {
         ScrollView { content }
+        .onAppear { if let initialArea { areaValue=initialArea.rawValue } }
         .dropDestination(for: URL.self) { urls, _ in prepare(urls.filter(ChatPhotos.isImage)); return true }
         .sheet(isPresented: Binding(get: { !importing.isEmpty }, set: { if !$0 { importing = [] } })) {
             ImportSheet(store: store, items: $importing) { added in

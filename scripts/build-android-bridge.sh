@@ -15,7 +15,7 @@ jar cf build/android/classes.jar -C build/android/classes .
 # Icons are vector drawables, looked up by name at runtime, so no generated R class is needed.
 rm -f build/android/res.zip
 "$bridge_tools/aapt2" compile --dir android/bridge/res -o build/android/res.zip
-"$bridge_tools/aapt2" link -I "$bridge_android" --manifest android/bridge/AndroidManifest.xml -o build/android/unsigned.apk build/android/res.zip
+"$bridge_tools/aapt2" link -I "$bridge_android" --manifest android/bridge/AndroidManifest.xml -A Sources/Ascend/Resources/ExerciseDemos -o build/android/unsigned.apk build/android/res.zip
 zip -q -j build/android/unsigned.apk build/android/dex/classes.dex
 "$bridge_tools/zipalign" -f -p 4 build/android/unsigned.apk build/android/aligned.apk
 if [[ ! -f build/android/local-signing.p12 ]]; then

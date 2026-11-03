@@ -18,6 +18,15 @@ import UniformTypeIdentifiers
         archive = try BodyStorage.mergeRecords(records, to: url)
         failed = false; message = nil
     }
+    func saveManual(id:String?=nil,kilograms:Double,date:Date) throws {
+        let latest=try BodyStorage.read(url)
+        let candidate=try latest.savingManual(id:id,kilograms:kilograms,date:date)
+        try BodyStorage.saveManual(candidate,to:url);archive=candidate;failed=false;message=nil
+    }
+    func deleteManual(_ id:String) throws {
+        let candidate=try BodyStorage.read(url).deletingManual(id)
+        try BodyStorage.saveManual(candidate,to:url);archive=candidate;failed=false;message=nil
+    }
     func chooseImport() {
         let panel = NSOpenPanel()
         panel.title = "Import Dr Trust measurements or an Ascend body backup"

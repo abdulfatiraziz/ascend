@@ -44,7 +44,7 @@ public final class BridgeActivity extends Activity {
     static final String LOCAL_NETWORK = "android.permission.ACCESS_LOCAL_NETWORK";
     static final int REQ_HEALTH = 7, REQ_NETWORK = 8, REQ_CAMERA = 11, REQ_PICK = 12, REQ_NOTIFY = 13, REQ_BACKGROUND = 14;
     static final String[] TRIGGERS = {"Stress", "Coffee", "After a meal", "Social", "Boredom"};
-    static final String VERSION = "0.7.0";
+    static final String VERSION = "0.8.1";
 
     SyncEngine engine;
     Ui ui;
@@ -98,7 +98,9 @@ public final class BridgeActivity extends Activity {
         boolean background = prefs.getBoolean("backgroundSync", false);
         SyncJob.schedule(this, background && engine.backgroundAllowed());
         render();
+        if ("com.abdul.ascend.bridge.EXERCISE_DEMOS".equals(getIntent().getAction())) openExerciseDemos();
     }
+    @Override protected void onNewIntent(Intent intent) { super.onNewIntent(intent); setIntent(intent); if ("com.abdul.ascend.bridge.EXERCISE_DEMOS".equals(intent.getAction())) openExerciseDemos(); }
     @Override protected void onSaveInstanceState(Bundle out) {
         super.onSaveInstanceState(out);
         out.putString("captureName", captureName); out.putString("photoMode", photoMode); out.putString("screen", screen.name());
@@ -126,6 +128,7 @@ public final class BridgeActivity extends Activity {
     }
     @Override protected void onDestroy() { super.onDestroy(); network.shutdown(); }
 
+    void openExerciseDemos(){startActivity(new Intent(this,ExerciseDemoActivity.class));}
     void show(Screen s) { screen = s; render(); }
     void render() {
         if (root == null) return;
@@ -270,6 +273,7 @@ public final class BridgeActivity extends Activity {
         String kicker = t.has("dayNumber") ? "Day " + t.optInt("dayNumber") + " of " + t.optInt("dayCount") + " · " + t.optString("cycle") : "Ascend";
         col.addView(header(kicker, "Today", circleButton("ic_gear", "Settings", v -> show(Screen.SETTINGS))));
         col.addView(syncPill(), new LinearLayout.LayoutParams(Ui.WRAP, ui.dp(36)));
+        col.addView(ui.secondary("Workout artwork · offline", v -> openExerciseDemos()));
         if (!engine.paired()) col.addView(setupCard());
         if (t.has("avatar")) col.addView(avatarCard(t));
         JSONObject next = nextDose();

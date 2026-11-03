@@ -21,6 +21,7 @@ import UniformTypeIdentifiers
     let screenTime: ScreenTimeStore
     let drTrust: DrTrustCloudService
     let bodyMeasurements: BodyMeasurementStore
+    let training: TrainingStore
     let xiaomi: XiaomiCloudService
     @Published private(set) var lastUrgeID: UUID?
     @Published var pendingUrge: UUID?
@@ -42,6 +43,7 @@ import UniformTypeIdentifiers
         macScreenTime=MacScreenTimeService(enabled:ProcessInfo.processInfo.environment["ASCEND_DATA_DIR"]==nil || ProcessInfo.processInfo.environment["ASCEND_MAC_SCREEN_TIME"]=="1",store:screenStore)
         let bodyStore = BodyMeasurementStore(folder: folder)
         bodyMeasurements = bodyStore
+        training = TrainingStore(folder:folder)
         drTrust = DrTrustCloudService(enabled: ProcessInfo.processInfo.environment["ASCEND_DATA_DIR"] == nil || ProcessInfo.processInfo.environment["ASCEND_DRTRUST"] == "1", bodyStore: bodyStore)
         assistant = ChatController(folder: folder.appendingPathComponent("Claude", isDirectory: true))
         meals = MealController()
@@ -83,7 +85,7 @@ import UniformTypeIdentifiers
         timer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.refreshDay() }
         }
-        meals.store = self; phoneLink.store = self; medsReader.store = self; photoReviews.store = self; xiaomi.store = self
+        assistant.bodySummary = { [weak self] in self?.bodyAssistantSummary() }; meals.store = self; phoneLink.store = self; medsReader.store = self; photoReviews.store = self; xiaomi.store = self
         removeOrphanMealPhotos(); removeOrphanMedPhotos(); removeOrphanProgressPhotos()
         meals.estimatePending(); medsReader.resumePending()
         if !recoveryLocked { xiaomi.start(); drTrust.start(); macScreenTime.start() }

@@ -3,8 +3,8 @@ import AppKit
 import AscendCore
 
 enum Screen: String, CaseIterable {
-    case today = "Today", chat = "Chat", goals = "Goals", routine = "Routine", meals = "Meals", meds = "Meds", notes = "Notes", photos = "Photos", screenTime = "Screen time", health = "Health", patterns = "Patterns", urges = "Urges", calendar = "Calendar", cycle = "Cycle"
-    var symbol: String { switch self { case .today: "circle.hexagongrid"; case .chat: "sparkles"; case .goals: "scope"; case .routine: "clock"; case .meals: "fork.knife"; case .meds: "pills"; case .notes: "note.text"; case .photos: "person.crop.rectangle.stack"; case .screenTime: "hourglass"; case .health: "heart.text.square"; case .patterns: "point.3.connected.trianglepath.dotted"; case .urges: "circle.dotted"; case .calendar: "calendar"; case .cycle: "chart.bar.xaxis" } }
+    case today = "Today", chat = "Chat", goals = "Goals", routine = "Routine", meals = "Meals", meds = "Meds", notes = "Notes", photos = "Photos", screenTime = "Screen time", health = "Health", body = "Body", patterns = "Patterns", urges = "Urges", calendar = "Calendar", cycle = "Cycle"
+    var symbol: String { switch self { case .today: "circle.hexagongrid"; case .chat: "sparkles"; case .goals: "scope"; case .routine: "clock"; case .meals: "fork.knife"; case .meds: "pills"; case .notes: "note.text"; case .photos: "person.crop.rectangle.stack"; case .screenTime: "hourglass"; case .health: "heart.text.square"; case .body: "figure.strengthtraining.traditional"; case .patterns: "point.3.connected.trianglepath.dotted"; case .urges: "circle.dotted"; case .calendar: "calendar"; case .cycle: "chart.bar.xaxis" } }
 }
 enum Editor: Identifiable {
     case goal(Goal?), habit(Habit?, UUID?), metric(Habit, String), urge(UUID), observation(String), caffeine(CaffeineEntry?, String), routine, aiSettings, settings, quick
@@ -58,6 +58,7 @@ struct MainView: View {
                     case .photos: PhotosView(store: store)
                     case .screenTime: ScreenTimeView(store:store.screenTime,mac:store.macScreenTime)
                     case .health: HealthView(store: store)
+                    case .body: BodyView(store:store)
                     case .patterns: PatternsView(store: store, editor: $editor)
                     case .urges: UrgesView(store: store, editor: $editor)
                     case .calendar: CalendarView(store: store, day: $selectedDay, editor: $editor)
@@ -102,6 +103,7 @@ struct MainView: View {
             if value == "Urges" { screen = .urges }
             if value == "Meds" { screen = .meds }
             if value == "Notes" { screen = .notes }
+            if value == "Body" { screen = .body }
             if value == "Photos" { screen = .photos }
             if value == "Assistant" { screen = .chat }
             if value == "AISettings" { editor = .aiSettings }
@@ -139,7 +141,7 @@ struct MainView: View {
         HStack(alignment: .center) {
             VStack(alignment: .leading, spacing: 7) {
                 Kicker("Your next version starts here")
-                Text(screen == .today ? "Build yourself." : screen == .goals ? "The blueprint." : screen == .calendar ? "Every day counts." : screen == .routine ? "Find your rhythm." : screen == .patterns ? "Connect the dots." : screen == .meals ? "Eat with intent." : screen == .meds ? "Take it as prescribed." : screen == .notes ? "Remember what matters." : screen == .photos ? "See the change." : screen == .screenTime ? "Own your attention." : screen == .health ? "Know your rhythm." : screen == .urges ? "Notice the pattern." : "The long game.")
+                Text(screen == .today ? "Build yourself." : screen == .goals ? "The blueprint." : screen == .calendar ? "Every day counts." : screen == .routine ? "Find your rhythm." : screen == .patterns ? "Connect the dots." : screen == .meals ? "Eat with intent." : screen == .meds ? "Take it as prescribed." : screen == .notes ? "Remember what matters." : screen == .photos ? "See the change." : screen == .screenTime ? "Own your attention." : screen == .body ? "Build strength. See change." : screen == .health ? "Know your rhythm." : screen == .urges ? "Notice the pattern." : "The long game.")
                     .font(.system(size: 36, weight: .semibold)).tracking(-1.5).lineLimit(1).minimumScaleFactor(0.8)
             }
             Spacer()

@@ -282,3 +282,81 @@ preserved, and a valid backup is recovered when available.
 
 The app is locally ad-hoc signed. Keep using `build/Ascend.app`; no account,
 notarized installer or background server is required for local tracking.
+
+## Body: goals, training and steps
+
+Open **Body** in the sidebar. Health retains a one-line weight/scale-fat summary
+that opens this screen. Your existing Dr Trust readings and connection settings
+are under **Scale readings & Dr Trust connection**.
+
+- **Goal & coach settings:** set body-fat percentage, an optional weight and date,
+  editable checkpoints, age for estimated heart-rate zones, and the start of Week 1.
+  Lean mass uses the latest weight and latest available scale-fat estimate. Weight
+  at goal assumes lean mass is retained. Pace is a regression over trailing weekly
+  averages; sparse or stale readings do not create a confident projection. A deadline
+  requiring over 1% loss per week shows a warning and a 0.5–0.75% planning range.
+- **Log weight:** enter kg and a date/time. Manual records can be edited or deleted
+  in Reading history; scale records are read only. Existing manual entries survive
+  cloud sync. Dates include explicit 12-hour times in reading lists and log editors.
+- **Edit weekly plan:** choose each weekday and session type. Create exercises in
+  the library, tag their muscles, set equipment, sets, rep range, starting weight,
+  assisted/compound flags, explicit priority-muscle tags and timed holds, then add
+  and order them in a session. Pair adjacent exercises with the superset toggle. Cardio has type,
+  minutes, incline and speed. Suggestions do not change the plan automatically.
+- **Today:** see previous sets and the next progression hint. Log hard sets or
+  warm-ups with optional RPE; Tab moves through fields and Command–Return saves.
+  Same as last copies the previous set pattern. Mark the session done, rested or
+  skipped. History shows session volume, best sets, estimated Epley 1RM and PRs;
+  assisted exercises use lower assistance as progress, without a misleading 1RM.
+- **Steps today:** the daily floor defaults to 7,000; the higher target comes from
+  your existing steps habit. No duplicate habit is created. Editable blocks cover
+  base movement, morning sunlight, gym days, treadmill days and rest days. Watch
+  step bursts in a matching window or a matching workout can tick a block; other
+  boxes are manual. Planned estimates are never added to actual steps. A low-count
+  treadmill workout can show the wrist/rails hint. Unknown steps remain unknown.
+- **Coach rules:** toggle reminders, priority-muscle volume warnings, progression/stall flags,
+  late hard-session flags, calorie notes and the walking-pad rule. Thresholds,
+  times, step blocks and the treadmill hint are editable. A recent meal timestamp
+  gives the walking nudge a within-30-minutes option; morning blocks use Routine's
+  wake time. Easy evening walks are allowed. Calories never drive eat-back advice.
+- **Weekly scorecard:** strength /3, cardio /3, floor-step days /7 and one 45–75 min
+  low-intensity session. Watch and manual completions on a day count once. Workouts
+  match the same day's plan, show heart rate, distance and calories when available,
+  and link late hard sessions to Routine's bedtime. A planned flat walking-pad
+  session with low or unknown HR counts as walking only. The watch type alone does
+  not prove incline; intensity is an age-based estimate, not a measured fitness zone.
+- **Muscle map:** front/back colors show logged hard sets only (0 neutral, 1–9 dim,
+  10–20 accent, 21+ warning). Hover, tap or use the region picker for sets and the
+  exercises that contributed. This is not a regional fat or body-composition map.
+- **Progress photos:** view latest Body photos and open the existing same-angle
+  first/latest comparison. Images are not sent automatically to chat.
+
+Training lives in a separate versioned `training.json` alongside the tracker.
+Writes are atomic and corrupt/unsupported files are preserved with an error;
+there are no per-save training backups. Copy this file and the separate body
+backup when making a full manual backup. Main tracker export does not include it.
+Ask Ascend receives a short Body goal, pace, weekly scorecard, today's session
+and recent-lifts summary when sending a chat. No Body file paths or photo data
+are added to that summary. Android gym logging is not part of this release.
+
+### Workout artwork
+
+Body → **Workout artwork** opens six AI-generated transparent exercise
+illustrations. Choose an illustration in the exercise editor to attach it to a
+movement. The optional **Subtle GIF motion** toggle gently floats the picture;
+it does not demonstrate a repetition or assess form. Static PNG is the default.
+The old two/three-pose GymMane animations have been removed.
+
+Bridge 0.8.1 adds **Workout artwork · offline** on Today, using the same bundled
+images/GIFs without new permissions or sign-in. Android has a read-only artwork
+library; personal training-plan/set-log sync remains a future feature. Generated
+art uses fictional subjects and no personal photos, measurements or private
+weights. The six movements are incline dumbbell press, chest-supported row,
+leg press, lateral raise, assisted pull-up and plank.
+
+Priority volume warnings replace exercise-specific Saturday suggestions. Use
+explicit priority tags for upper chest, side delts, upper back, rear delts, quads
+and hamstrings. Warnings distinguish planned weekly sets from hard sets logged
+so far; they do not automatically alter your plan. The minimum and priority list
+are editable. The plan editor supports adjacent exercise supersets and rest
+intervals; timed holds use seconds and do not display an estimated 1RM.

@@ -6,6 +6,12 @@ import AppKit
     /// Ascend is dark-only. preferredColorScheme doesn't reach the menu bar window's AppKit controls
     /// (segmented pickers, scrollers, plain buttons), so set the app's appearance itself.
     init() { NSApplication.shared.appearance = NSAppearance(named: .darkAqua) }
+    // Isolated sample launches can verify fixed window sizes without touching live UI preferences.
+    private func sampleDimension(_ key:String,fallback:Double,minimum:Double)->Double {
+        guard ProcessInfo.processInfo.environment["ASCEND_DATA_DIR"] != nil,
+              let raw=ProcessInfo.processInfo.environment[key],let value=Double(raw),value.isFinite else{return fallback}
+        return min(1800,max(minimum,value))
+    }
     var body: some Scene {
         Window("Ascend", id: "main") {
             MainView(store: store).preferredColorScheme(.dark)
@@ -13,7 +19,7 @@ import AppKit
                 .environment(\.timeZone, store.engine.calendar.timeZone)
         }
         .windowStyle(.hiddenTitleBar)
-        .defaultSize(width: 1120, height: 860)
+        .defaultSize(width: sampleDimension("ASCEND_QA_WIDTH",fallback:1120,minimum:980), height: sampleDimension("ASCEND_QA_HEIGHT",fallback:860,minimum:720))
         .windowResizability(.contentMinSize)
         .commands {
             CommandGroup(replacing: .newItem) { }

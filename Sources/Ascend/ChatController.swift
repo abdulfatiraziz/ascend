@@ -132,10 +132,11 @@ import AscendCore
         cancel(); error = nil; proposal = nil
         send(last.text, photos: last.photos, chat: thread.id, executable: executable, document: document, today: today)
     }
+    var bodySummary:(()->String?)?
     private func send(_ message: String, photos: [String], chat id: UUID, executable: URL, document: TrackerDocument, today: String) {
         let input: String
         do {
-            input = try ClaudeAssistant.inputLine(ClaudeAssistant.prompt(message, document: document, today: today, shareHistory: shareHistory, photos: photos.count),
+            input = try ClaudeAssistant.inputLine(ClaudeAssistant.prompt(message, document: document, today: today, shareHistory: shareHistory, photos: photos.count, bodySummary: bodySummary?()),
                                                   photos: photos.map { photoURL($0, chat: id) })
         } catch { self.error = error.localizedDescription; return }
         let thread = archive.thread(id)!

@@ -30,6 +30,7 @@ public enum BodyValue: Codable, Equatable, Sendable {
 public struct BodyMeasurement: Codable, Equatable, Identifiable, Sendable {
     public let fields: [String: BodyValue]
     public var id: String { fields["id"]?.text ?? "" }
+    public var isManual: Bool { fields["isManual"] == .bool(true) && id.hasPrefix("manual-") }
     public var userID: String { fields["userId"]?.text ?? "" }
     public var date: Date { Date(timeIntervalSince1970: (fields["createdAt"]?.number ?? 0) / 1000) }
     /// Dr Trust's FAT_SCALE_DATA measuredWeight field is kilograms; retain the raw field too.
@@ -55,7 +56,7 @@ public struct BodyArchive: Codable, Equatable, Sendable {
     public init() {}
     public func validate() throws {
         guard version == 1, source == "drtrust360", records.count <= 100_000,
-              Set(records.map(\.id)).count == records.count, Set(records.map(\.userID)).count <= 1 else {
+              Set(records.map(\.id)).count == records.count, Set(records.filter { !$0.isManual }.map(\.userID)).count <= 1 else {
             throw ValidationError(message: "Invalid body measurement archive. The existing file was preserved.")
         }
         try records.forEach { try $0.validate() }
@@ -66,16 +67,34 @@ public struct BodyArchive: Codable, Equatable, Sendable {
             throw ValidationError(message: "The import is empty or contains duplicate measurement IDs.")
         }
         try incoming.forEach { try $0.validate() }
-        guard Set((records + incoming).map(\.userID)).count == 1 else {
+        guard Set((records + incoming).filter { !$0.isManual }.map(\.userID)).count <= 1 else {
             throw ValidationError(message: "These readings belong to another Dr Trust profile. No data was changed.")
         }
         var merged = Dictionary(uniqueKeysWithValues: records.map { ($0.id, $0) })
-        for row in incoming { merged[row.id] = row }
+        for row in incoming {
+            if let old = merged[row.id], old.isManual != row.isManual { throw ValidationError(message: "A manual and scale reading share an ID. No data was changed.") }
+            merged[row.id] = row
+        }
         var result = self
         result.records = merged.values.sorted { $0.date == $1.date ? $0.id < $1.id : $0.date < $1.date }
         try result.validate()
         return result
     }
+    public func savingManual(id: String? = nil, kilograms: Double, date: Date) throws -> Self {
+        try validate()
+        if let id, records.first(where: { $0.id == id })?.isManual != true {
+            throw ValidationError(message: "Only manual readings can be edited.")
+        }
+        let profile=records.first { !$0.isManual }?.userID ?? "local-manual"
+        let row=BodyMeasurement(fields:["id":.text(id ?? "manual-"+UUID().uuidString),"userId":.text(profile),"createdAt":.number(date.timeIntervalSince1970*1000),"measuredWeight":.number(kilograms),"isManual":.bool(true)])
+        return try merging([row])
+    }
+    public func deletingManual(_ id:String)throws->Self {
+        try validate()
+        guard records.first(where:{$0.id==id})?.isManual==true else {throw ValidationError(message:"Only manual readings can be deleted.")}
+        var result=self;result.records.removeAll{$0.id==id};try result.validate();return result
+    }
+
 }
 
 public enum DrTrustImport {
@@ -124,6 +143,15 @@ public enum BodyStorage {
         let archive = try JSONDecoder().decode(BodyArchive.self, from: data)
         try archive.validate()
         return archive
+    }
+    /// Manual edits validate and read the existing file before atomic replacement; no per-save backup.
+    public static func saveManual(_ candidate:BodyArchive,to url:URL)throws {
+        let previous=try read(url);try candidate.validate()
+        guard Dictionary(uniqueKeysWithValues:previous.records.filter{!$0.isManual}.map{($0.id,$0)}) == Dictionary(uniqueKeysWithValues:candidate.records.filter{!$0.isManual}.map{($0.id,$0)}) else {throw ValidationError(message:"Scale readings cannot be edited.")}
+        let e=JSONEncoder();e.outputFormatting=[.prettyPrinted,.sortedKeys]
+        try FileManager.default.createDirectory(at:url.deletingLastPathComponent(),withIntermediateDirectories:true)
+        try e.encode(candidate).write(to:url,options:.atomic)
+        try FileManager.default.setAttributes([.posixPermissions:0o600],ofItemAtPath:url.path)
     }
     /// Validate first; preserve the exact previous file before an atomic replacement. Duplicate imports do not write.
     @discardableResult public static func importFile(_ data: Data, to url: URL) throws -> BodyArchive {

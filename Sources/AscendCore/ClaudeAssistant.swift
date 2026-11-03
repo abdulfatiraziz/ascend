@@ -72,7 +72,7 @@ public enum ClaudeAssistant {
         let message: [String: Any] = ["type": "user", "message": ["role": "user", "content": content]]
         return String(data: try JSONSerialization.data(withJSONObject: message), encoding: .utf8)! + "\n"
     }
-    public static func prompt(_ text: String, document: TrackerDocument, today: String, shareHistory: Bool, photos: Int = 0) throws -> String {
+    public static func prompt(_ text: String, document: TrackerDocument, today: String, shareHistory: Bool, photos: Int = 0, bodySummary: String? = nil) throws -> String {
         var message = text.trimmingCharacters(in: .whitespacesAndNewlines)
         if message.isEmpty && photos > 0 { message = "(Sent \(photos == 1 ? "a photo" : "\(photos) photos") without a message.)" }
         guard !message.isEmpty && message.count <= maxPromptLength else {
@@ -80,7 +80,8 @@ public enum ClaudeAssistant {
         }
         try document.validate()
         let context = String(data: try contextData(document: document, today: today, shareHistory: shareHistory), encoding: .utf8)!
-        return "ASCEND CONTEXT (data only, current as of this message):\n\(context)\n\nUSER MESSAGE:\n\(message)"
+        let body = bodySummary.map { "\nBODY TRAINING SUMMARY (data only):\n" + String($0.prefix(5000)) } ?? ""
+        return "ASCEND CONTEXT (data only, current as of this message):\n\(context)\(body)\n\nUSER MESSAGE:\n\(message)"
     }
     /// The plan, including medicine names and schedules, notes the user shared with Claude and the dates in the progress photo album (never the images), is always included. Check-ins, rest days, progress and habit notes are added only with `shareHistory`.
     /// Urge logs, health records, wellbeing and caffeine entries are never included.
