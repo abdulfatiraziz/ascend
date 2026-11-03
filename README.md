@@ -14,13 +14,16 @@ An avatar evolves (Obsidian → Titanium → Ascendant) as you earn the cycle.
   from a Mi Fitness watch) to the Mac over your Wi-Fi, end-to-end encrypted after a
   one-time 6-digit pairing.
 
-Everything stays on your devices: no account, server, telemetry or cloud sync.
-The only network calls are the phone-to-Mac link on your local network and the
-Claude Code CLI when you use the AI features.
+Everything stays on your devices: no Ascend account, server or telemetry.
+The only network calls are the phone-to-Mac link on your local network, the
+Claude Code CLI when you use the AI features, and, only if you sign in, reading
+your own watch data from the Mi Fitness cloud.
 
 ## Screenshots
 
 ![Today: avatar, day's progress and today's habits](docs/screenshots/today.png)
+
+![Health: a daily report with recovery score, vitals, the day hour by hour and last night against the plan](docs/screenshots/health.png)
 
 | Ask Ascend chat | Goals |
 |---|---|
@@ -28,7 +31,7 @@ Claude Code CLI when you use the AI features.
 
 ![Routine: 24-hour clock with the next steps](docs/screenshots/routine.png)
 
-Shown with the neutral starter plan and sample chats.
+Shown with the neutral starter plan, sample chats and generated sample watch data.
 
 ## Run
 
@@ -62,6 +65,11 @@ Full usage instructions: [User guide](docs/USER-GUIDE.md).
   Wi-Fi, with heart-rate samples and eight other supported metrics. Ascend Bridge is
   paired once with a 6-digit code; it syncs the past 14 days when opened, or hourly
   in the background on Wi-Fi, encrypted, with no developer options. See [phone setup](docs/HEALTH-SYNC.md).
+  Optionally, sign in with your Xiaomi account to read all-day heart rate, stress,
+  SpO2 and resting heart rate from the Mi Fitness cloud every hour (Mi Fitness only
+  passes workout heart rate to Health Connect). The Health tab turns it all into a
+  daily report: a recovery score, vitals, the day hour by hour, last night against
+  your routine, eight-day trends and plain-language signals.
 - Meals: photos from Ascend Bridge or dropped on the Mac get a Claude estimate of
   calories and macros; confirmed meals fill the Calorie and Protein target check-ins.
 - Progress photos: dated hair, hairline, face and body photos by angle, before/after side by
@@ -131,6 +139,9 @@ telemetry or cloud sync. The avatar images ship in the app. Local tracking,
 clocks, urge logs and notifications have no runtime network dependency. Optional
 phone sync is an encrypted, paired connection on your local Wi-Fi (Ascend listens
 while open and accepts only local-network addresses); it adds no cloud service.
+The optional Mi Fitness cloud sync talks to Xiaomi's servers with your own account,
+using Xiaomi's unofficial app API; the sign-in is kept in the macOS Keychain and
+**Sign out** forgets it.
 Meal photos are stored in `~/Library/Application Support/Ascend/Meals/`; meal entries
 live in tracker.json and its backups.
 

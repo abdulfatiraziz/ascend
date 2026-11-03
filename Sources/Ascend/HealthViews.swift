@@ -53,16 +53,18 @@ struct HealthView: View {
                     Button { day = store.engine.adding(1, to: day) } label: { Image(systemName: "chevron.right").frame(width: 30, height: 30) }.buttonStyle(.plain).background(Ink.panel, in: RoundedRectangle(cornerRadius: 9)).disabled(day >= store.today).accessibilityLabel("Next day")
                 }
                 HStack(spacing: 8) {
-                    chip("MI FITNESS CLOUD", archive.cloudSync, on: store.xiaomi.connected)
-                    chip("PHONE", archive.lastSync, on: !store.phoneLink.phones.isEmpty)
+                    chip("MI FITNESS CLOUD", archive.cloudSync)
+                    chip("PHONE", archive.lastSync)
                 }
             }
         }
     }
-    private func chip(_ name: String, _ time: Double?, on: Bool) -> some View {
+    /// Green when that source synced in the last 3 hours, orange when older or never.
+    private func chip(_ name: String, _ time: Double?) -> some View {
         let label = time.map { "\(name) · \(HealthReport.clock(minute(of: $0)).uppercased())" } ?? "\(name) · NOT CONNECTED"
+        let fresh = time.map { Date().timeIntervalSince1970 - $0 < 3 * 3600 } ?? false
         return HStack(spacing: 6) {
-            Circle().fill(on && time != nil ? Health.green : Color.orange).frame(width: 6, height: 6)
+            Circle().fill(fresh ? Health.green : Color.orange).frame(width: 6, height: 6)
             Text(label).font(.system(size: 10, design: .monospaced)).foregroundStyle(Ink.muted)
         }.padding(.horizontal, 10).padding(.vertical, 5).background(Ink.panel, in: Capsule()).overlay(Capsule().stroke(Ink.line))
     }
