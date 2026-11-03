@@ -17,6 +17,7 @@ import UniformTypeIdentifiers
     let medsReader: MedController
     let photoReviews: PhotoReviewController
     let phoneLink: PhoneLinkService
+    let xiaomi: XiaomiCloudService
     @Published private(set) var lastUrgeID: UUID?
     @Published var pendingUrge: UUID?
     @Published private(set) var saveError: String?
@@ -38,6 +39,8 @@ import UniformTypeIdentifiers
         photoReviews = PhotoReviewController()
         // Isolated QA data folders don't advertise on the network unless asked to.
         phoneLink = PhoneLinkService(enabled: ProcessInfo.processInfo.environment["ASCEND_DATA_DIR"] == nil || ProcessInfo.processInfo.environment["ASCEND_PHONE_LINK"] == "1")
+        // Isolated QA runs don't touch the real Mi Fitness sign-in unless asked to.
+        xiaomi = XiaomiCloudService(enabled: ProcessInfo.processInfo.environment["ASCEND_DATA_DIR"] == nil || ProcessInfo.processInfo.environment["ASCEND_XIAOMI"] == "1")
         let initial = TrackerDocument.seeded(today: "2026-01-01", timeZoneID: TimeZone.current.identifier)
         let key = TrackerEngine(document: initial).key(Date())
         today = key
@@ -70,9 +73,10 @@ import UniformTypeIdentifiers
         timer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.refreshDay() }
         }
-        meals.store = self; phoneLink.store = self; medsReader.store = self; photoReviews.store = self
+        meals.store = self; phoneLink.store = self; medsReader.store = self; photoReviews.store = self; xiaomi.store = self
         removeOrphanMealPhotos(); removeOrphanMedPhotos(); removeOrphanProgressPhotos()
         meals.estimatePending(); medsReader.resumePending()
+        if !recoveryLocked { xiaomi.start() }
     }
     /// Reads health.json (or its backup) into the document. Without one, the document keeps any watch data an older tracker.json held.
     private func loadHealth() {
@@ -292,6 +296,16 @@ import UniformTypeIdentifiers
             return change { $0.health = archive; $0.applyHealthReadings(today: today) }
         } catch { notice = error.localizedDescription; return false }
     }
+    /// Saves heart rate, SpO2, stress and resting heart rate read from the Mi Fitness cloud.
+    @discardableResult func importCloud(_ records: [HealthRecord], range: ClosedRange<Double>) -> Bool {
+        do {
+            let archive = try document.health.mergingCloud(records, range: range)
+            let today = today
+            return change { $0.health = archive; $0.applyHealthReadings(today: today) }
+        } catch { notice = error.localizedDescription; return false }
+    }
+    /// After signing out of the cloud, phone syncs supply heart rate and SpO2 again. Imported readings stay.
+    func disconnectCloud() { change { $0.health.cloudSync = nil } }
     var mealsFolder: URL { storageURL.deletingLastPathComponent().appendingPathComponent("Meals", isDirectory: true) }
     func mealPhotoURL(_ meal: MealEntry) -> URL { mealsFolder.appendingPathComponent(meal.photo) }
     func mealPhotoURLs(_ meal: MealEntry) -> [URL] { meal.photos.map { mealsFolder.appendingPathComponent($0) } }

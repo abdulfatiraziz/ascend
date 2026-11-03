@@ -81,7 +81,7 @@ private struct SwiftPhone {
 private func snapshot(now: Date = Date()) -> HealthSnapshot {
     let t = now.timeIntervalSince1970.rounded(.down)
     return HealthSnapshot(requestID: UUID().uuidString, generatedAt: t, rangeStart: t - 86400, rangeEnd: t,
-        permissions: Dictionary(uniqueKeysWithValues: HealthMetric.allCases.map { ($0.rawValue, true) }),
+        permissions: Dictionary(uniqueKeysWithValues: HealthMetric.phone.map { ($0.rawValue, true) }),
         records: [HealthRecord(id: "hr-1:0", metric: .heartRate, start: t - 600, end: t - 600, value: 70)])
 }
 private func jpegBase64() -> String {

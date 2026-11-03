@@ -14,14 +14,15 @@ struct HealthView: View {
             VStack(alignment: .leading, spacing: 20) {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 7) {
-                        Kicker("Mi Fitness → Health Connect → this Mac")
+                        Kicker(archive.cloudSync == nil ? "Mi Fitness → Health Connect → this Mac" : "Mi Fitness cloud + Health Connect → this Mac")
                         Text(archive.lastSync.map { "Last synced \(timeText(Date(timeIntervalSince1970: $0), engine: store.engine)) · \(dateText(store.engine.key(Date(timeIntervalSince1970: $0)), engine: store.engine))" } ?? "Connect your phone to bring your routine into focus.").font(.system(size: 12)).foregroundStyle(Ink.muted)
                         Text("Read-only. Stored locally. Excluded from AI. Sleep and step habits fill from these readings; a value you type yourself is kept.").font(.system(size: 11)).foregroundStyle(Ink.muted)
                     }
                     Spacer()
                 }
                 PhoneLinkPanel(link: store.phoneLink)
-                if archive.lastSync == nil {
+                XiaomiCloudPanel(cloud: store.xiaomi)
+                if archive.lastSync == nil && archive.cloudSync == nil {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Your phone is the bridge.").font(.system(size: 20, weight: .semibold))
                         Text("1. Sync your watch in Mi Fitness and keep its Health Connect sharing on.\n2. Install or update Ascend Bridge with Install phone app above.\n3. In Ascend Bridge, choose health permissions, then Pair with Mac and confirm the code here.\n4. Whenever you want, tap Sync to Mac on the phone. Both devices just need the same Wi-Fi.").font(.system(size: 13)).lineSpacing(7)
@@ -40,6 +41,7 @@ struct HealthView: View {
                     card(.heartRate); restingCard; card(.oxygen)
                     card(.steps); distanceCard; card(.activeEnergy)
                     card(.sleep); bedWakeCard
+                    if archive.records.contains(where: { $0.metric == .stress }) { stressCard }
                     // Mi Fitness writes workouts only when one is recorded on the watch; speed and elevation aren't shown.
                     if archive.hasWorkouts { card(.workout) }
                 }
@@ -55,7 +57,7 @@ struct HealthView: View {
                         Text("\(Int(heart.map(\.lowest).min() ?? 0))–\(Int(heart.map(\.highest).max() ?? 0)) bpm observed. " + (heart.contains { $0.samples != nil } ? "Older days show 5-minute averages; gaps are not filled in." : "Dots show recorded samples; gaps are not filled in.")).font(.system(size: 11)).foregroundStyle(Ink.muted)
                     }
                 }.panel()
-                Text("Only records Mi Fitness writes to Health Connect can arrive here. This is a historical sync, not a live heart-rate stream. Values describe recorded activity; activity calories do not represent food intake. Interval records use their start date; sleep uses its ending date. Missing or denied types display no new data, and previously imported records remain local.").font(.system(size: 11)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
+                Text((archive.cloudSync == nil ? "Only records Mi Fitness writes to Health Connect can arrive here." : "Heart rate, SpO2, stress and resting heart rate come from the Mi Fitness cloud; the rest from Health Connect.") + " This is a historical sync, not a live heart-rate stream. Values describe recorded activity; activity calories do not represent food intake. Interval records use their start date; sleep uses its ending date. Missing or denied types display no new data, and previously imported records remain local.").font(.system(size: 11)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
                 if !archive.errors.isEmpty {
                     VStack(alignment: .leading, spacing: 7) { Kicker("Some types could not refresh"); ForEach(archive.errors.keys.sorted(), id: \.self) { key in Text("\(HealthMetric(rawValue: key)?.title ?? key): \(archive.errors[key] ?? "")").font(.system(size: 12)).foregroundStyle(.orange) } }.panel()
                 }
@@ -159,11 +161,23 @@ struct HealthView: View {
         guard let vitals, let average = vitals.averageOxygen, let low = vitals.lowestOxygen else { return "Average of recorded samples" }
         return "Asleep: average \(average.formatted(.number.precision(.fractionLength(1))))% · lowest \(Int(low))%"
     }
+    /// Mi Fitness's own daily figure when the cloud has it, otherwise the lowest reading while asleep.
     private var restingCard: some View {
-        let note = night == nil ? "No sleep recorded for this date"
+        let daily = archive.records(.restingHeartRate, on: day, engine: store.engine).last
+        let asleep = vitals?.restingHeartRate.map { "lowest while asleep \(Int($0))" }
+        let note = daily != nil ? "Mi Fitness daily figure" + (asleep.map { " · \($0)" } ?? "")
+            : night == nil ? "No sleep recorded for this date"
             : vitals?.restingHeartRate == nil ? "No heart-rate samples while asleep"
             : "Lowest while asleep · \(vitals!.heartSamples) samples, average \(Int(vitals!.averageHeartRate!.rounded()))"
-        return tile("Resting heart rate", vitals?.restingHeartRate.map { "\(Int($0))" }, "bpm", note)
+        return tile("Resting heart rate", (daily?.value ?? vitals?.restingHeartRate).map { "\(Int($0))" }, "bpm", note)
+    }
+    /// The watch's stress score (1–100) across the day, from the Mi Fitness cloud.
+    private var stressCard: some View {
+        let readings = archive.records(.stress, on: day, engine: store.engine)
+        let values = readings.map(\.value)
+        let note = values.isEmpty ? "No stress readings for this date"
+            : "Low \(Int(values.min()!)) · high \(Int(values.max()!)) · \(values.filter { $0 < 30 }.count * 100 / values.count)% of readings relaxed"
+        return tile("Stress", values.isEmpty ? nil : "\(Int((values.reduce(0, +) / Double(values.count)).rounded()))", "/ 100", note)
     }
     private var distanceCard: some View {
         let recorded = archive.records(.distance, on: day, engine: store.engine)

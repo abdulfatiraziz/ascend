@@ -57,7 +57,7 @@ func runHealthStorageChecks() async -> (count: Int, failures: Int) {
         let summaries = archive.records.filter { $0.samples != nil }
         let start = now.timeIntervalSince1970 - 14 * 86_400
         let snapshot = HealthSnapshot(requestID: UUID().uuidString, generatedAt: now.timeIntervalSince1970, rangeStart: start, rangeEnd: now.timeIntervalSince1970,
-                                      permissions: Dictionary(uniqueKeysWithValues: HealthMetric.allCases.map { ($0.rawValue, true) }), records: night(from: recent, prefix: "new"))
+                                      permissions: Dictionary(uniqueKeysWithValues: HealthMetric.phone.map { ($0.rawValue, true) }), records: night(from: recent, prefix: "new"))
         let merged = try archive.merging(snapshot, expectedRequestID: snapshot.requestID, now: now)
         try expect(summaries.allSatisfy(merged.records.contains) && merged.records.contains { $0.id == "new-hr-0" })
         for bad in [HealthRecord(id: "x", metric: .steps, start: old, end: old, value: 1, low: 1, high: 1, samples: 1),

@@ -149,7 +149,7 @@ func runFeatureChecks() async -> (count: Int, failures: Int) {
     }
     let now = Date(), epoch = now.timeIntervalSince1970
     let request = UUID().uuidString
-    let grants = Dictionary(uniqueKeysWithValues: HealthMetric.allCases.map { ($0.rawValue, true) })
+    let grants = Dictionary(uniqueKeysWithValues: HealthMetric.phone.map { ($0.rawValue, true) })
     let reading = HealthRecord(id: "hr-1", metric: .heartRate, start: epoch - 60, end: epoch - 60, value: 72)
     let snapshot = HealthSnapshot(requestID: request, generatedAt: epoch, rangeStart: epoch - 86400, rangeEnd: epoch, permissions: grants, records: [reading])
     check("watch snapshot validates exact source, nonce and fresh bounded time range") {

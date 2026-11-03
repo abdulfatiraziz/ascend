@@ -2,18 +2,26 @@ import Foundation
 
 public enum HealthMetric: String, Codable, CaseIterable, Sendable {
     case heartRate, steps, sleep, oxygen, distance, activeEnergy, speed, elevation, workout
+    /// From the Mi Fitness cloud only: the watch's stress score (1–100) and its daily resting heart rate.
+    case stress, restingHeartRate
     public var title: String { switch self {
         case .heartRate: "Heart rate"; case .steps: "Steps"; case .sleep: "Sleep"; case .oxygen: "Blood oxygen"
         case .distance: "Distance"; case .activeEnergy: "Activity energy"; case .speed: "Speed"; case .elevation: "Elevation"; case .workout: "Workouts"
+        case .stress: "Stress"; case .restingHeartRate: "Resting heart rate"
     } }
     public var unit: String { switch self {
-        case .heartRate: "bpm"; case .steps: "steps"; case .sleep: "hours"; case .oxygen: "%"
-        case .distance, .elevation: "m"; case .activeEnergy: "kcal"; case .speed: "m/s"; case .workout: "minutes"
+        case .heartRate, .restingHeartRate: "bpm"; case .steps: "steps"; case .sleep: "hours"; case .oxygen: "%"
+        case .distance, .elevation: "m"; case .activeEnergy: "kcal"; case .speed: "m/s"; case .workout: "minutes"; case .stress: "/ 100"
     } }
     var bounds: ClosedRange<Double> { switch self {
-        case .heartRate: 1...400; case .steps: 0...1_000_000; case .sleep: 0...72; case .oxygen: 0...100
+        case .heartRate, .restingHeartRate: 1...400; case .steps: 0...1_000_000; case .sleep: 0...72; case .oxygen: 0...100
         case .distance: 0...10_000_000; case .activeEnergy: 0...100_000; case .speed: 0...1000; case .elevation: 0...100_000; case .workout: 0...10080
+        case .stress: 0...100
     } }
+    /// The types Ascend Bridge reads from Health Connect; a phone snapshot names exactly these.
+    public static let phone: [HealthMetric] = [.heartRate, .steps, .sleep, .oxygen, .distance, .activeEnergy, .speed, .elevation, .workout]
+    /// The types the Mi Fitness cloud sync owns while it's connected; phone syncs leave them alone.
+    public static let cloud: Set<HealthMetric> = [.heartRate, .oxygen, .stress, .restingHeartRate]
 }
 /// Health Connect sleep stage types, as Mi Fitness reports them.
 public enum SleepStageKind: String, Codable, CaseIterable, Sendable {
@@ -105,7 +113,7 @@ public struct HealthSnapshot: Codable, Equatable, Sendable {
         sourcePackage = "com.xiaomi.wearable"; self.permissions = permissions; self.errors = errors; self.records = records
     }
     public func validate(expectedRequestID: String? = nil, now: Date = Date()) throws {
-        let known = Set(HealthMetric.allCases.map(\.rawValue))
+        let known = Set(HealthMetric.phone.map(\.rawValue))
         guard version == 1, sourcePackage == "com.xiaomi.wearable", UUID(uuidString: requestID) != nil,
               expectedRequestID.map({ $0.caseInsensitiveCompare(requestID) == .orderedSame }) ?? true,
               generatedAt.isFinite, rangeStart.isFinite, rangeEnd.isFinite,
@@ -130,12 +138,15 @@ public struct HealthArchive: Codable, Equatable, Sendable {
     public var errors: [String: String] = [:]
     /// Check-in values Ascend wrote from watch data, keyed "habitID|day", so typed values are never overwritten.
     public var filled: [String: Double]?
+    /// When the Mi Fitness cloud last synced. While set, the cloud owns `HealthMetric.cloud` and phone syncs leave those types alone.
+    public var cloudSync: Double?
     public init() {}
     public func validate() throws {
         let known = Set(HealthMetric.allCases.map(\.rawValue))
         guard records.count <= 500_000, Set(records.map(\.identity)).count == records.count,
               (filled?.count ?? 0) <= 20_000, filled?.values.allSatisfy(\.isFinite) ?? true,
               lastSync.map({ $0.isFinite && (946684800...7289654399).contains($0) }) ?? true,
+              cloudSync.map({ $0.isFinite && (946684800...7289654399).contains($0) }) ?? true,
               Set(permissions.keys).isSubset(of: known), Set(errors.keys).isSubset(of: known), errors.values.allSatisfy({ $0.count <= 300 }) else {
             throw ValidationError(message: "Invalid local watch archive.")
         }
@@ -144,16 +155,38 @@ public struct HealthArchive: Codable, Equatable, Sendable {
     public func merging(_ snapshot: HealthSnapshot, expectedRequestID: String, now: Date = Date()) throws -> Self {
         try snapshot.validate(expectedRequestID: expectedRequestID, now: now)
         var result = self
-        let readable = Set(HealthMetric.allCases.filter { snapshot.permissions[$0.rawValue] == true && snapshot.errors[$0.rawValue] == nil })
+        let readable = Set(HealthMetric.phone.filter { snapshot.permissions[$0.rawValue] == true && snapshot.errors[$0.rawValue] == nil })
         guard !readable.isEmpty else { throw ValidationError(message: "No watch data could be read. Choose permissions in Ascend Bridge on your phone, keep it open, then sync again.") }
+        // Mi Fitness sends only workout heart rate to Health Connect; the cloud has every reading, so it wins while connected.
+        let owned = cloudSync == nil ? readable : readable.subtracting(HealthMetric.cloud)
         // Replace only successfully queried types in the refreshed window. Keep older history,
         // denied types and failed types intact. Stable IDs also handle edited source timestamps.
-        let incoming = Self.thinned(snapshot.records.filter { readable.contains($0.metric) })
+        let incoming = Self.thinned(snapshot.records.filter { owned.contains($0.metric) })
         let incomingIDs = Set(incoming.map(\.identity))
-        result.records.removeAll { incomingIDs.contains($0.identity) || (readable.contains($0.metric) && $0.end >= snapshot.rangeStart && $0.start <= snapshot.rangeEnd) }
+        result.records.removeAll { incomingIDs.contains($0.identity) || (owned.contains($0.metric) && $0.end >= snapshot.rangeStart && $0.start <= snapshot.rangeEnd) }
         result.records.append(contentsOf: incoming)
         result.records.sort { $0.start < $1.start }
         result.lastSync = snapshot.generatedAt; result.permissions = snapshot.permissions; result.errors = snapshot.errors
+        result = result.compacted(now: now)
+        try result.validate()
+        return result
+    }
+    /// Replaces heart rate, SpO2, stress and resting heart rate in `range` with what the Mi Fitness cloud returned,
+    /// whichever source the old records came from. Records outside the range are kept.
+    public func mergingCloud(_ records: [HealthRecord], range: ClosedRange<Double>, now: Date = Date()) throws -> Self {
+        for r in records {
+            try r.validate()
+            guard HealthMetric.cloud.contains(r.metric), r.end >= range.lowerBound - 86_400, r.start <= range.upperBound else {
+                throw ValidationError(message: "Mi Fitness returned a record outside the requested range.")
+            }
+        }
+        guard Set(records.map(\.identity)).count == records.count else { throw ValidationError(message: "Mi Fitness returned duplicate records.") }
+        var result = self
+        let ids = Set(records.map(\.identity))
+        result.records.removeAll { ids.contains($0.identity) || (HealthMetric.cloud.contains($0.metric) && $0.samples == nil && $0.end >= range.lowerBound && $0.start <= range.upperBound) }
+        result.records.append(contentsOf: records)
+        result.records.sort { $0.start < $1.start }
+        result.cloudSync = now.timeIntervalSince1970
         result = result.compacted(now: now)
         try result.validate()
         return result

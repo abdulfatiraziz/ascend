@@ -87,6 +87,16 @@ Today), and hourly in the background if you turn that on in its Settings; Ascend
 be open on the Mac and both devices on the same Wi-Fi. No
 developer options are needed. [Complete setup and limitations](HEALTH-SYNC.md).
 
+Mi Fitness passes only workout heart rate on to Health Connect. For all-day heart
+rate, stress (1–100) and Mi Fitness's daily resting heart rate, click **Sign in with
+Xiaomi…** under the phone panel. Ascend opens Xiaomi's sign-in page in your browser;
+if the browser is already signed in to Xiaomi it's approved straight away, otherwise
+sign in there and click the button again. Ascend then reads those types from your
+Xiaomi account every hour (14 days the first time) while the phone keeps supplying
+sleep, steps and workouts. The sign-in is kept in the Keychain; **Sign out…** forgets
+it and hands heart rate back to the phone. This uses Xiaomi's unofficial app API, so a
+change on Xiaomi's side can stop it until Ascend is updated.
+
 Health data stays separate from habit scores and AI context. Importing activity
 calories does not log food intake. Each sync creates a backup and offers Undo.
 
