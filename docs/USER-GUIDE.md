@@ -87,6 +87,13 @@ Today), and hourly in the background if you turn that on in its Settings; Ascend
 be open on the Mac and both devices on the same Wi-Fi. No
 developer options are needed. [Complete setup and limitations](HEALTH-SYNC.md).
 
+The Health tab reads as a daily report: a recovery score (resting heart rate against
+your 14-day baseline 40%, time asleep against your routine's plan 40%, overnight stress
+20%), vitals with small trend lines, heart rate and stress hour by hour with sleep and
+workouts shaded, last night's sleep stages against your planned bedtime and wake, eight-day
+trends, and a few plain-language signals. Use the arrows or date picker for earlier days.
+The phone and Mi Fitness cloud connections sit under **Sources** at the bottom.
+
 Mi Fitness passes only workout heart rate on to Health Connect. For all-day heart
 rate, stress (1–100) and Mi Fitness's daily resting heart rate, click **Sign in with
 Xiaomi…** under the phone panel. Ascend opens Xiaomi's sign-in page in your browser;

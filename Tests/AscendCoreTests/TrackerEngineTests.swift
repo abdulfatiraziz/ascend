@@ -307,7 +307,8 @@ struct TrackerEngineChecks {
         let photos = await runPhotoChecks(); failures += photos.failures
         let storage = await runHealthStorageChecks(); failures += storage.failures
         let xiaomi = await runXiaomiChecks(); failures += xiaomi.failures
-        print("\(cases.count + features.count + patterns.count + link.count + meds.count + notes.count + photos.count + storage.count + xiaomi.count) checks, \(failures) failures")
+        let report = runHealthReportChecks(); failures += report.failures
+        print("\(cases.count + features.count + patterns.count + link.count + meds.count + notes.count + photos.count + storage.count + xiaomi.count + report.count) checks, \(failures) failures")
         if failures > 0 { exit(1) }
     }
 }
