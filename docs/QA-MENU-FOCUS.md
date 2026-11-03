@@ -21,7 +21,7 @@ All 213 Swift checks passed with the real Java encrypted-link client running
 headless; the 11 Java screen-time math checks also passed.
 The Mac release build and strict code-signature verification passed. The updated
 app was copied to the existing build/Ascend.app path in the canonical checkout.
-An ignored build/rollback/Ascend-before-menu-fix.app preserves the previous build.
+An ignored build/rollback/Ascend-before-menu-fix.zip preserves the previous build.
 The live process was restarted. ScreenCaptureKit failed (-3811), preventing UI
 interaction verification by the agent. No private-data screenshots were taken.
 
@@ -32,3 +32,23 @@ its source and pre-existing uncommitted changes were preserved. Live archives,
 Android tools, signing key and pairing credentials were not modified by cleanup.
 
 Source remains on codex/body-training. No merge or push was performed.
+
+## Confirmed input cause
+
+The user reported that the first menu-focus update did not stop the sound.
+An LLDB trace then captured 102 NSBeep calls, all through NSDatePicker keyDown
+and NSWindow keyDown. A second trace captured over 200 repeated F7 events
+(keyCode 98 / kVK_F7), at roughly 12 per second. The trace recorded function
+names, key codes, modifier flags and repeat flags only, never typed text.
+The debugger was detached and the user was asked to press/release F7 (or Fn-F7)
+to clear the repeated input.
+
+FunctionKeyFilter locally consumes bare F7 keyDown events, which have no Ascend
+binding. Modified shortcuts, other keys and system-defined media events pass
+through unchanged; other apps and global sound preferences are unaffected.
+
+Six old rollback app bundles were subsequently archived as verified ZIPs under
+the canonical build/rollback folder; their original app bundles were moved to
+Trash to reduce duplicate app registrations. The F7-filter release build passed,
+was signed and installed at the existing app path, and was reopened. Audible
+resolution is pending user confirmation after this second update.

@@ -3,6 +3,7 @@ import AppKit
 
 @main struct AscendApp: App {
     @StateObject private var store = TrackerStore()
+    @StateObject private var functionKeys = FunctionKeyFilter()
     /// Ascend is dark-only. preferredColorScheme doesn't reach the menu bar window's AppKit controls
     /// (segmented pickers, scrollers, plain buttons), so set the app's appearance itself.
     init() { NSApplication.shared.appearance = NSAppearance(named: .darkAqua) }
@@ -17,6 +18,7 @@ import AppKit
             MainView(store: store).preferredColorScheme(.dark)
                 .environment(\.calendar, store.engine.calendar)
                 .environment(\.timeZone, store.engine.calendar.timeZone)
+                .onAppear { _ = functionKeys }
         }
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: sampleDimension("ASCEND_QA_WIDTH",fallback:1120,minimum:980), height: sampleDimension("ASCEND_QA_HEIGHT",fallback:860,minimum:720))
