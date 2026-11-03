@@ -52,3 +52,25 @@ the canonical build/rollback folder; their original app bundles were moved to
 Trash to reduce duplicate app registrations. The F7-filter release build passed,
 was signed and installed at the existing app path, and was reopened. Audible
 resolution is pending user confirmation after this second update.
+
+## Rollback after wider menu reproduction
+
+The user clarified that File/Edit/Help and system menus outside Ascend also
+beeped. Their supplied recording showed Codex and macOS menus. The latest
+Ascend trace counted 172 filter invocations and zero NSBeep calls, so the
+app-local workaround did not resolve the system-wide symptom.
+
+Ascend, LLDB/debugserver and the Codex computer-control helper were stopped.
+Computer use was reset and has not been restarted. The user still reproduced
+the sound. Read-only CoreGraphics queries reported F7 held in both HID and
+combined session state after those processes exited. The initiating source
+has not been established; no global event monitor permission was requested.
+No keyboard mappings, system sound preferences, input permissions or security
+settings were changed. A save-work-and-restart step was recommended.
+
+The deployed canonical app was restored from build/rollback/Ascend-before-menu-fix.zip
+as a fresh bundle. Its code signature and exact executable hash were verified
+against the archived original. It remains closed. App data archives were not
+modified by this rollback. Feature and diagnostic commits remain in the isolated
+branch; no push or merge was performed. Earlier audible-resolution statements
+are superseded by this failed verification and rollback.
