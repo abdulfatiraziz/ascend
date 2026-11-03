@@ -42,6 +42,7 @@ public final class InteropMain {
             + ",\"rangeEnd\":" + now + ",\"sourcePackage\":\"com.xiaomi.wearable\",\"permissions\":{" + KINDS.replace("\",", "\":true,") + ":true},\"errors\":{},"
             + "\"records\":[{\"id\":\"hr-interop:0\",\"metric\":\"heartRate\",\"start\":" + (now - 600) + ",\"end\":" + (now - 600) + ",\"value\":72,\"detail\":\"\",\"device\":\"\"}]}";
         System.out.println("SYNC " + send(host, port, "/v1/sync", headers, key, envelope("sync", "," + snapshot)));
+        System.out.println("SCREENTIME " + send(host,port,"/v1/screentime",headers,key,envelope("screentime",",\"screenTime\":{\"version\":1,\"generatedAt\":"+now+",\"timeZoneID\":\"UTC\",\"status\":\"disabled\",\"days\":[]}")));
         BufferedImage image = new BufferedImage(64, 64, BufferedImage.TYPE_INT_RGB);
         java.awt.Graphics2D g = image.createGraphics(); g.setColor(Color.RED); g.fillRect(0, 0, 64, 64); g.dispose();
         ByteArrayOutputStream jpeg = new ByteArrayOutputStream(); ImageIO.write(image, "jpg", jpeg);

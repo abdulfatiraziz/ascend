@@ -38,21 +38,21 @@ func runMedChecks() async -> (count: Int, failures: Int) {
     }
     check("Claude's sorting keeps each photo on one medicine and puts the rest in unsure") {
         let raw = MedSorting(medicines: [
-            MedReading(name: " Finpecia ", ingredients: ["Finasteride 1 mg"], strength: "1 mg", category: "Hair loss · DHT blocker", confidence: "HIGH", photos: [1, 3, 9]),
+            MedReading(name: " Calcirol ", ingredients: ["Cholecalciferol 1 mg"], strength: "1 mg", category: "Bone health · Vitamin D", confidence: "HIGH", photos: [1, 3, 9]),
             MedReading(name: "Mintop", photos: [3, 4]),
             MedReading(name: "Ghost", photos: [42])], unsure: [])
         let sorted = raw.validated(photoCount: 5)
-        try expect(sorted.medicines.count == 2 && sorted.medicines[0].name == "Finpecia" && sorted.medicines[0].photos == [1, 3] && sorted.medicines[0].confidence == "high")
+        try expect(sorted.medicines.count == 2 && sorted.medicines[0].name == "Calcirol" && sorted.medicines[0].photos == [1, 3] && sorted.medicines[0].confidence == "high")
         try expect(sorted.medicines[1].photos == [4] && sorted.unsure == [2, 5], "Duplicates, out-of-range and unplaced photos are handled")
         var medicine = Medicine(photos: ["a.jpg"]); medicine.schedule = MedSchedule(start: day); medicine.apply(sorted.medicines[0])
-        try expect(medicine.name == "Finpecia" && medicine.category == "Hair loss · DHT blocker" && medicine.schedule != nil && medicine.photos == ["a.jpg"])
+        try expect(medicine.name == "Calcirol" && medicine.category == "Bone health · Vitamin D" && medicine.schedule != nil && medicine.photos == ["a.jpg"])
     }
     check("taking every scheduled dose ticks the medication habit; untaking clears only that tick") {
         var doc = original
         let habit = doc.medHabit
         try expect(habit?.latest.title == "Take medication")
-        var fin = Medicine(name: "Finasteride"); fin.confirmed = true; fin.schedule = MedSchedule(start: "2026-10-18")
-        var minox = Medicine(name: "Minoxidil"); minox.confirmed = true; var s = MedSchedule(start: "2026-10-18"); s.times = [540, 1260]; minox.schedule = s
+        var fin = Medicine(name: "Cholecalciferol"); fin.confirmed = true; fin.schedule = MedSchedule(start: "2026-10-18")
+        var minox = Medicine(name: "Magnesium"); minox.confirmed = true; var s = MedSchedule(start: "2026-10-18"); s.times = [540, 1260]; minox.schedule = s
         var review = Medicine(name: "Unreviewed"); review.schedule = MedSchedule(start: "2026-10-18")
         doc.meds.medicines = [fin, minox, review]
         let slots = doc.meds.slots(on: day, engine: TrackerEngine(document: doc))
@@ -76,7 +76,7 @@ func runMedChecks() async -> (count: Int, failures: Int) {
         try doc.validate()
         try expect(try JSONDecoder().decode(TrackerDocument.self, from: JSONEncoder().encode(doc)).meds == doc.meds)
         let phone = doc.phoneMedDoses(today: day)
-        try expect(phone.count == 14 * 3 && phone.first?.name == "Finasteride" && phone.first?.taken == true && phone.first?.day == day)
+        try expect(phone.count == 14 * 3 && phone.first?.name == "Cholecalciferol" && phone.first?.taken == true && phone.first?.day == day)
         try expect(phone.first?.at == TrackerEngine(document: doc).time(on: day, minute: 540)?.timeIntervalSince1970)
         let week = doc.meds.adherence(today: "2026-10-21", days: 7, engine: TrackerEngine(document: doc))
         try expect(week.taken == 2 && week.missed == 7, "18th–20th: 9 slots, 2 taken")
@@ -84,7 +84,7 @@ func runMedChecks() async -> (count: Int, failures: Int) {
     check("a forgotten dose can be logged for an earlier day at its scheduled time, completing that day's habit only") {
         var doc = original
         let habit = doc.medHabit!
-        var fin = Medicine(name: "Finasteride"); fin.confirmed = true; fin.schedule = MedSchedule(start: "2026-10-18")
+        var fin = Medicine(name: "Cholecalciferol"); fin.confirmed = true; fin.schedule = MedSchedule(start: "2026-10-18")
         doc.meds.medicines = [fin]
         let engine = TrackerEngine(document: doc), past = "2026-10-18", today = "2026-10-21"
         let scheduled = engine.time(on: past, minute: 540)!
@@ -111,16 +111,16 @@ func runMedChecks() async -> (count: Int, failures: Int) {
     check("Ask Ascend can add, schedule and stop medicines through the preview") {
         var doc = original
         var add = AssistantCommand(type: .setMedicine)
-        add.title = "Finasteride"; add.strength = "1 mg"; add.frequency = "daily"; add.times = [540]; add.food = "after"; add.amount = "1 tablet"; add.category = "Hair loss"
+        add.title = "Cholecalciferol"; add.strength = "1 mg"; add.frequency = "daily"; add.times = [540]; add.food = "after"; add.amount = "1 tablet"; add.category = "Bone health"
         let proposal = try AssistantPlanner.prepare(AssistantReply(message: "Ready to review.", actions: [add]), document: doc, today: day)
         doc = try proposal.resolve(current: doc, today: day)
         let fin = doc.meds.medicines.first
-        try expect(fin?.name == "Finasteride" && fin?.confirmed == true && fin?.schedule?.summary == "Daily · 09:00 · 1 tablet · after food" && fin?.schedule?.start == day)
-        try expect(proposal.changes.first?.title == "Add medicine: Finasteride 1 mg")
+        try expect(fin?.name == "Cholecalciferol" && fin?.confirmed == true && fin?.schedule?.summary == "Daily · 09:00 · 1 tablet · after food" && fin?.schedule?.start == day)
+        try expect(proposal.changes.first?.title == "Add medicine: Cholecalciferol 1 mg")
         var update = AssistantCommand(type: .setMedicine); update.id = fin!.id.uuidString; update.frequency = "weekdays"; update.weekdays = [2, 4, 6]; update.times = [1260, 540]
         doc = try AssistantPlanner.prepare(AssistantReply(message: "", actions: [update]), document: doc, today: day).resolve(current: doc, today: day)
         try expect(doc.meds.medicines.count == 1 && doc.meds.medicines[0].schedule?.times == [540, 1260] && doc.meds.medicines[0].schedule?.food == .after)
-        var byName = AssistantCommand(type: .setMedicine); byName.title = "finasteride"; byName.end = "2027-01-09"
+        var byName = AssistantCommand(type: .setMedicine); byName.title = "cholecalciferol"; byName.end = "2027-01-09"
         doc = try AssistantPlanner.prepare(AssistantReply(message: "", actions: [byName]), document: doc, today: day).resolve(current: doc, today: day)
         try expect(doc.meds.medicines.count == 1 && doc.meds.medicines[0].schedule?.end == "2027-01-09", "Matched by name, case-insensitive")
         for broken in [{ var c = update; c.frequency = "hourly"; return c }(), { var c = update; c.times = []; return c }(), { var c = update; c.id = UUID().uuidString; return c }(),
@@ -128,7 +128,7 @@ func runMedChecks() async -> (count: Int, failures: Int) {
             try refuses { _ = try AssistantPlanner.prepare(AssistantReply(message: "", actions: [broken]), document: doc, today: day) }
         }
         let context = String(decoding: try ClaudeAssistant.contextData(document: doc, today: day), as: UTF8.self)
-        try expect(context.contains("Finasteride") && context.contains(doc.meds.medicines[0].id.uuidString), "Chat sees the medicine list: \(context.suffix(400))")
+        try expect(context.contains("Cholecalciferol") && context.contains(doc.meds.medicines[0].id.uuidString), "Chat sees the medicine list: \(context.suffix(400))")
         var stop = AssistantCommand(type: .archiveMedicine); stop.id = doc.meds.medicines[0].id.uuidString
         let stopping = try AssistantPlanner.prepare(AssistantReply(message: "", actions: [stop]), document: doc, today: day)
         try expect(stopping.isDestructive && (try stopping.resolve(current: doc, today: day)).meds.medicines[0].archived)
@@ -139,8 +139,8 @@ func runMedChecks() async -> (count: Int, failures: Int) {
         let args = ClaudeAssistant.medArguments(model: .sonnet, effort: .medium)
         func value(_ flag: String) -> String? { args.firstIndex(of: flag).map { args[$0 + 1] } }
         try expect(args.contains("--no-session-persistence") && value("--tools") == "" && value("--model") == "claude-sonnet-5-5")
-        let structured: [String: Any] = ["medicines": [["name": "Finpecia", "ingredients": ["Finasteride 1 mg"], "strength": "1 mg", "form": "tablet", "category": "Hair loss · DHT blocker",
-                                                         "purpose": "Treats male pattern hair loss.", "confidence": "high", "notes": "", "photos": [2, 1]]], "unsure": [3]]
+        let structured: [String: Any] = ["medicines": [["name": "Calcirol", "ingredients": ["Cholecalciferol 1 mg"], "strength": "1 mg", "form": "tablet", "category": "Bone health · Vitamin D",
+                                                         "purpose": "Supports bone health.", "confidence": "high", "notes": "", "photos": [2, 1]]], "unsure": [3]]
         let line = String(data: try JSONSerialization.data(withJSONObject: ["type": "result", "is_error": false, "structured_output": structured]), encoding: .utf8)!
         let sorting = try ClaudeAssistant.decodeMeds(ClaudeProcessOutput(status: 0, stdout: Data(line.utf8)), photoCount: 3)
         try expect(sorting.medicines.first?.photos == [2, 1] && sorting.unsure == [3])
@@ -213,8 +213,8 @@ func runMedChecks() async -> (count: Int, failures: Int) {
             let sorting = try ClaudeAssistant.decodeMeds(output, photoCount: photos.count)
             for m in sorting.medicines { print("  live med: \(m.name) \(m.strength) · \(m.category) · photos \(m.photos) · \(m.confidence)") }
             print("  live unsure: \(sorting.unsure)")
-            let fin = sorting.medicines.first { $0.name.localizedCaseInsensitiveContains("finpecia") || $0.ingredients.joined().localizedCaseInsensitiveContains("finasteride") }
-            try expect(sorting.medicines.count == 2 && Set(fin?.photos ?? []) == [1, 3], "Front and back of Finpecia should be grouped")
+            let fin = sorting.medicines.first { $0.name.localizedCaseInsensitiveContains("calcirol") || $0.ingredients.joined().localizedCaseInsensitiveContains("cholecalciferol") }
+            try expect(sorting.medicines.count == 2 && Set(fin?.photos ?? []) == [1, 3], "Front and back of Calcirol should be grouped")
             print("PASS: live Claude sorts a mixed medicine batch")
         } catch { failures += 1; print("FAIL: live Claude sorts a mixed medicine batch: \(error)") }
     }

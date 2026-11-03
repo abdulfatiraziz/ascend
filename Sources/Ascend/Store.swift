@@ -17,6 +17,10 @@ import UniformTypeIdentifiers
     let medsReader: MedController
     let photoReviews: PhotoReviewController
     let phoneLink: PhoneLinkService
+    let macScreenTime: MacScreenTimeService
+    let screenTime: ScreenTimeStore
+    let drTrust: DrTrustCloudService
+    let bodyMeasurements: BodyMeasurementStore
     let xiaomi: XiaomiCloudService
     @Published private(set) var lastUrgeID: UUID?
     @Published var pendingUrge: UUID?
@@ -33,6 +37,12 @@ import UniformTypeIdentifiers
         let folder = ProcessInfo.processInfo.environment["ASCEND_DATA_DIR"].map { URL(fileURLWithPath: $0, isDirectory: true) }
             ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("Ascend", isDirectory: true)
         storageURL = folder.appendingPathComponent("tracker.json")
+        let screenStore=ScreenTimeStore(folder:folder)
+        screenTime=screenStore
+        macScreenTime=MacScreenTimeService(enabled:ProcessInfo.processInfo.environment["ASCEND_DATA_DIR"]==nil || ProcessInfo.processInfo.environment["ASCEND_MAC_SCREEN_TIME"]=="1",store:screenStore)
+        let bodyStore = BodyMeasurementStore(folder: folder)
+        bodyMeasurements = bodyStore
+        drTrust = DrTrustCloudService(enabled: ProcessInfo.processInfo.environment["ASCEND_DATA_DIR"] == nil || ProcessInfo.processInfo.environment["ASCEND_DRTRUST"] == "1", bodyStore: bodyStore)
         assistant = ChatController(folder: folder.appendingPathComponent("Claude", isDirectory: true))
         meals = MealController()
         medsReader = MedController()
@@ -76,7 +86,7 @@ import UniformTypeIdentifiers
         meals.store = self; phoneLink.store = self; medsReader.store = self; photoReviews.store = self; xiaomi.store = self
         removeOrphanMealPhotos(); removeOrphanMedPhotos(); removeOrphanProgressPhotos()
         meals.estimatePending(); medsReader.resumePending()
-        if !recoveryLocked { xiaomi.start() }
+        if !recoveryLocked { xiaomi.start(); drTrust.start(); macScreenTime.start() }
     }
     /// Reads health.json (or its backup) into the document. Without one, the document keeps any watch data an older tracker.json held.
     private func loadHealth() {

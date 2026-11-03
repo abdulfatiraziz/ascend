@@ -308,7 +308,12 @@ struct TrackerEngineChecks {
         let storage = await runHealthStorageChecks(); failures += storage.failures
         let xiaomi = await runXiaomiChecks(); failures += xiaomi.failures
         let report = runHealthReportChecks(); failures += report.failures
-        print("\(cases.count + features.count + patterns.count + link.count + meds.count + notes.count + photos.count + storage.count + xiaomi.count + report.count) checks, \(failures) failures")
+        let body = runBodyMeasurementChecks(); failures += body.failures
+        let drTrust = await runDrTrustChecks(); failures += drTrust.failures
+        let screenTime = runScreenTimeChecks(); failures += screenTime.failures
+        var macScreenTime = (count:0,failures:0)
+        do { macScreenTime=try runMacScreenTimeChecks();failures+=macScreenTime.failures } catch { failure("Mac usage fixture setup failed: \(error)") }
+        print("\(cases.count + features.count + patterns.count + link.count + meds.count + notes.count + photos.count + storage.count + xiaomi.count + report.count + body.count + drTrust.count + screenTime.count + macScreenTime.count) checks, \(failures) failures")
         if failures > 0 { exit(1) }
     }
 }

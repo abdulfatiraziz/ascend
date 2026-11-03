@@ -44,7 +44,7 @@ public final class BridgeActivity extends Activity {
     static final String LOCAL_NETWORK = "android.permission.ACCESS_LOCAL_NETWORK";
     static final int REQ_HEALTH = 7, REQ_NETWORK = 8, REQ_CAMERA = 11, REQ_PICK = 12, REQ_NOTIFY = 13, REQ_BACKGROUND = 14;
     static final String[] TRIGGERS = {"Stress", "Coffee", "After a meal", "Social", "Boredom"};
-    static final String VERSION = "0.6.2";
+    static final String VERSION = "0.7.0";
 
     SyncEngine engine;
     Ui ui;
@@ -103,7 +103,7 @@ public final class BridgeActivity extends Activity {
         super.onSaveInstanceState(out);
         out.putString("captureName", captureName); out.putString("photoMode", photoMode); out.putString("screen", screen.name());
     }
-    @Override protected void onResume() { super.onResume(); render(); }
+    @Override protected void onResume() { super.onResume(); if (engine!=null) SyncJob.schedule(this,false);render(); }
     /** Quietly syncs when the app comes to the front, at most every 10 minutes. */
     @Override public void onWindowFocusChanged(boolean focus) {
         super.onWindowFocusChanged(focus);
@@ -948,6 +948,24 @@ public final class BridgeActivity extends Activity {
         hr.addView(manage, new LinearLayout.LayoutParams(Ui.WRAP, ui.dp(36)));
         health.addView(hr);
         col.addView(health);
+        LinearLayout usage = ui.card(12);
+        usage.addView(ui.kicker("Screen time"));
+        usage.addView(toggle("Share screen time with Mac", "Daily screen-on time and per-app foreground time. No screen images, messages or browsing content.",
+            ScreenTimeCollector.sharing(this), on -> {
+                prefs.edit().putBoolean("screenTimeSharing",on).apply();
+                if (!on) prefs.edit().putBoolean("screenTimeBackground",false).apply();
+                if (on && !ScreenTimeCollector.allowed(this)) openUsageAccess();
+                SyncJob.schedule(this,false);render();
+            }));
+        usage.addView(ui.small(ScreenTimeCollector.allowed(this) ? "Usage access allowed · detailed Android history may cover only a few days" : "Usage access is not allowed. Enable it in Android Settings to share readings."));
+        usage.addView(ui.secondary("Manage Usage access",v -> openUsageAccess()),Ui.wide());
+        usage.addView(toggle("Screen time in background", "About hourly on Wi-Fi when your paired Mac is reachable. Independent of Health Connect.",
+            prefs.getBoolean("screenTimeBackground",false),on -> {
+                if (on && (!ScreenTimeCollector.sharing(this) || !ScreenTimeCollector.allowed(this))) { toast("Turn on sharing and allow Usage access first.");render();return; }
+                prefs.edit().putBoolean("screenTimeBackground",on).apply();
+                toast(SyncJob.schedule(this,on) ? "Screen-time background preference saved" : "Android could not schedule background sync");render();
+            }));
+        col.addView(usage);
         LinearLayout sync = ui.card(14);
         sync.addView(ui.kicker("Syncing"));
         sync.addView(toggle("Sync in the background", engine.backgroundAllowed() ? "Every hour on Wi-Fi when your Mac is reachable" : "Needs “Access data in the background” in Health Connect",
@@ -962,11 +980,15 @@ public final class BridgeActivity extends Activity {
         col.addView(sync);
         LinearLayout privacy = ui.column(8); ui.pad(privacy, 4, 4, 4, 0);
         privacy.addView(ui.kicker("Privacy"));
-        privacy.addView(ui.small("Reads only the Mi Fitness records you allow and never writes health data. Photos are resized and stripped of location. Everything goes straight to your Mac over Wi-Fi, encrypted with the key from pairing. No account, cloud or developer options."));
+        privacy.addView(ui.small("Reads the Mi Fitness records you allow and never writes health data. Optional screen-time sharing reads usage summaries only after you enable Usage access. Photos are resized and stripped of location. Everything goes straight to your Mac over Wi-Fi, encrypted with the key from pairing. No account, cloud or developer options."));
         col.addView(privacy);
         TextView version = ui.small("Ascend Bridge " + VERSION); version.setGravity(Gravity.CENTER); version.setTextSize(11);
         col.addView(version);
         return holder[0];
+    }
+    void openUsageAccess() {
+        try { startActivity(new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS,Uri.parse("package:"+getPackageName()))); }
+        catch (android.content.ActivityNotFoundException e) { startActivity(new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)); }
     }
     View toggle(String title, String subtitle, boolean on, Consumer<Boolean> changed) {
         LinearLayout row = ui.row(12);
@@ -1100,7 +1122,7 @@ public final class BridgeActivity extends Activity {
         dialog().setTitle("Forget " + engine.macName() + "?")
             .setMessage("This phone stops sending to that Mac until you pair again. Also choose Forget on the Mac (Health). Anything waiting stays on this phone.")
             .setPositiveButton("Forget", (d, w) -> {
-                prefs.edit().remove("key").remove("macName").remove("service").putBoolean("backgroundSync", false).apply();
+                prefs.edit().remove("key").remove("macName").remove("service").putBoolean("backgroundSync", false).putBoolean("screenTimeBackground",false).apply();
                 SyncJob.schedule(this, false); toast("Forgotten. Pair again whenever you like."); render();
             })
             .setNegativeButton("Cancel", null).show();

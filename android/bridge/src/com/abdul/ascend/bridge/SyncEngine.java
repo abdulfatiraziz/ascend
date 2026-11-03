@@ -227,12 +227,20 @@ final class SyncEngine {
      * Sends the health snapshot (if any), then queued meals, urges, medicine photos and doses. Each item is deleted
      * here only after the Mac accepts it. Blocking: call off the main thread. Returns a short summary.
      */
-    String sendAll(Target target, JSONObject snapshot, String prefix) {
+    String sendAll(Target target, JSONObject snapshot, String prefix) { return sendAll(target,snapshot,prefix,true); }
+    String sendAll(Target target, JSONObject snapshot, String prefix, boolean includeScreenTime) {
         StringBuilder summary = new StringBuilder(prefix);
         boolean ok = false;
         heard = false;
         try {
             if (snapshot != null) summary.append(send(target, "/v1/sync", envelope("sync").put("snapshot", snapshot)).optString("message")).append('\n');
+            if (includeScreenTime) {
+                try {
+                    JSONObject screen = ScreenTimeCollector.snapshot(context);
+                    JSONObject reply=send(target,"/v1/screentime",envelope("screentime").put("screenTime",screen));
+                    summary.append(reply.optString("message","Screen time sent")).append('\n');
+                } catch (Exception e) { summary.append("Screen time could not sync. Other items continue; update Ascend on the Mac if needed.\n"); }
+            }
             int meals = 0;
             for (File meta : queuedMeals()) {
                 JSONObject m = readJSON(meta);

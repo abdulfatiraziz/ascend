@@ -133,6 +133,13 @@ private struct KeychainPhoneKeyStore: PhoneKeyStore {
             return PhoneLinkResult(ok: accepted, message: accepted ? "Paired" : "Declined")
         case .hello(let phoneID):
             touch(phoneID); return PhoneLinkResult(ok: true, message: "Connected to \(macName)")
+        case .screenTime(let snapshot, let phoneID):
+            guard let store else { return PhoneLinkResult(ok:false,message:"Ascend isn’t ready.") }
+            do {
+                try store.screenTime.receive(snapshot,phoneID:phoneID,phoneName:name(phoneID))
+                touch(phoneID)
+                return PhoneLinkResult(ok:true,message:snapshot.status=="allowed" ? "Screen time synced" : "Screen-time status updated; earlier readings retained")
+            } catch { return PhoneLinkResult(ok:false,message:error.localizedDescription) }
         case .snapshot(let snapshot, let phoneID):
             guard let store else { return PhoneLinkResult(ok: false, message: "Ascend isn’t ready.") }
             if store.importHealth(snapshot, requestID: snapshot.requestID) {

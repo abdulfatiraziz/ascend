@@ -25,6 +25,7 @@ private final class Recorder: @unchecked Sendable {
     var urges: [PhoneUrge] = []
     var medPhotos: [PhoneMedPhoto] = []
     var doses: [PhoneDose] = []
+    var screenTimes: [ScreenTimeSnapshot] = []
     var checkIns: [PhoneCheckIn] = []
     func deliver(_ event: PhoneLinkEvent) async -> PhoneLinkResult {
         switch event {
@@ -34,6 +35,7 @@ private final class Recorder: @unchecked Sendable {
             Task { await hub?.respond(to: request.phoneID, accept: accept) }
             return PhoneLinkResult(ok: true, message: "")
         case .pairingFinished(_, let accepted): lock.withLock { finished.append(accepted) }; return PhoneLinkResult(ok: accepted, message: "")
+        case .screenTime(let snapshot,_): lock.withLock { screenTimes.append(snapshot) };return PhoneLinkResult(ok:true,message:"screen time ok")
         case .hello: return PhoneLinkResult(ok: true, message: "hello")
         case .snapshot(let snapshot, _):
             do { try snapshot.validate(expectedRequestID: snapshot.requestID) } catch { return PhoneLinkResult(ok: false, message: "invalid snapshot") }
@@ -47,7 +49,7 @@ private final class Recorder: @unchecked Sendable {
         case .medPhoto(let photo, _):
             do { _ = try photo.validated() } catch { return PhoneLinkResult(ok: false, message: "invalid med photo") }
             lock.withLock { medPhotos.append(photo) }
-            return PhoneLinkResult(ok: true, message: "med photo ok", meds: [PhoneMedDose(medID: UUID().uuidString, name: "Finasteride", detail: "1 mg", day: "2026-10-20", minute: 540, at: 1_792_468_800, taken: false)], today: TrackerDocument.seeded(today: "2026-10-18").phoneToday(today: "2026-10-20"))
+            return PhoneLinkResult(ok: true, message: "med photo ok", meds: [PhoneMedDose(medID: UUID().uuidString, name: "Cholecalciferol", detail: "1 mg", day: "2026-10-20", minute: 540, at: 1_792_468_800, taken: false)], today: TrackerDocument.seeded(today: "2026-10-18").phoneToday(today: "2026-10-20"))
         case .dose(let dose, _):
             lock.withLock { doses.append(dose) }; return PhoneLinkResult(ok: true, message: "dose ok")
         case .checkIn(let checkIn, _):
@@ -164,6 +166,17 @@ func runLinkChecks() async -> (count: Int, failures: Int) {
 
         let sync = try phone.reply(await hub.handle(try phone.request("/v1/sync", LinkEnvelope(kind: "sync", snapshot: snapshot()))))
         try expect(sync["ok"] as? Bool == true && recorder.snapshots.count == 1)
+        let usage=try screenTimeFixture()
+        let usageEnvelope=LinkEnvelope(kind:"screentime",screenTime:usage)
+        let usageRequest=try phone.request("/v1/screentime",usageEnvelope)
+        try expect((try phone.reply(await hub.handle(usageRequest)))["ok"] as? Bool == true && recorder.screenTimes.count==1)
+        _=try phone.reply(await hub.handle(usageRequest))
+        try expect(recorder.screenTimes.count==1,"Screen-time replays are not delivered twice")
+        let badUsage=try phone.request("/v1/screentime",usageEnvelope,key:SymmetricKey(size:.bits256))
+        try expect(await hub.handle(badUsage).status==401)
+        var staleUsage=usage;staleUsage.generatedAt-=3600
+        let rejectedUsage=try phone.reply(await hub.handle(try phone.request("/v1/screentime",LinkEnvelope(kind:"screentime",screenTime:staleUsage))))
+        try expect(rejectedUsage["ok"] as? Bool == false && recorder.screenTimes.count==1)
         let meal = LinkEnvelope(kind: "meal", meal: PhoneMeal(id: UUID().uuidString, takenAt: Date().timeIntervalSince1970 - 60, note: "dal", image: jpegBase64()))
         let mealRequest = try phone.request("/v1/meal", meal)
         try expect((try phone.reply(await hub.handle(mealRequest)))["message"] as? String == "meal ok" && recorder.meals.first?.note == "dal")
@@ -193,7 +206,7 @@ func runLinkChecks() async -> (count: Int, failures: Int) {
         try expect(urgeReply["message"] as? String == "urge ok" && (urgeReply["urges"] as? [String: Int])?["todayPassed"] == 1 && recorder.urges == [urge], "Urges arrive with counts in the reply")
         let medPhoto = PhoneMedPhoto(id: UUID().uuidString, batch: UUID().uuidString, batchSize: 3, takenAt: Date().timeIntervalSince1970 - 20, image: jpegBase64())
         let medReply = try phone.reply(await hub.handle(try phone.request("/v1/medphoto", LinkEnvelope(kind: "medphoto", medPhoto: medPhoto))))
-        try expect(medReply["message"] as? String == "med photo ok" && ((medReply["meds"] as? [[String: Any]])?.first?["name"] as? String) == "Finasteride", "Replies carry upcoming doses")
+        try expect(medReply["message"] as? String == "med photo ok" && ((medReply["meds"] as? [[String: Any]])?.first?["name"] as? String) == "Cholecalciferol", "Replies carry upcoming doses")
         try expect((medReply["today"] as? [String: Any])?["dayNumber"] as? Int == 3, "Replies carry today's summary")
         let dose = PhoneDose(id: UUID().uuidString, medID: UUID().uuidString, day: "2026-10-20", minute: 540, takenAt: Date().timeIntervalSince1970, taken: true)
         let doseReply = try phone.reply(await hub.handle(try phone.request("/v1/dose", LinkEnvelope(kind: "dose", dose: dose))))
@@ -276,10 +289,11 @@ func runLinkChecks() async -> (count: Int, failures: Int) {
             try expect(line("CODE") == "CODE \(recorder.lock.withLock { recorder.pairing?.code ?? "?" })", "Pairing codes differ between Java and Swift")
             try expect(line("PAIRED").contains("Paired with Interop Mac"))
             try expect(line("SYNC").contains("snapshot ok") && recorder.snapshots.first?.records.first?.value == 72)
+            try expect(line("SCREENTIME").contains("screen time ok") && recorder.screenTimes.count==1,"Java screen-time payload crosses the encrypted link")
             try expect(line("MEAL").contains("meal ok") && recorder.meals.first?.note == "2 rotis, dal")
             try expect(line("REPLAY").contains("duplicate") && recorder.meals.count == 1)
             try expect(line("URGE").contains("urge ok") && line("URGE").contains("todayPassed") && recorder.urges.first?.intensity == 3 && recorder.urges.first?.trigger == "Stress")
-            try expect(line("MEDPHOTO").contains("med photo ok") && line("MEDPHOTO").contains("Finasteride") && recorder.medPhotos.first?.batchSize == 2)
+            try expect(line("MEDPHOTO").contains("med photo ok") && line("MEDPHOTO").contains("Cholecalciferol") && recorder.medPhotos.first?.batchSize == 2)
             try expect(line("DOSE").contains("dose ok") && recorder.doses.first?.minute == 540 && recorder.doses.first?.taken == true)
             try expect(line("BADKEY") == "BADKEY 401")
         }

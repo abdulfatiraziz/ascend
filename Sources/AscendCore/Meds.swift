@@ -61,7 +61,7 @@ public struct Medicine: Codable, Equatable, Identifiable, Sendable {
     public var ingredients: [String] = []
     public var strength = ""
     public var form = ""
-    /// For example "Hair loss · DHT blocker".
+    /// For example "Bone health · Vitamin D".
     public var category = ""
     /// What it's for, in the user's or label's words.
     public var purpose = ""

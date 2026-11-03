@@ -136,7 +136,7 @@ also drop photos on **Meds** on the Mac, or **Add by name**.
 
 Check each card and add the schedule your doctor gave you: every day, certain weekdays,
 every few days or as needed; 1–4 times a day; amount; before, with or after food; start
-and optional end date. Or tell Ask Ascend (“Finasteride 1 mg once daily after breakfast”)
+and optional end date. Or tell Ask Ascend (“Vitamin D3 1 tablet once daily after breakfast”)
 and apply the preview. Claude only copies what's printed or what you say; it never sets
 a dose. **Stop taking** keeps history; **Delete** removes it.
 

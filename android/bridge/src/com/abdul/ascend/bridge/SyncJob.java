@@ -24,29 +24,35 @@ public final class SyncJob extends JobService {
     static boolean schedule(Context context, boolean on) {
         JobScheduler jobs = context.getSystemService(JobScheduler.class);
         try {
-            if (!on) { jobs.cancel(ID); return true; }
+            if (!enabled(context)) { jobs.cancel(ID); return true; }
             if (jobs.getPendingJob(ID) != null) return true;
             return jobs.schedule(new JobInfo.Builder(ID, new ComponentName(context, SyncJob.class))
                 .setPeriodic(60 * 60 * 1000L, 20 * 60 * 1000L)
                 .setRequiredNetworkType(JobInfo.NETWORK_TYPE_UNMETERED)
                 .setPersisted(true).build()) == JobScheduler.RESULT_SUCCESS;
         } catch (RuntimeException e) {
-            context.getSharedPreferences("link", MODE_PRIVATE).edit().putBoolean("backgroundSync", false).apply();
+            context.getSharedPreferences("link", MODE_PRIVATE).edit().putBoolean("backgroundSync", false).putBoolean("screenTimeBackground",false).apply();
             return false;
         }
     }
     static boolean enabled(Context context) {
-        return context.getSharedPreferences("link", MODE_PRIVATE).getBoolean("backgroundSync", false);
+        var prefs=context.getSharedPreferences("link",MODE_PRIVATE);
+        return (prefs.getBoolean("backgroundSync",false) && new SyncEngine(context).backgroundAllowed()) ||
+            (prefs.getBoolean("screenTimeBackground",false) && ScreenTimeCollector.sharing(context) && ScreenTimeCollector.allowed(context));
     }
 
     @Override public boolean onStartJob(JobParameters params) {
         SyncEngine engine = new SyncEngine(this);
-        if (!enabled(this) || !engine.paired() || !engine.backgroundAllowed() || !SyncEngine.RUNNING.compareAndSet(false, true)) return false;
+        if (!enabled(this) || !engine.paired() || !SyncEngine.RUNNING.compareAndSet(false, true)) return false;
         engine.discover(list -> {
             SyncEngine.Target target = engine.preferred(list);
             if (target == null) { done(params); return; }
-            engine.readHealth(() -> true, (snapshot, problem) ->
-                network.execute(() -> { engine.sendAll(target, snapshot, problem == null ? "" : problem + "\n"); done(params); }));
+            boolean screen=getSharedPreferences("link",MODE_PRIVATE).getBoolean("screenTimeBackground",false);
+            if (getSharedPreferences("link",MODE_PRIVATE).getBoolean("backgroundSync",false) && engine.backgroundAllowed()) {
+                engine.readHealth(() -> true, (snapshot, problem) -> network.execute(() -> {
+                    engine.sendAll(target,snapshot,problem==null?"":problem+"\n",screen);done(params);
+                }));
+            } else network.execute(() -> { engine.sendAll(target,null,"",screen);done(params); });
         });
         return true;
     }

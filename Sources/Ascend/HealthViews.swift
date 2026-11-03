@@ -30,6 +30,7 @@ struct HealthView: View {
                 } else {
                     emptyState
                 }
+                BodyMeasurementPanel(store: store.bodyMeasurements, cloud: store.drTrust)
                 sources
             }.padding(.bottom, 10)
         }

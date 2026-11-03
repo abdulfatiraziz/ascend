@@ -89,6 +89,7 @@ public struct LinkEnvelope: Codable, Sendable {
     public var id: String
     public var sentAt: Double
     public var kind: String
+    public var screenTime: ScreenTimeSnapshot?
     public var snapshot: HealthSnapshot?
     public var meal: PhoneMeal?
     public var urge: PhoneUrge?
@@ -96,9 +97,9 @@ public struct LinkEnvelope: Codable, Sendable {
     public var dose: PhoneDose?
     public var checkIn: PhoneCheckIn?
     public init(id: String = UUID().uuidString, sentAt: Double = Date().timeIntervalSince1970, kind: String, snapshot: HealthSnapshot? = nil, meal: PhoneMeal? = nil,
-                urge: PhoneUrge? = nil, medPhoto: PhoneMedPhoto? = nil, dose: PhoneDose? = nil, checkIn: PhoneCheckIn? = nil) {
+                urge: PhoneUrge? = nil, medPhoto: PhoneMedPhoto? = nil, dose: PhoneDose? = nil, checkIn: PhoneCheckIn? = nil, screenTime: ScreenTimeSnapshot? = nil) {
         self.id = id; self.sentAt = sentAt; self.kind = kind; self.snapshot = snapshot; self.meal = meal; self.urge = urge; self.medPhoto = medPhoto; self.dose = dose
-        self.checkIn = checkIn
+        self.checkIn = checkIn; self.screenTime = screenTime
     }
 }
 public struct PairingRequest: Sendable, Equatable, Identifiable {
@@ -112,6 +113,7 @@ public enum PhoneLinkEvent: Sendable {
     case pairingRequested(PairingRequest)
     case pairingFinished(PairingRequest, accepted: Bool)
     case hello(phoneID: String)
+    case screenTime(ScreenTimeSnapshot, phoneID: String)
     case snapshot(HealthSnapshot, phoneID: String)
     case meal(PhoneMeal, phoneID: String)
     case urge(PhoneUrge, phoneID: String)
@@ -207,7 +209,7 @@ public actor PhoneLinkHub {
             return LinkResponse(status: 200, contentType: "application/vnd.android.package-archive", body: apk.data)
         case ("POST", "/pair/start"): return await pairStart(request)
         case ("POST", "/pair/confirm"): return pairConfirm(request)
-        case ("POST", "/v1/hello"), ("POST", "/v1/sync"), ("POST", "/v1/meal"), ("POST", "/v1/urge"), ("POST", "/v1/medphoto"), ("POST", "/v1/dose"), ("POST", "/v1/checkin"): return await authenticated(request)
+        case ("POST", "/v1/screentime"), ("POST", "/v1/hello"), ("POST", "/v1/sync"), ("POST", "/v1/meal"), ("POST", "/v1/urge"), ("POST", "/v1/medphoto"), ("POST", "/v1/dose"), ("POST", "/v1/checkin"): return await authenticated(request)
         default: return .error(404, "Unknown request.")
         }
     }
@@ -260,6 +262,9 @@ public actor PhoneLinkHub {
         let result: PhoneLinkResult
         switch kind {
         case "hello": result = await deliver(.hello(phoneID: phoneID))
+        case "screentime":
+            guard let snapshot = envelope.screenTime, (try? snapshot.validate(now:now)) != nil else { return sealed(["ok":false,"message":"Invalid screen-time snapshot."],key:key) }
+            result = await deliver(.screenTime(snapshot,phoneID:phoneID))
         case "sync":
             guard let snapshot = envelope.snapshot else { return sealed(["ok": false, "message": "No health data was included."], key: key) }
             result = await deliver(.snapshot(snapshot, phoneID: phoneID))
