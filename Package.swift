@@ -4,8 +4,9 @@ import PackageDescription
 let package = Package(
     name: "Ascend",
     platforms: [.macOS(.v14)],
-    products: [.executable(name: "Ascend", targets: ["Ascend"]), .executable(name: "AscendBodyImport", targets: ["AscendBodyImport"]), .executable(name: "AscendChecks", targets: ["AscendChecks"]), .executable(name:"AscendBodySample",targets:["AscendBodySample"])],
+    products: [.executable(name: "Ascend", targets: ["Ascend"]), .executable(name:"AscendDietSetup",targets:["AscendDietSetup"]), .executable(name: "AscendBodyImport", targets: ["AscendBodyImport"]), .executable(name: "AscendChecks", targets: ["AscendChecks"]), .executable(name:"AscendBodySample",targets:["AscendBodySample"])],
     targets: [
+        .executableTarget(name:"AscendDietSetup",dependencies:["AscendCore"],path:"Tools/DietSetup"),
         .target(name: "AscendCore", linkerSettings: [.linkedLibrary("sqlite3")]),
         .executableTarget(name: "Ascend", dependencies: ["AscendCore"], exclude: ["Resources/Avatar"],
             resources: [.copy("Resources/Portraits"), .copy("Resources/BodyMap"), .copy("Resources/ExerciseDemos")]),

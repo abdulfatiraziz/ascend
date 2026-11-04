@@ -74,6 +74,7 @@ struct BodyView: View {
         goalHeader
         BodyMaintenanceCard(store:store,training:training,measurements:measurements)
         weightTrend
+        DietCheckpointStatus(store: store, measurements: measurements)
         todayCard
         stepsToday
         scorecard
@@ -189,6 +190,13 @@ struct BodyView: View {
               x: .value("Date", r.date), y: .value("kg", r.kilograms),
               series: .value("Series", "Weekly average")
             ).foregroundStyle(Color.mint).lineStyle(StrokeStyle(lineWidth: 3))
+          }
+          ForEach(store.document.diet?.checkpoints ?? []) { point in
+            if let date = store.engine.date(point.day) {
+              LineMark(x: .value("Date", date), y: .value("kg", point.weight), series: .value("Series", "Diet checkpoints"))
+                .foregroundStyle(Color.orange).lineStyle(StrokeStyle(lineWidth: 2, dash: [4, 4]))
+              PointMark(x: .value("Date", date), y: .value("kg", point.weight)).foregroundStyle(Color.orange).symbol(.diamond).symbolSize(35)
+            }
           }
           if let goal = report.goalWeight {
             RuleMark(y: .value("Goal", goal)).foregroundStyle(.orange.opacity(0.7)).lineStyle(

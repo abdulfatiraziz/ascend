@@ -140,6 +140,7 @@ struct HabitEditor: View {
                 FieldGroup(label: "Due date") { DatePicker("Due date", selection: $dueDate, displayedComponents: .date).labelsHidden() }
             } else { repeatDays }
             if kind == .metric {
+                if habit?.latest.weekdayTargets != nil { Text("Weekday overrides are managed in Meals → Edit plan.").font(.caption).foregroundStyle(Ink.muted) }
                 FieldGroup(label: "Unit") { TextField("hours / steps / g", text: $unit).labelsHidden() }
                 HStack(spacing: 16) {
                     FieldGroup(label: "Minimum (optional)") { TextField("No minimum", text: $minimum).labelsHidden().accessibilityLabel("Minimum") }
@@ -192,9 +193,9 @@ struct MetricEditor: View {
     }
     var body: some View {
         EditorShell(title: revision.title, dirty: value != original) {
-            Text("\(dateText(day, engine: store.engine)) · Target: \(revision.target?.label ?? "")").font(.system(size: 13)).foregroundStyle(Ink.muted)
+            Text("\(dateText(day, engine: store.engine)) · Target: \(store.engine.target(for: habit, on: day)?.label ?? "")").font(.system(size: 13)).foregroundStyle(Ink.muted)
             FieldGroup(label: revision.target?.unit ?? "Value") { TextField("Enter value", text: $value).font(.system(size: 24)).labelsHidden().onSubmit { save() } }
-            if let n = numericInput(value) { Text(revision.target?.accepts(n) == true ? "Target reached." : "This value will be saved; it is outside your target.").font(.system(size: 12)).foregroundStyle(Ink.muted) }
+            if let n = numericInput(value) { Text(store.engine.target(for: habit, on: day)?.accepts(n) == true ? "Target reached." : "This value will be saved; it is outside your target.").font(.system(size: 12)).foregroundStyle(Ink.muted) }
             else if !value.isEmpty { Text("Enter a finite number of zero or more.").font(.system(size: 12)).foregroundStyle(.orange) }
             SaveError(store: store)
         } actions: {

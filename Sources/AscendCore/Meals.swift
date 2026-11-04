@@ -49,6 +49,7 @@ public struct MealEntry: Codable, Equatable, Identifiable, Sendable {
     public var protein: Double?
     public var carbs: Double?
     public var fat: Double?
+    public var dietKind: MealDietKind?
     public var confirmed: Bool
     public var error: String?
     public init(id: UUID = UUID(), takenAt: Double, day: String, note: String = "", photo: String, source: String) {
@@ -56,7 +57,7 @@ public struct MealEntry: Codable, Equatable, Identifiable, Sendable {
         confirmed = false
     }
     /// Every photo of the meal in the order taken. Photos of one meal are named `<meal id>-<part>`, so they sort by part.
-    public var photos: [String] { morePhotos.map { ([photo] + $0).sorted() } ?? [photo] }
+    public var photos: [String] { (morePhotos.map { ([photo] + $0).sorted() } ?? [photo]).filter { !$0.isEmpty } }
     /// Photos still on their way from the phone.
     public var missingPhotos: Int { max(0, (expectedPhotos ?? 0) - photos.count) }
     /// Values the user accepted, falling back to the estimate.
@@ -83,7 +84,7 @@ public struct MealLog: Codable, Equatable, Sendable {
         for e in entries {
             let numbers = [e.kcal, e.protein, e.carbs, e.fat].compactMap { $0 }
             guard e.takenAt.isFinite, (946684800...7289654399).contains(e.takenAt), e.note.count <= 500,
-                  e.photos.count <= Self.maxPhotos, e.photos.allSatisfy({ !$0.isEmpty && $0.count <= 100 && !$0.contains("/") }),
+                  (e.photos.count > 0 || (e.source == "mac" && e.expectedPhotos == nil)), e.photos.count <= Self.maxPhotos, e.photos.allSatisfy({ !$0.isEmpty && $0.count <= 100 && !$0.contains("/") }),
                   (1...Self.maxPhotos).contains(e.expectedPhotos ?? 1), ["phone", "mac"].contains(e.source), numbers.allSatisfy({ $0.isFinite && $0 >= 0 && $0 <= 10_000 }),
                   (e.error?.count ?? 0) <= 600 else { throw ValidationError(message: "Invalid meal entry.") }
             if let estimate = e.estimate { _ = try estimate.validated() }

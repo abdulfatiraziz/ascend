@@ -9,6 +9,10 @@ public struct Score: Equatable, Sendable {
     public func remaining(target: Double) -> Int { max(0, Int(ceil(Double(scheduled) * target)) - completed) }
 }
 public struct TrackerEngine: Sendable {
+    public func target(for habit: Habit, on day: String) -> MetricTarget? {
+        guard let date = date(day), let r = habit.revision(on: day) else { return nil }
+        return r.target(weekday: calendar.component(.weekday, from: date))
+    }
     public let document: TrackerDocument
     public var calendar: Calendar {
         var c = Calendar(identifier: .gregorian)
@@ -54,8 +58,9 @@ public struct TrackerEngine: Sendable {
         document.checkIns.first { $0.habitID == habit.id && $0.day == day }
     }
     public func completed(_ habit: Habit, on day: String) -> Bool {
-        guard let entry = entry(for: habit, day: day), let r = habit.revision(on: day) else { return false }
-        if habit.kind == .metric { return entry.value.map { r.target?.accepts($0) ?? false } ?? false }
+        if let diet = document.diet, diet.sweetsHabitID == habit.id, day >= diet.effectiveDay, !diet.unplannedSweets(document.meals, day: day, calendar: calendar).isEmpty { return false }
+        guard let entry = entry(for: habit, day: day), habit.revision(on: day) != nil else { return false }
+        if habit.kind == .metric { return entry.value.map { target(for: habit, on: day)?.accepts($0) ?? false } ?? false }
         return entry.completed
     }
     public func score(on day: String, goalID: UUID? = nil) -> Score {

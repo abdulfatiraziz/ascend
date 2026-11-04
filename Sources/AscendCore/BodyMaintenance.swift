@@ -167,7 +167,7 @@ public struct BodyMaintenanceReport: Sendable {
     }
     r.deviceDays = energy.count
     if !energy.isEmpty { r.deviceActive = energy.values.reduce(0, +) / Double(energy.count) }
-    r.currentTarget = document.mealHabits.calories?.latest.target?.maximum
+    r.currentTarget = document.mealHabits.calories.flatMap { TrackerEngine(document: document).target(for: $0, on: TrackerEngine(document: document).key(now))?.maximum }
     // Planning uses intake/weight or formula only. Watch calories never enter this calculation.
     if let base = r.measured ?? r.formula {
       if let target = r.currentTarget {

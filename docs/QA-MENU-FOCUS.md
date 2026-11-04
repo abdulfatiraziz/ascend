@@ -74,3 +74,11 @@ against the archived original. It remains closed. App data archives were not
 modified by this rollback. Feature and diagnostic commits remain in the isolated
 branch; no push or merge was performed. Earlier audible-resolution statements
 are superseded by this failed verification and rollback.
+
+## User-identified physical cause
+
+The user subsequently supplied photos and identified a laptop stand resting on
+the external keyboard's function keys. This explains the repeated F7 observation.
+The temporary FunctionKeyFilter was removed in the diet-plan build. The earlier
+app-level fixes were not evidence of a software root cause. The diet update was
+built and installed separately after this clarification.

@@ -16,7 +16,7 @@ import AscendCore
     }
     /// Meals that arrived while Claude was unavailable, or before the app quit, get estimated on launch.
     func estimatePending() {
-        for meal in store?.document.meals.entries ?? [] where meal.estimate == nil && meal.error == nil && !meal.confirmed && meal.missingPhotos == 0 { enqueue(meal.id) }
+        for meal in store?.document.meals.entries ?? [] where !meal.photos.isEmpty && meal.estimate == nil && meal.error == nil && !meal.confirmed && meal.missingPhotos == 0 { enqueue(meal.id) }
     }
     func retry(_ id: UUID) { store?.setMealEstimate(id, estimate: nil, error: nil); enqueue(id) }
     private func runNext() {

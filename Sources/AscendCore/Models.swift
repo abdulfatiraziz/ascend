@@ -44,6 +44,9 @@ public struct HabitRevision: Codable, Equatable, Sendable {
     public var schedule: Schedule
     public var target: MetricTarget?
     public var scheduledMinute: Int?
+    /// Optional weekday overrides; absent in legacy archives. Calendar weekdays are 1=Sunday.
+    public var weekdayTargets: [Int: MetricTarget]?
+    public func target(weekday: Int) -> MetricTarget? { weekdayTargets?[weekday] ?? target }
     public init(effectiveDay: String, title: String, note: String = "", period: Period,
                 schedule: Schedule = Schedule(), target: MetricTarget? = nil, scheduledMinute: Int? = nil) {
         self.effectiveDay = effectiveDay; self.title = title; self.note = note
@@ -125,6 +128,7 @@ public struct ReminderPreferences: Codable, Equatable, Sendable {
 }
 public struct TrackerDocument: Codable, Equatable, Sendable {
     public var schemaVersion = 3
+    public var diet: DietPlan?
     public var timeZoneID: String
     public var cycle: Cycle
     public var goals: [Goal]
@@ -143,7 +147,7 @@ public struct TrackerDocument: Codable, Equatable, Sendable {
     public var notes = NoteBook()
     public var photos = PhotoAlbum()
     private enum CodingKeys: String, CodingKey {
-        case schemaVersion, timeZoneID, cycle, goals, habits, checkIns, avatarFinish, restDays, previousCycles, reminders, routine, urgeLogs, health, wellbeing, meals, meds, notes, photos
+        case diet, schemaVersion, timeZoneID, cycle, goals, habits, checkIns, avatarFinish, restDays, previousCycles, reminders, routine, urgeLogs, health, wellbeing, meals, meds, notes, photos
         case legacyUrges = "smokeUrges"
     }
     public init(from decoder: Decoder) throws {
@@ -167,6 +171,7 @@ public struct TrackerDocument: Codable, Equatable, Sendable {
         meds = try c.decodeIfPresent(MedCabinet.self, forKey: .meds) ?? MedCabinet()
         notes = try c.decodeIfPresent(NoteBook.self, forKey: .notes) ?? NoteBook()
         photos = try c.decodeIfPresent(PhotoAlbum.self, forKey: .photos) ?? PhotoAlbum()
+        diet = try c.decodeIfPresent(DietPlan.self, forKey: .diet)
         for i in habits.indices {
             for j in habits[i].revisions.indices where habits[i].revisions[j].title == "No smoking" {
                 habits[i].revisions[j].title = "Stay intentional"
@@ -194,6 +199,7 @@ public struct TrackerDocument: Codable, Equatable, Sendable {
         try c.encode(meds, forKey: .meds)
         try c.encode(notes, forKey: .notes)
         try c.encode(photos, forKey: .photos)
+        try c.encodeIfPresent(diet, forKey: .diet)
     }
     /// Encoder option: leave `health` out (it is saved separately as health.json).
     public static let omitHealth = CodingUserInfoKey(rawValue: "ascend.omitHealth")!
@@ -251,6 +257,16 @@ public struct TrackerDocument: Codable, Equatable, Sendable {
             if let end = habit.archivedDay { try require(validDay(end) && end >= habit.createdDay, "Invalid archive date.") }
             try require(Set(habit.revisions.map(\.effectiveDay)).count == habit.revisions.count, "Duplicate habit revisions.")
             for r in habit.revisions {
+                if let overrides = r.weekdayTargets {
+                    try require(habit.kind == .metric && overrides.count <= 7, "Weekday targets require a numeric habit.")
+                    for (day, t) in overrides {
+                        try require((1...7).contains(day) && t.unit == r.target?.unit, "Invalid weekday target units or day.")
+                        try require(t.minimum != nil || t.maximum != nil, "A weekday target needs a bound.")
+                        try require(t.minimum.map { $0.isFinite && $0 >= 0 } ?? true, "Invalid weekday minimum.")
+                        try require(t.maximum.map { $0.isFinite && $0 >= 0 } ?? true, "Invalid weekday maximum.")
+                        try require((t.minimum ?? 0) <= (t.maximum ?? .infinity), "Weekday minimum exceeds maximum.")
+                    }
+                }
                 try require(r.scheduledMinute.map { (0..<1440).contains($0) } ?? true, "Invalid habit time.")
                 try require(validDay(r.effectiveDay) && r.effectiveDay >= habit.createdDay && !r.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, "Invalid habit revision.")
                 if habit.kind == .milestone { try require(r.schedule.once.map(validDay) == true, "A milestone needs a valid due date.") }
@@ -266,6 +282,7 @@ public struct TrackerDocument: Codable, Equatable, Sendable {
                 }
             }
         }
+        try diet?.validate(engine: engine, habits: habits)
         var keys = Set<String>()
         for entry in checkIns {
             try require(habits.contains { $0.id == entry.habitID } && validDay(entry.day), "A check-in has an invalid habit or date.")

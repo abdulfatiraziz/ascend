@@ -106,7 +106,7 @@ body = try body.savingManual(kilograms: 86.9, date: now.addingTimeInterval(-900)
 try write(body, "body-measurements.json")
 var doc = TrackerDocument.seeded(today: "2026-01-01", timeZoneID: cal.timeZone.identifier)
 let engine = TrackerEngine(document: doc)
-doc = TrackerDocument.seeded(today: engine.key(now), timeZoneID: cal.timeZone.identifier)
+doc = TrackerDocument.seeded(today: engine.key(day(-28)), timeZoneID: cal.timeZone.identifier)
 for offset in -28..<0 {
   for hour in [12, 19] {
     let when = day(offset).addingTimeInterval(Double(hour) * 3600)
@@ -124,6 +124,23 @@ for offset in -28..<0 {
 if let id = doc.mealHabits.calories?.id, let i = doc.habits.firstIndex(where: { $0.id == id }) {
   for j in doc.habits[i].revisions.indices { doc.habits[i].revisions[j].target?.maximum = 2500 }
 }
+var diet = DietPlan(effectiveDay:engine.key(day(-28)))
+diet.slots = [
+ .init(name:"Breakfast",portion:"Yogurt 180 g · oats 45 g",startMinute:540,endMinute:660,kcal:410,protein:24,cafeReplacement:true),
+ .init(name:"Lunch",portion:"Tofu 160 g · cooked rice 85 g · vegetables",startMinute:750,endMinute:900,kcal:520,protein:32),
+ .init(name:"Afternoon snack",portion:"Yogurt bowl",startMinute:960,endMinute:1050,kcal:190,protein:18),
+ .init(name:"Dinner",portion:"Lentils · flatbread · salad",startMinute:1140,endMinute:1230,kcal:480,protein:29),
+ .init(name:"Sweet slot",portion:"Choose one planned treat",startMinute:1260,endMinute:1320,kcal:180,protein:16,sweet:true)
+]
+diet.sweetOptions=["Fruit yogurt","Cocoa pudding"]
+diet.references=[.init(name:"rice",kcal:140,protein:3,carbs:29),.init(name:"oil",kcal:880,fat:98,tablespoonGrams:12,sprayGrams:0.4)]
+diet.sweetsHabitID=doc.habits.first{$0.kind == .check}?.id
+for i in -1...5 { diet.checkpoints.append(.init(day:engine.key(day(i*7)),weight:87.5-Double(i)*0.35)) }
+let calorieLimits=Dictionary(uniqueKeysWithValues:(1...7).map{($0,($0==1 || $0==7) ? 2250.0:1850.0)})
+try doc.applyDietPlan(diet,weekdayLimits:calorieLimits,today:engine.key(day(-28)))
+var sampleMeal=MealEntry(takenAt:cal.date(bySettingHour:9,minute:15,second:0,of:day(0))!.timeIntervalSince1970,day:engine.key(now),note:"Fictional café breakfast",photo:"",source:"mac")
+sampleMeal.confirmed=true;sampleMeal.dietKind = .cafe;sampleMeal.kcal=430;sampleMeal.protein=26
+doc.meals.entries.append(sampleMeal)
 try doc.validate()
 try write(doc, "tracker.json")
 var health = HealthArchive()

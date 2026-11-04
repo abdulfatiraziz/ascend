@@ -25,6 +25,7 @@ struct MealsView: View {
                     PrimaryButton(label: "Add photo…") { choose() }
                 }
                 totals
+                DietDashboard(store: store, day: day)
                 if entries.isEmpty {
                     VStack(alignment: .leading, spacing: 10) {
                         Text("No meals for this day.").font(.system(size: 18, weight: .semibold))
@@ -40,7 +41,7 @@ struct MealsView: View {
     }
     private var totals: some View {
         let t = store.document.meals.totals(day), habits = store.document.mealHabits
-        let kcalLimit = habits.calories?.latest.target?.maximum, proteinGoal = habits.protein?.latest.target?.minimum
+        let kcalLimit = habits.calories.flatMap { store.engine.target(for: $0, on: day)?.maximum }, proteinGoal = habits.protein.flatMap { store.engine.target(for: $0, on: day)?.minimum }
         return HStack(spacing: 28) {
             stat("Calories", t.kcal, unit: "kcal", target: kcalLimit.map { "≤ \(Int($0.rounded()))" }, good: kcalLimit.map { t.kcal <= $0 })
             stat("Protein", t.protein, unit: "g", target: proteinGoal.map { "≥ \(Int($0))" }, good: proteinGoal.map { t.protein >= $0 })
@@ -128,6 +129,7 @@ private struct MealCard: View {
                 if let error = meal.error {
                     HStack { Text(error).font(.system(size: 11)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true); Button("Retry") { meals.retry(meal.id) }.font(.system(size: 11)) }
                 }
+                Picker("Meal type", selection: Binding(get: { meal.dietKind ?? .standard }, set: { store.setMealDietKind(meal.id, kind: $0) })) { ForEach(MealDietKind.allCases, id: \.self) { Text($0.label).tag($0) } }.pickerStyle(.segmented).frame(maxWidth: 360)
                 TextField("Note (for example: 2 rotis, dal, cooked in ghee)", text: $note).textFieldStyle(.roundedBorder).font(.system(size: 12)).disabled(meal.confirmed)
                 HStack(spacing: 10) {
                     field("kcal", $kcal); field("Protein g", $protein); field("Carbs g", $carbs); field("Fat g", $fat)
@@ -149,6 +151,7 @@ private struct MealCard: View {
     }
     private var title: String {
         if let name = meal.estimate?.name { return name }
+        if meal.photos.isEmpty { return meal.note.isEmpty ? "Weighed meal" : meal.note }
         if meals.estimating.contains(meal.id) { return "Estimating…" }
         if meal.error != nil { return "Estimate failed" }
         return meal.missingPhotos > 0 ? "Waiting for \(meal.missingPhotos) more photo\(meal.missingPhotos == 1 ? "" : "s")" : "Waiting to estimate"
@@ -157,7 +160,7 @@ private struct MealCard: View {
     private var photos: some View {
         let urls = store.mealPhotoURLs(meal)
         return VStack(alignment: .leading, spacing: 6) {
-            PhotoThumbnail(url: urls[0], size: 120)
+            if let first = urls.first { PhotoThumbnail(url: first, size: 120) } else { Image(systemName: "scalemass").font(.system(size: 32)).foregroundStyle(Ink.accent).frame(width: 120, height: 90) }
             if urls.count > 1 {
                 LazyVGrid(columns: Array(repeating: GridItem(.fixed(36), spacing: 6), count: 3), alignment: .leading, spacing: 6) {
                     ForEach(urls.dropFirst(), id: \.self) { PhotoThumbnail(url: $0, size: 36) }

@@ -237,11 +237,13 @@ import UniformTypeIdentifiers
         }
     }
     @discardableResult func saveHabit(id: UUID?, goalID: UUID, kind: HabitKind, title: String, note: String,
-                   period: Period, schedule: Schedule, target: MetricTarget?, scheduledMinute: Int? = nil) -> Bool {
+                   period: Period, schedule: Schedule, target: MetricTarget?, scheduledMinute: Int? = nil, weekdayTargets: [Int:MetricTarget]? = nil) -> Bool {
         change { doc in
-            let r = HabitRevision(effectiveDay: today, title: title.trimmingCharacters(in: .whitespacesAndNewlines),
+            var r = HabitRevision(effectiveDay: today, title: title.trimmingCharacters(in: .whitespacesAndNewlines),
                 note: note, period: period, schedule: schedule, target: target, scheduledMinute: scheduledMinute)
+            r.weekdayTargets=weekdayTargets
             if let id, let i = doc.habits.firstIndex(where: { $0.id == id }) {
+                r.weekdayTargets = kind == .metric && target?.unit == doc.habits[i].latest.target?.unit ? (weekdayTargets ?? doc.habits[i].latest.weekdayTargets) : nil
                 var comparison = r; comparison.effectiveDay = doc.habits[i].latest.effectiveDay
                 if comparison != doc.habits[i].latest { doc.habits[i].revise(r) }
             }
@@ -257,7 +259,7 @@ import UniformTypeIdentifiers
         var schedule = r.schedule
         if habit.kind == .milestone, let due = schedule.once, due < today { schedule.once = today }
         saveHabit(id: nil, goalID: habit.goalID, kind: habit.kind, title: r.title, note: r.note,
-                  period: r.period, schedule: schedule, target: r.target, scheduledMinute: r.scheduledMinute)
+                  period: r.period, schedule: schedule, target: r.target, scheduledMinute: r.scheduledMinute, weekdayTargets: r.weekdayTargets)
     }
     @discardableResult func updateCycle(title: String, start: String, end: String, target: Double) -> Bool {
         change { doc in
@@ -732,4 +734,30 @@ import UniformTypeIdentifiers
         } catch { notice = "Backup was not restored: \(error.localizedDescription)" }
     }
     func revealData() { NSWorkspace.shared.activateFileViewerSelecting([storageURL]) }
+    @discardableResult func saveDietPlan(_ plan: DietPlan, weekdayLimits: [Int: Double]?) -> Bool {
+        do {
+            var candidate=document
+            try candidate.applyDietPlan(plan,weekdayLimits:weekdayLimits,today:today)
+            return change { $0=candidate }
+        } catch { notice=error.localizedDescription; return false }
+    }
+    func setMealDietKind(_ id: UUID, kind: MealDietKind) {
+        let previous = document
+        guard change({ doc in
+            if let i = doc.meals.entries.firstIndex(where: { $0.id == id }) { doc.meals.entries[i].dietKind = kind }
+        }) else { return }
+        undoDocument = previous; undoLabel = "meal type"
+    }
+    @discardableResult func addCalculatedMeal(_ calculation: FoodCalculation, at date: Date, kind: MealDietKind) -> Bool {
+        let values = calculation.totals
+        let when = min(date, Date())
+        var meal = MealEntry(takenAt: when.timeIntervalSince1970, day: engine.key(when),
+            note: "\(calculation.reference.name) · \(calculation.grams.pretty) g", photo: "", source: "mac")
+        meal.kcal=values.kcal; meal.protein=values.protein; meal.carbs=values.carbs; meal.fat=values.fat
+        meal.confirmed=true;meal.dietKind=kind
+        let previous=document
+        guard change({ doc in doc.meals.entries.append(meal);doc.applyMealTotals(on:meal.day,today:today) }) else { return false }
+        undoDocument=previous;undoLabel="weighed meal";return true
+    }
+
 }

@@ -118,7 +118,7 @@ public enum ClaudeAssistant {
             habits: document.habits.filter { $0.archivedDay == nil }.map { h in
                 HabitContext(id: h.id.uuidString, goalID: h.goalID.uuidString, title: h.latest.title,
                     kind: h.kind == .metric ? "metric" : h.kind == .milestone ? "milestone" : "check",
-                    period: h.latest.period.rawValue, schedule: h.latest.schedule, target: h.latest.target, minute: h.latest.scheduledMinute,
+                    period: h.latest.period.rawValue, schedule: h.latest.schedule, target: e.target(for:h,on:today), minute: h.latest.scheduledMinute,
                     note: shareHistory && !h.latest.note.isEmpty ? String(h.latest.note.prefix(1000)) : nil)
             },
             medicines: document.meds.medicines.filter { !$0.archived }.prefix(100).map { m in

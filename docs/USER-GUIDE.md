@@ -400,3 +400,45 @@ For a dynamic physiological planning model, see the
 [NIDDK Body Weight Planner](https://www.niddk.nih.gov/bwp).
 Height, formula coefficient and full-day override marks stay in `training.json`;
 they are not added to the existing short Ask Ascend Body summary.
+
+
+## Diet planning
+
+Open **Meals → Edit plan** to set calorie limits for each weekday, meal windows,
+portion descriptions, planned calories/protein, sweet choices, food references
+and weight checkpoints. Weekday limits update the existing calorie habit from
+today and make it due on all seven days; earlier revisions keep their historical
+targets. Legacy backups without diet settings or weekday overrides still open.
+The phone receives today's resolved target through its existing sync summary.
+
+The weekly budget starts Monday and uses confirmed meal totals, falling back to
+manual calorie check-ins on days without confirmed meals. Those sources are never
+added twice. Logged-day coverage is shown: missing food logs are unknown intake.
+An over-budget week is displayed without changing future targets automatically.
+
+Confirmed meals fill the window containing their recorded local time. Tag a meal
+**Café swap** to replace the breakfast slot (including the half hour before its
+start); every logged food still counts in daily/weekly totals. Tag treats **Sweet**.
+A confirmed sweet outside the sweet window makes the linked existing sweets habit
+incomplete. Removing/reopening/reclassifying that meal recalculates the rule without
+overwriting your manual check-in. An empty or in-window day is not marked complete
+automatically. Untagged meals are not classified as sweets by guessing their name.
+
+Use the gram calculator with a saved reference name and amount, such as
+`rice 85 g`, `+1 tbsp oil` or `oil spray ×4`. References are per 100 g and editable.
+Tablespoons and sprays require grams per portion; calibrate sprays yourself.
+The Log portion button creates one confirmed meal with no photo, using the selected
+time/type. These entries support edit, delete and Undo. Avoid adding oil separately
+if it was already counted in a photo estimate. Fill unknown reference nutrients
+before relying on macro totals.
+
+In **Body**, orange diamonds and a dashed line show the saved weight checkpoints.
+The status uses daily-average weights from the seven days ending at the latest
+checkpoint, requiring at least two separate dates. Several readings on one date
+cannot create false weekly coverage. The tolerance is editable. This status never
+changes the diet or training plan automatically.
+
+Diet settings are included in the tracker backup. Training and body-measurement
+archives retain their existing backup flows. Editing the current meal template
+can change how tagged meals are assigned to slots from the diet start date;
+calorie habit revisions preserve earlier numeric targets separately.

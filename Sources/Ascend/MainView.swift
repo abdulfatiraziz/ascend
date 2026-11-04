@@ -350,7 +350,7 @@ struct HabitRow: View {
         }
     }
     private var subtitle: String {
-        let label = revision.target?.label ?? (revision.note.isEmpty ? revision.schedule.label : revision.note)
+        let label = store.engine.target(for: habit, on: day)?.label ?? (revision.note.isEmpty ? revision.schedule.label : revision.note)
         let goal = store.document.goals.first { $0.id == habit.goalID }?.title ?? ""
         return "\(label) · \(goal)"
     }

@@ -47,10 +47,11 @@ extension TrackerDocument {
         return engine.due(on: today, includeMilestones: true).compactMap { habit -> PhoneHabit? in
             guard let r = habit.revision(on: today) else { return nil }
             let entry = engine.entry(for: habit, day: today)
+            let target = engine.target(for: habit, on: today)
             return PhoneHabit(id: habit.id.uuidString, title: r.title, goal: goalNames[habit.goalID] ?? "", period: r.period.rawValue,
                               kind: habit.kind == .metric ? "metric" : habit.kind == .milestone ? "milestone" : "check",
                               done: engine.completed(habit, on: today), value: habit.kind == .metric ? entry?.value : nil,
-                              unit: r.target?.unit, target: r.target?.label, minimum: r.target?.minimum, maximum: r.target?.maximum,
+                              unit: target?.unit, target: target?.label, minimum: target?.minimum, maximum: target?.maximum,
                               auto: autoIDs.contains(habit.id), minute: r.scheduledMinute)
         }.sorted {
             let a = periods.firstIndex(of: Period(rawValue: $0.period) ?? .daytime)!, b = periods.firstIndex(of: Period(rawValue: $1.period) ?? .daytime)!
