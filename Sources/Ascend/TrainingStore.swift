@@ -51,6 +51,7 @@ extension TrackerStore {
     t.urgesActedToday = urges.actedToday
     t.urgesActedWeekAverage = urges.actedWeekAverage.map { ($0 * 10).rounded() / 10 }
     t.spotVisitsUnanswered = urges.unansweredVisits
+    t.spots = SpotArchive.read(storageURL.deletingLastPathComponent().appendingPathComponent("spots.json")).spots
     if let w = bodyMeasurements.archive.latest {
       t.latestWeight = w.kilograms
       t.latestWeightAt = w.date.timeIntervalSince1970

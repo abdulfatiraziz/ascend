@@ -29,7 +29,7 @@ public final class SpotReceiver extends BroadcastReceiver {
     static final String CHANNEL = "checkins";
     static final String ARRIVE = "com.abdul.ascend.bridge.SPOT", ANSWER = "com.abdul.ascend.bridge.SPOT_ANSWER";
     static final float RADIUS_METRES = 60f;
-    /** At most one check-in per spot in this window, so walking in and out doesn't repeat it. */
+    /** At most one check-in in this window across all spots, so walking in and out, or between nearby spots, doesn't repeat it. */
     static final long QUIET_MS = 45 * 60 * 1000L;
 
     @Override public void onReceive(Context c, Intent intent) {
@@ -80,6 +80,24 @@ public final class SpotReceiver extends BroadcastReceiver {
         register(c);
         return s;
     }
+    /** Replaces the spots that came from the Mac with the Mac's current list; spots saved on this phone stay. */
+    static void mergeFromMac(Context c, JSONArray fromMac) {
+        try {
+            JSONArray all = spots(c), next = new JSONArray();
+            for (int i = 0; i < all.length(); i++) { JSONObject s = all.optJSONObject(i); if (s != null && !s.optBoolean("mac")) next.put(s); }
+            for (int i = 0; i < fromMac.length(); i++) {
+                JSONObject m = fromMac.getJSONObject(i);
+                next.put(new JSONObject().put("id", "mac-" + m.getString("id")).put("name", m.getString("name"))
+                    .put("latitude", m.getDouble("latitude")).put("longitude", m.getDouble("longitude")).put("mac", true));
+            }
+            if (next.toString().equals(all.toString())) return;
+            // Old Mac alerts are cleared before the list changes, since their IDs may be gone.
+            LocationManager lm = c.getSystemService(LocationManager.class);
+            for (int i = 0; i < all.length(); i++) { JSONObject s = all.optJSONObject(i); if (s != null && s.optBoolean("mac")) try { lm.removeProximityAlert(arrival(c, s.optString("id"))); } catch (SecurityException ignored) {} }
+            prefs(c).edit().putString("spots", next.toString()).apply();
+            register(c);
+        } catch (JSONException ignored) {}
+    }
     static void removeSpot(Context c, String id) {
         try { c.getSystemService(LocationManager.class).removeProximityAlert(arrival(c, id)); } catch (SecurityException ignored) {}
         JSONArray all = spots(c), kept = new JSONArray();
@@ -95,12 +113,13 @@ public final class SpotReceiver extends BroadcastReceiver {
         if (s == null) return;
         SharedPreferences p = prefs(c);
         long now = System.currentTimeMillis();
-        if (now - p.getLong("spotLast|" + spotID, 0) < QUIET_MS) return;
+        // Shared across spots: nearby spots overlap, and one stop should ask once.
+        if (now - p.getLong("spotLastAny", 0) < QUIET_MS) return;
         JSONObject urge = new JSONObject().put("id", UUID.randomUUID().toString()).put("takenAt", now / 1000).put("outcome", "Not recorded").put("note", "")
             .put("spot", s.optString("name")).put("latitude", s.optDouble("latitude")).put("longitude", s.optDouble("longitude"));
         write(new File(urgesDir(c), urge.getString("id") + ".json"), urge);
         // A copy, so a late answer can still be sent after the visit itself has synced.
-        p.edit().putLong("spotLast|" + spotID, now).putString("visit|" + urge.getString("id"), urge.toString()).apply();
+        p.edit().putLong("spotLastAny", now).putString("visit|" + urge.getString("id"), urge.toString()).apply();
         notify(c, urge.getString("id"));
     }
     static PendingIntent answerIntent(Context c, String urgeID, String outcome) {

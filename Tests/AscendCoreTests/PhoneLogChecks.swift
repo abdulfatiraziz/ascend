@@ -110,5 +110,21 @@ func runPhoneLogChecks() -> (count: Int, failures: Int) {
         var fresh = d; fresh.urgeLogs = [log(0, .acted)]
         try expect(fresh.urgeCounts(at: noon).actedWeekAverage == nil)
     }
+    check("spots file: valid spots load; invalid, duplicate or missing files give none") {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("ascend-spots-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let url = dir.appendingPathComponent("spots.json")
+        try expect(SpotArchive.read(url).spots.isEmpty)
+        let good = SpotArchive(spots: [UrgeSpot(id: "a", name: "Spot A", latitude: 48.8584, longitude: 2.2945), UrgeSpot(id: "b", name: "Spot B", latitude: 48.8606, longitude: 2.3376)])
+        try JSONEncoder().encode(good).write(to: url)
+        try expect(SpotArchive.read(url) == good)
+        for bad in [SpotArchive(spots: [UrgeSpot(id: "a", name: "A", latitude: 91, longitude: 0)]),
+                    SpotArchive(spots: [UrgeSpot(id: "a", name: "A", latitude: 1, longitude: 1), UrgeSpot(id: "a", name: "B", latitude: 2, longitude: 2)]),
+                    SpotArchive(spots: [UrgeSpot(id: "a", name: " ", latitude: 1, longitude: 1)])] {
+            try JSONEncoder().encode(bad).write(to: url)
+            try expect(SpotArchive.read(url).spots.isEmpty)
+        }
+    }
     return (count, failures)
 }

@@ -177,3 +177,31 @@ extension UrgeLog {
         spot = spot ?? later.spot
     }
 }
+
+/// A place the phone watches for urge check-ins. Kept in spots.json beside tracker.json, sent only to the paired phone.
+public struct UrgeSpot: Codable, Equatable, Sendable {
+    public var id: String
+    public var name: String
+    public var latitude: Double
+    public var longitude: Double
+    public init(id: String = UUID().uuidString, name: String, latitude: Double, longitude: Double) {
+        self.id = id; self.name = name; self.latitude = latitude; self.longitude = longitude
+    }
+}
+public struct SpotArchive: Codable, Equatable, Sendable {
+    public var version = 1
+    public var spots: [UrgeSpot] = []
+    public init(spots: [UrgeSpot] = []) { self.spots = spots }
+    public func validate() throws {
+        guard version == 1, spots.count <= 50, Set(spots.map(\.id)).count == spots.count,
+              spots.allSatisfy({ !$0.id.isEmpty && $0.id.count <= 64 && !$0.name.trimmingCharacters(in: .whitespaces).isEmpty && $0.name.count <= 40
+                  && $0.latitude.isFinite && (-90...90).contains($0.latitude) && $0.longitude.isFinite && (-180...180).contains($0.longitude) }) else {
+            throw ValidationError(message: "Invalid spots file. It was left unchanged.")
+        }
+    }
+    /// The saved spots, or none when the file is missing or invalid, so the phone reply never fails over it.
+    public static func read(_ url: URL) -> SpotArchive {
+        guard let data = try? Data(contentsOf: url), let a = try? JSONDecoder().decode(SpotArchive.self, from: data), (try? a.validate()) != nil else { return SpotArchive() }
+        return a
+    }
+}

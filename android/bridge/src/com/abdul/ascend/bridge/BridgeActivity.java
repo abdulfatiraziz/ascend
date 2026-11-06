@@ -43,7 +43,7 @@ public final class BridgeActivity extends Activity {
     enum Screen { LOG, TODAY, MEALS, MEDS, URGES, SETTINGS, ADD_MEDS, SETS }
     static final String LOCAL_NETWORK = "android.permission.ACCESS_LOCAL_NETWORK";
     static final int REQ_HEALTH = 7, REQ_NETWORK = 8, REQ_CAMERA = 11, REQ_PICK = 12, REQ_NOTIFY = 13, REQ_BACKGROUND = 14, REQ_LOCATION = 15, REQ_BACKGROUND_LOCATION = 16;
-    static final String VERSION = "0.9.1";
+    static final String VERSION = "0.9.2";
 
     SyncEngine engine;
     Ui ui;
@@ -1134,7 +1134,8 @@ public final class BridgeActivity extends Activity {
             LinearLayout row = ui.row(10);
             row.addView(ui.text(s.optString("name"), 15, Ui.TEXT, 500), new LinearLayout.LayoutParams(0, Ui.WRAP, 1));
             String id = s.optString("id");
-            row.addView(ui.chip("Remove", false, v -> { SpotReceiver.removeSpot(this, id); render(); }), new LinearLayout.LayoutParams(Ui.WRAP, ui.dp(34)));
+            if (s.optBoolean("mac")) row.addView(ui.small("from your Mac"));
+            else row.addView(ui.chip("Remove", false, v -> { SpotReceiver.removeSpot(this, id); render(); }), new LinearLayout.LayoutParams(Ui.WRAP, ui.dp(34)));
             card.addView(row);
         }
         if (spots.length() > 0 && !watching)

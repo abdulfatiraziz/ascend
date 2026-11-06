@@ -231,6 +231,8 @@ final class SyncEngine {
         if (reply.has("meds")) edit.putString("medSchedule", reply.getJSONArray("meds").toString());
         edit.apply();
         if (reply.has("meds")) ReminderReceiver.schedule(context);
+        JSONObject todayReply = reply.optJSONObject("today");
+        if (todayReply != null && todayReply.has("spots")) SpotReceiver.mergeFromMac(context, todayReply.getJSONArray("spots"));
         return reply;
     }
     /**

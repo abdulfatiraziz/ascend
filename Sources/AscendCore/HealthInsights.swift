@@ -134,6 +134,8 @@ public struct PhoneToday: Codable, Equatable, Sendable {
     public var urgesActedToday: Int? = nil
     public var urgesActedWeekAverage: Double? = nil
     public var spotVisitsUnanswered: Int? = nil
+    /// Spots saved on the Mac; the phone replaces its Mac-sourced spots with these.
+    public var spots: [UrgeSpot]? = nil
     public var latestWeight: Double? = nil
     public var latestWeightAt: Double? = nil
 }
