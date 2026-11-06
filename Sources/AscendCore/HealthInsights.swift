@@ -128,6 +128,14 @@ public struct PhoneToday: Codable, Equatable, Sendable {
     public var rest: Bool
     public var habits: [PhoneHabit]
     public var goals: [PhoneGoal]
+    /// Filled by the Mac app when it replies, from sources outside tracker.json or the current time.
+    public var now: PhoneNow? = nil
+    public var workout: PhoneWorkout? = nil
+    public var urgesActedToday: Int? = nil
+    public var urgesActedWeekAverage: Double? = nil
+    public var spotVisitsUnanswered: Int? = nil
+    public var latestWeight: Double? = nil
+    public var latestWeightAt: Double? = nil
 }
 extension TrackerDocument {
     public func phoneToday(today: String) -> PhoneToday {

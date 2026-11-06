@@ -95,6 +95,14 @@ public struct UrgeLog: Codable, Identifiable, Equatable, Sendable {
     public var outcome: UrgeOutcome
     public var note: String
     public var category: String?
+    /// Set from the phone's urge sheet: whether the first thought was caught early and an interrupt anchor used.
+    public var caughtEarly: Bool?
+    public var usedAnchor: Bool?
+    /// Where it happened, only when chosen on the phone. Stays in this Mac's data; never shared.
+    public var latitude: Double?
+    public var longitude: Double?
+    /// The saved spot whose arrival logged this, when it came from a spot check-in. Unrecorded = a visit not answered.
+    public var spot: String?
     public init(id: UUID = UUID(), timestamp: Date = Date(), intensity: Int? = nil,
                 trigger: UrgeTrigger? = nil, outcome: UrgeOutcome = .unrecorded, note: String = "", category: String? = nil, customTrigger: String? = nil) {
         self.id = id; self.timestamp = timestamp; self.intensity = intensity

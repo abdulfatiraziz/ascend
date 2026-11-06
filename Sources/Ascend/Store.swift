@@ -672,8 +672,10 @@ import UniformTypeIdentifiers
     /// Adds an urge logged on the phone. Returns nil when that ID was already received.
     func addPhoneUrge(_ urge: UrgeLog) -> Bool? {
         refreshDay()
-        guard !document.urgeLogs.contains(where: { $0.id == urge.id }) else { return nil }
-        return change { $0.urgeLogs.append(urge) }
+        guard let i = document.urgeLogs.firstIndex(where: { $0.id == urge.id }) else { return change { $0.urgeLogs.append(urge) } }
+        // A spot visit answered after it was sent: the phone resends it with an outcome.
+        guard document.urgeLogs[i].outcome == .unrecorded, urge.outcome != .unrecorded else { return nil }
+        return change { $0.urgeLogs[i].upgrade(from: urge) }
     }
     var urgeTally: UrgeTally { engine.urgeTally(today: today) }
     @discardableResult func updateUrge(id: UUID, intensity: Int?, trigger: UrgeTrigger?, outcome: UrgeOutcome, note: String, category: String?, customTrigger: String? = nil) -> Bool {

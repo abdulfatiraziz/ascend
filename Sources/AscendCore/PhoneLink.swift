@@ -70,19 +70,42 @@ public struct PhoneUrge: Codable, Equatable, Sendable {
     public var takenAt: Double
     public var outcome: String
     public var intensity: Int?
+    /// One of `UrgeTrigger`'s names, or the phone's own words (saved as Other).
     public var trigger: String?
     public var note: String
-    public init(id: String, takenAt: Double, outcome: String, intensity: Int? = nil, trigger: String? = nil, note: String = "") {
+    public var category: String?
+    public var caughtEarly: Bool?
+    public var usedAnchor: Bool?
+    public var latitude: Double?
+    public var longitude: Double?
+    public var spot: String?
+    public init(id: String, takenAt: Double, outcome: String, intensity: Int? = nil, trigger: String? = nil, note: String = "", category: String? = nil,
+                caughtEarly: Bool? = nil, usedAnchor: Bool? = nil, latitude: Double? = nil, longitude: Double? = nil, spot: String? = nil) {
         self.id = id; self.takenAt = takenAt; self.outcome = outcome; self.intensity = intensity; self.trigger = trigger; self.note = note
+        self.category = category; self.caughtEarly = caughtEarly; self.usedAnchor = usedAnchor; self.latitude = latitude; self.longitude = longitude; self.spot = spot
     }
+    /// The phone's cigarette triggers that match a built-in one.
+    static let triggerAliases: [String: UrgeTrigger] = ["With people": .social, "Bored": .boredom]
     public func validated(now: Date = Date()) throws -> UrgeLog {
+        let trimmedTrigger = trigger?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let category = category?.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let uuid = UUID(uuidString: id), takenAt.isFinite, takenAt >= 946684800, takenAt <= now.timeIntervalSince1970 + 300,
               let outcome = UrgeOutcome(rawValue: outcome), intensity.map({ (1...5).contains($0) }) ?? true,
-              trigger.map({ UrgeTrigger(rawValue: $0) != nil }) ?? true, note.count <= 500 else {
+              trimmedTrigger.map({ !$0.isEmpty && $0.count <= 40 }) ?? true, note.count <= 500,
+              category.map({ !$0.isEmpty && $0.count <= 40 }) ?? true, spot.map({ !$0.isEmpty && $0.count <= 40 }) ?? true,
+              (latitude == nil) == (longitude == nil), latitude.map({ $0.isFinite && (-90...90).contains($0) }) ?? true,
+              longitude.map({ $0.isFinite && (-180...180).contains($0) }) ?? true else {
             throw ValidationError(message: "The phone sent an invalid urge log.")
         }
-        return UrgeLog(id: uuid, timestamp: Date(timeIntervalSince1970: min(takenAt, now.timeIntervalSince1970)), intensity: intensity,
-                       trigger: trigger.flatMap(UrgeTrigger.init(rawValue:)), outcome: outcome, note: note.trimmingCharacters(in: .whitespacesAndNewlines))
+        let known = trimmedTrigger.flatMap { UrgeTrigger(rawValue: $0) ?? Self.triggerAliases[$0] }
+        let trigger: UrgeTrigger? = trimmedTrigger == nil ? nil : known ?? .other
+        var log = UrgeLog(id: uuid, timestamp: Date(timeIntervalSince1970: min(takenAt, now.timeIntervalSince1970)), intensity: intensity,
+                          trigger: trigger, outcome: outcome, note: note.trimmingCharacters(in: .whitespacesAndNewlines), category: category,
+                          customTrigger: known == nil ? trimmedTrigger : nil)
+        log.caughtEarly = caughtEarly; log.usedAnchor = usedAnchor; log.spot = spot
+        // About 11 m: enough for a hotspot map, no more.
+        log.latitude = latitude.map { ($0 * 10_000).rounded() / 10_000 }; log.longitude = longitude.map { ($0 * 10_000).rounded() / 10_000 }
+        return log
     }
 }
 public struct LinkEnvelope: Codable, Sendable {
@@ -96,10 +119,12 @@ public struct LinkEnvelope: Codable, Sendable {
     public var medPhoto: PhoneMedPhoto?
     public var dose: PhoneDose?
     public var checkIn: PhoneCheckIn?
+    public var log: PhoneLogEntry?
     public init(id: String = UUID().uuidString, sentAt: Double = Date().timeIntervalSince1970, kind: String, snapshot: HealthSnapshot? = nil, meal: PhoneMeal? = nil,
-                urge: PhoneUrge? = nil, medPhoto: PhoneMedPhoto? = nil, dose: PhoneDose? = nil, checkIn: PhoneCheckIn? = nil, screenTime: ScreenTimeSnapshot? = nil) {
+                urge: PhoneUrge? = nil, medPhoto: PhoneMedPhoto? = nil, dose: PhoneDose? = nil, checkIn: PhoneCheckIn? = nil, screenTime: ScreenTimeSnapshot? = nil,
+                log: PhoneLogEntry? = nil) {
         self.id = id; self.sentAt = sentAt; self.kind = kind; self.snapshot = snapshot; self.meal = meal; self.urge = urge; self.medPhoto = medPhoto; self.dose = dose
-        self.checkIn = checkIn; self.screenTime = screenTime
+        self.checkIn = checkIn; self.screenTime = screenTime; self.log = log
     }
 }
 public struct PairingRequest: Sendable, Equatable, Identifiable {
@@ -120,6 +145,7 @@ public enum PhoneLinkEvent: Sendable {
     case medPhoto(PhoneMedPhoto, phoneID: String)
     case dose(PhoneDose, phoneID: String)
     case checkIn(PhoneCheckIn, phoneID: String)
+    case log(PhoneLogEntry, phoneID: String)
 }
 public struct PhoneLinkResult: Sendable, Equatable {
     public var ok: Bool
@@ -209,7 +235,7 @@ public actor PhoneLinkHub {
             return LinkResponse(status: 200, contentType: "application/vnd.android.package-archive", body: apk.data)
         case ("POST", "/pair/start"): return await pairStart(request)
         case ("POST", "/pair/confirm"): return pairConfirm(request)
-        case ("POST", "/v1/screentime"), ("POST", "/v1/hello"), ("POST", "/v1/sync"), ("POST", "/v1/meal"), ("POST", "/v1/urge"), ("POST", "/v1/medphoto"), ("POST", "/v1/dose"), ("POST", "/v1/checkin"): return await authenticated(request)
+        case ("POST", "/v1/screentime"), ("POST", "/v1/hello"), ("POST", "/v1/sync"), ("POST", "/v1/meal"), ("POST", "/v1/urge"), ("POST", "/v1/medphoto"), ("POST", "/v1/dose"), ("POST", "/v1/checkin"), ("POST", "/v1/log"): return await authenticated(request)
         default: return .error(404, "Unknown request.")
         }
     }
@@ -280,6 +306,9 @@ public actor PhoneLinkHub {
         case "checkin":
             guard let checkIn = envelope.checkIn else { return sealed(["ok": false, "message": "No check-in was included."], key: key) }
             result = await deliver(.checkIn(checkIn, phoneID: phoneID))
+        case "log":
+            guard let log = envelope.log else { return sealed(["ok": false, "message": "No log was included."], key: key) }
+            result = await deliver(.log(log, phoneID: phoneID))
         default:
             guard let meal = envelope.meal else { return sealed(["ok": false, "message": "No meal was included."], key: key) }
             result = await deliver(.meal(meal, phoneID: phoneID))

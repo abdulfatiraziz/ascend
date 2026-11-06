@@ -40,11 +40,10 @@ import java.util.function.Consumer;
  * you allow in Health Connect and never writes health data. No account, cloud service or Android debugging.
  */
 public final class BridgeActivity extends Activity {
-    enum Screen { TODAY, MEALS, MEDS, URGES, SETTINGS, ADD_MEDS }
+    enum Screen { LOG, TODAY, MEALS, MEDS, URGES, SETTINGS, ADD_MEDS, SETS }
     static final String LOCAL_NETWORK = "android.permission.ACCESS_LOCAL_NETWORK";
-    static final int REQ_HEALTH = 7, REQ_NETWORK = 8, REQ_CAMERA = 11, REQ_PICK = 12, REQ_NOTIFY = 13, REQ_BACKGROUND = 14;
-    static final String[] TRIGGERS = {"Stress", "Coffee", "After a meal", "Social", "Boredom"};
-    static final String VERSION = "0.8.1";
+    static final int REQ_HEALTH = 7, REQ_NETWORK = 8, REQ_CAMERA = 11, REQ_PICK = 12, REQ_NOTIFY = 13, REQ_BACKGROUND = 14, REQ_LOCATION = 15, REQ_BACKGROUND_LOCATION = 16;
+    static final String VERSION = "0.9.1";
 
     SyncEngine engine;
     Ui ui;
@@ -56,7 +55,7 @@ public final class BridgeActivity extends Activity {
     View statusScrim;
     LinearLayout nav;
     TextView toast;
-    Screen screen = Screen.TODAY;
+    Screen screen = Screen.LOG;
     int insetTop, insetBottom;
     boolean syncing;
     String captureName;
@@ -71,7 +70,7 @@ public final class BridgeActivity extends Activity {
         engine = new SyncEngine(this); ui = new Ui(this); prefs = engine.prefs;
         if (state != null) {
             captureName = state.getString("captureName"); photoMode = state.getString("photoMode", "meal");
-            try { screen = Screen.valueOf(state.getString("screen", "TODAY")); } catch (Exception ignored) {}
+            try { screen = Screen.valueOf(state.getString("screen", "LOG")); } catch (Exception ignored) {}
         }
         Window w = getWindow();
         w.setDecorFitsSystemWindows(false);
@@ -97,6 +96,7 @@ public final class BridgeActivity extends Activity {
         setContentView(root);
         boolean background = prefs.getBoolean("backgroundSync", false);
         SyncJob.schedule(this, background && engine.backgroundAllowed());
+        SpotReceiver.register(this);
         render();
         if ("com.abdul.ascend.bridge.EXERCISE_DEMOS".equals(getIntent().getAction())) openExerciseDemos();
     }
@@ -113,13 +113,13 @@ public final class BridgeActivity extends Activity {
             && System.currentTimeMillis() - prefs.getLong("lastSync", 0) > 10 * 60 * 1000L) sync(true, true);
     }
     /**
-     * Back returns to the previous screen and only leaves the app from Today. With predictive back (target SDK 36),
+     * Back returns to the previous screen and only leaves the app from Log. With predictive back (target SDK 36),
      * onBackPressed isn't called, so a callback is registered while any other screen is showing.
      */
-    final android.window.OnBackInvokedCallback back = () -> show(screen == Screen.ADD_MEDS ? Screen.MEDS : Screen.TODAY);
+    final android.window.OnBackInvokedCallback back = () -> show(screen == Screen.ADD_MEDS ? Screen.MEDS : Screen.LOG);
     boolean backRegistered;
     void updateBack() {
-        boolean want = screen != Screen.TODAY;
+        boolean want = screen != Screen.LOG;
         if (want == backRegistered) return;
         android.window.OnBackInvokedDispatcher dispatcher = getOnBackInvokedDispatcher();
         if (want) dispatcher.registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, back);
@@ -140,10 +140,12 @@ public final class BridgeActivity extends Activity {
             case URGES: page = urges(); break;
             case SETTINGS: page = settings(); break;
             case ADD_MEDS: page = addMeds(); break;
-            default: page = today();
+            case SETS: page = sets(); break;
+            case TODAY: page = today(); break;
+            default: page = log();
         }
         content.addView(page, new FrameLayout.LayoutParams(Ui.MATCH, Ui.MATCH));
-        boolean tabs = screen != Screen.SETTINGS && screen != Screen.ADD_MEDS;
+        boolean tabs = screen != Screen.SETTINGS && screen != Screen.ADD_MEDS && screen != Screen.SETS;
         nav.setVisibility(tabs ? View.VISIBLE : View.GONE);
         if (tabs) buildNav();
         ((FrameLayout.LayoutParams) toast.getLayoutParams()).bottomMargin = (tabs ? ui.dp(84) : ui.dp(96)) + insetBottom + ui.dp(8);
@@ -205,8 +207,8 @@ public final class BridgeActivity extends Activity {
         navBg.setLayerInset(1, 0, 1, 0, 0);
         nav.setBackground(navBg);
         nav.setPadding(ui.dp(12), ui.dp(8), ui.dp(12), insetBottom + ui.dp(10));
-        String[][] tabs = {{"Today", "ic_home"}, {"Meals", "ic_meal"}, {"Meds", "ic_pill"}, {"Urges", "ic_urge"}};
-        Screen[] targets = {Screen.TODAY, Screen.MEALS, Screen.MEDS, Screen.URGES};
+        String[][] tabs = {{"Log", "ic_plus"}, {"Today", "ic_home"}, {"Meals", "ic_meal"}, {"Meds", "ic_pill"}, {"Urges", "ic_urge"}};
+        Screen[] targets = {Screen.LOG, Screen.TODAY, Screen.MEALS, Screen.MEDS, Screen.URGES};
         for (int i = 0; i < tabs.length; i++) {
             boolean on = screen == targets[i];
             LinearLayout tab = ui.column(4); tab.setGravity(Gravity.CENTER_HORIZONTAL);
@@ -819,108 +821,434 @@ public final class BridgeActivity extends Activity {
         return tile;
     }
     JSONArray urgeHistory() { try { return new JSONArray(prefs.getString("urgeHistory", "[]")); } catch (JSONException e) { return new JSONArray(); } }
-    /** Saves the urge at once, then offers optional details; it's sent when the sheet closes. */
+    void styleChip(Button b, boolean on) {
+        b.setBackground(on ? ui.round(Ui.ACCENT_SOFT, 18, Ui.ACCENT, 1) : ui.round(Ui.PANEL2, 18, 0, 0));
+        b.setTextColor(on ? 0xFFE0D8FF : Ui.TEXT);
+    }
+
+    // MARK: Log (home)
+    static final String[][] URGE_TRIGGERS = {{"Need quiet", "Work break", "Bored"}, {"After a meal", "Stress", "Noise"}, {"Going out anyway", "With people"}};
+    static final String FINE = android.Manifest.permission.ACCESS_FINE_LOCATION, COARSE = android.Manifest.permission.ACCESS_COARSE_LOCATION;
+    File pendingLocation;
+    final Set<String> locating = new HashSet<>();
+
+    static String clock12(long millis) {
+        LocalTime t = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalTime();
+        int h = t.getHour();
+        return (h % 12 == 0 ? 12 : h % 12) + ":" + String.format(Locale.ROOT, "%02d", t.getMinute()) + (h < 12 ? " am" : " pm");
+    }
+    /** Today's cached summary from the Mac, or empty when it's from an earlier day. */
+    JSONObject todayFresh() {
+        JSONObject t = engine.today();
+        return LocalDate.now().toString().equals(t.optString("day")) ? t : new JSONObject();
+    }
+    View log() {
+        ViewGroup[] holder = new ViewGroup[1];
+        LinearLayout col = page(holder, true);
+        JSONObject t = todayFresh();
+        String date = LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("EEE d MMM", Locale.ENGLISH));
+        col.addView(header(date, "Log", circleButton("ic_gear", "Settings", v -> show(Screen.SETTINGS))));
+        col.addView(syncPill(), new LinearLayout.LayoutParams(Ui.WRAP, ui.dp(36)));
+        if (!engine.paired()) col.addView(setupCard());
+        JSONObject now = t.optJSONObject("now");
+        if (now != null) col.addView(nowCard(now));
+        // Only what needs a hand: weight, steps, sleep and screen time arrive on their own.
+        col.addView(ui.grid(8,
+            logTile("ic_urge", "Urge", false, v -> logUrge(null)),
+            logTile("ic_meal", "Meal", false, v -> { photoMode = "meal"; takePhoto(); }),
+            logTile("ic_pill", "Meds", false, v -> show(Screen.MEDS)),
+            logTile("ic_dumbbell", "Workout", false, v -> show(Screen.SETS))));
+        if (t.length() > 0) {
+            double kcal = t.optDouble("kcal", 0), limit = t.optDouble("kcalLimit", Double.NaN), protein = t.optDouble("protein", 0), goal = t.optDouble("proteinGoal", Double.NaN);
+            double steps = t.optDouble("steps", Double.NaN), stepGoal = t.optDouble("stepGoal", Double.NaN);
+            col.addView(ui.grid(8,
+                miniStat("kcal", fmt(kcal), Double.isNaN(limit) ? "" : "/" + fmt(limit), !Double.isNaN(limit) && kcal > limit),
+                miniStat("protein", fmt(protein) + " g", Double.isNaN(goal) ? "" : "/" + fmt(goal), false),
+                miniStat("steps", Double.isNaN(steps) ? "—" : steps >= 1000 ? String.format(Locale.US, "%.1fk", steps / 1000) : fmt(steps),
+                    Double.isNaN(stepGoal) ? "" : "/" + (stepGoal >= 1000 ? fmt(stepGoal / 1000) + "k" : fmt(stepGoal)), false)));
+        }
+        col.addView(timeline());
+        int waiting = engine.waiting();
+        TextView w = ui.small(waiting == 0 ? "Nothing waiting to send" : waiting + (waiting == 1 ? " item" : " items") + " waiting · sent on the next sync");
+        w.setGravity(Gravity.CENTER); col.addView(w);
+        askNotificationsOnce();
+        return holder[0];
+    }
+    View nowCard(JSONObject now) {
+        LinearLayout card = ui.card(6);
+        card.setBackground(ui.round(0xFF1D1830, 18, 0x59A18AFF, 1));
+        TextView k = ui.kicker(now.optString("kicker")); k.setTextColor(Ui.ACCENT); card.addView(ui.oneLine(k));
+        card.addView(ui.text(now.optString("title"), 16, Ui.TEXT, 600));
+        String d = now.optString("detail");
+        if (!d.isEmpty()) card.addView(ui.small(d));
+        if ("meal".equals(now.optString("kind"))) {
+            LinearLayout row = ui.row(8); row.setPadding(0, ui.dp(4), 0, 0);
+            row.addView(ui.pill("Photo it", v -> { photoMode = "meal"; takePhoto(); }), new LinearLayout.LayoutParams(Ui.WRAP, ui.dp(40)));
+            card.addView(row);
+        }
+        return card;
+    }
+    View logTile(String icon, String label, boolean hot, View.OnClickListener l) {
+        LinearLayout tile = ui.column(6); tile.setGravity(Gravity.CENTER);
+        tile.setBackground(hot ? ui.round(0x14F0A35E, 16, 0x73F0A35E, 1) : ui.round(Ui.PANEL, 16, Ui.LINE, 1));
+        tile.addView(ui.iconView(icon, hot ? Ui.ORANGE : Ui.ACCENT_TEXT, 22));
+        TextView text = ui.oneLine(ui.text(label, 12, Ui.TEXT, 500)); text.setGravity(Gravity.CENTER);
+        tile.addView(text);
+        tile.setMinimumHeight(ui.dp(78)); tile.setContentDescription(label);
+        tile.setOnClickListener(Ui.tap(l));
+        return tile;
+    }
+    View miniStat(String label, String value, String of, boolean over) {
+        LinearLayout c = ui.column(4); c.setBackground(ui.round(Ui.PANEL, 14, Ui.LINE, 1)); ui.pad(c, 12, 10, 12, 10);
+        c.addView(ui.kicker(label));
+        LinearLayout v = ui.row(2); v.setGravity(Gravity.BOTTOM);
+        v.addView(ui.text(value, 15, over ? Ui.ORANGE : Ui.TEXT, 700));
+        if (!of.isEmpty()) v.addView(ui.oneLine(ui.text(of, 11, Ui.MUTED, 500)));
+        c.addView(v);
+        return c;
+    }
+    JSONArray logHistory() { try { return new JSONArray(prefs.getString("logHistory", "[]")); } catch (JSONException e) { return new JSONArray(); } }
+    void addHistory(String label, String tag) {
+        try {
+            JSONArray old = logHistory(), next = new JSONArray().put(new JSONObject().put("at", System.currentTimeMillis()).put("label", label).put("tag", tag));
+            for (int i = 0; i < Math.min(old.length(), 79); i++) next.put(old.get(i));
+            prefs.edit().putString("logHistory", next.toString()).apply();
+        } catch (JSONException ignored) {}
+    }
+    View timeline() {
+        LinearLayout card = ui.card(0);
+        card.addView(ui.kicker("Logged on this phone today"));
+        JSONArray h = logHistory();
+        LocalDate today = LocalDate.now();
+        int shown = 0;
+        for (int i = 0; i < h.length() && shown < 12; i++) {
+            JSONObject e = h.optJSONObject(i);
+            if (e == null || !Instant.ofEpochMilli(e.optLong("at")).atZone(ZoneId.systemDefault()).toLocalDate().equals(today)) continue;
+            LinearLayout row = ui.row(10); ui.pad(row, 0, 10, 0, 0);
+            row.addView(ui.mono(clock12(e.optLong("at")), 12, Ui.MUTED), new LinearLayout.LayoutParams(ui.dp(66), Ui.WRAP));
+            row.addView(ui.oneLine(ui.text(e.optString("label"), 14, Ui.TEXT, 400)), new LinearLayout.LayoutParams(0, Ui.WRAP, 1));
+            String tag = e.optString("tag");
+            if (!tag.isEmpty()) { TextView tg = ui.mono(tag, 11, Ui.MUTED); tg.setBackground(ui.round(Ui.PANEL2, 6, 0, 0)); ui.pad(tg, 6, 3, 6, 3); row.addView(tg); }
+            card.addView(row); shown++;
+        }
+        if (shown == 0) { TextView s = ui.small("Nothing yet. Tap a tile above; each log takes one tap."); s.setPadding(0, ui.dp(8), 0, 0); card.addView(s); }
+        return card;
+    }
+    static void writeJSON(File file, JSONObject json) throws IOException { try (OutputStream out = new FileOutputStream(file)) { out.write(SyncEngine.bytes(json)); } }
+
+    // MARK: Urge
+    void bumpActed(int delta) {
+        try {
+            JSONObject t = engine.today();
+            if (!LocalDate.now().toString().equals(t.optString("day"))) return;
+            t.put("urgesActedToday", Math.max(0, t.optInt("urgesActedToday") + delta));
+            engine.saveToday(t);
+        } catch (JSONException ignored) {}
+    }
+    /** One tap saves the moment; the sheet then records the outcome and details. `outcome` may be null (choose in the sheet). */
     void logUrge(String outcome) {
         long now = System.currentTimeMillis();
         File file;
         try {
-            JSONObject urge = new JSONObject().put("id", UUID.randomUUID().toString()).put("takenAt", now / 1000).put("outcome", outcome).put("note", "");
+            JSONObject urge = new JSONObject().put("id", UUID.randomUUID().toString()).put("takenAt", now / 1000)
+                .put("outcome", outcome == null ? "Not recorded" : outcome).put("note", "");
             file = new File(engine.urgesDir(), urge.getString("id") + ".json");
-            try (OutputStream out = new FileOutputStream(file)) { out.write(SyncEngine.bytes(urge)); }
-            JSONArray history = urgeHistory(), next = new JSONArray().put(new JSONObject().put("at", now).put("outcome", outcome));
-            for (int i = 0; i < Math.min(history.length(), 19); i++) next.put(history.get(i));
-            prefs.edit().putString("urgeHistory", next.toString()).apply();
-        } catch (Exception e) { toast("Couldn’t save the urge on this phone."); return; }
+            writeJSON(file, urge);
+        } catch (Exception e) { toast("Couldn’t save that on this phone."); return; }
+        if ("Acted on it".equals(outcome)) bumpActed(1);
+        if (prefs.getBoolean("urgeLocation", true)) captureLocation(file);
         render();
-        urgeSheet(file, outcome, now);
+        urgeSheet(file, now, outcome);
     }
-    void urgeSheet(File file, String outcome, long at) {
+    void captureLocation(File file) {
+        if (checkSelfPermission(FINE) != PackageManager.PERMISSION_GRANTED && checkSelfPermission(COARSE) != PackageManager.PERMISSION_GRANTED) {
+            if (prefs.getBoolean("askedLocation", false)) return;
+            prefs.edit().putBoolean("askedLocation", true).apply();
+            pendingLocation = file;
+            requestPermissions(new String[]{FINE, COARSE}, REQ_LOCATION);
+            return;
+        }
+        currentLocation(loc -> {
+            if (loc == null || !file.exists()) return;
+            try {
+                JSONObject u = SyncEngine.readJSON(file);
+                if (!u.optBoolean("noLocation")) { u.put("latitude", loc.getLatitude()).put("longitude", loc.getLongitude()); writeJSON(file, u); }
+            } catch (Exception ignored) {}
+        }, file.getName());
+    }
+    /** A recent fix if there is one, else a fresh one; null when none arrives. `tag` marks the request as in flight. */
+    void currentLocation(Consumer<android.location.Location> done, String tag) {
+        android.location.LocationManager lm = getSystemService(android.location.LocationManager.class);
+        List<String> providers = lm.getProviders(true);
+        String provider = providers.contains("fused") ? "fused" : providers.contains("network") ? "network" : providers.contains("gps") ? "gps" : null;
+        if (provider == null) { done.accept(null); return; }
+        try {
+            android.location.Location last = lm.getLastKnownLocation(provider);
+            if (last != null && System.currentTimeMillis() - last.getTime() < 2 * 60 * 1000L) { done.accept(last); return; }
+            locating.add(tag);
+            lm.getCurrentLocation(provider, null, getMainExecutor(), loc -> { locating.remove(tag); done.accept(loc); });
+            main.postDelayed(() -> locating.remove(tag), 15000);
+        } catch (SecurityException e) { locating.remove(tag); done.accept(null); }
+    }
+    void urgeSheet(File file, long at, String preset) {
         Dialog sheet = new Dialog(this);
         sheet.requestWindowFeature(Window.FEATURE_NO_TITLE);
-        LinearLayout box = ui.column(18);
+        LinearLayout box = ui.column(14);
         GradientDrawable bg = new GradientDrawable(); bg.setColor(Ui.PANEL);
         float r = ui.dp(24); bg.setCornerRadii(new float[]{r, r, r, r, 0, 0, 0, 0});
-        box.setBackground(bg); box.setPadding(ui.dp(20), ui.dp(12), ui.dp(20), insetBottom + ui.dp(24));
+        box.setBackground(bg); box.setPadding(ui.dp(20), ui.dp(12), ui.dp(20), insetBottom + ui.dp(20));
         View handle = new View(this); handle.setBackground(ui.round(0x33FFFFFF, 2, 0, 0));
         LinearLayout.LayoutParams hp = new LinearLayout.LayoutParams(ui.dp(40), ui.dp(4)); hp.gravity = Gravity.CENTER_HORIZONTAL;
         box.addView(handle, hp);
         LinearLayout head = ui.row(12);
-        boolean pass = outcome.equals("Let it pass");
-        head.addView(pass ? ui.badge("ic_check", Ui.ACCENT, Ui.ON_ACCENT, 40, 20) : ui.badge("ic_urge", Ui.PANEL2, Ui.ORANGE, 40, 20));
+        head.addView(ui.badge("ic_urge", Ui.ACCENT_SOFT, Ui.ACCENT, 40, 20));
         LinearLayout titles = ui.column(2);
-        titles.addView(ui.text(outcome, 20, Ui.TEXT, 700));
-        titles.addView(ui.small("Saved at " + clock(at) + " · details are optional"));
+        titles.addView(ui.text("Urge", 20, Ui.TEXT, 700));
+        titles.addView(ui.small("Saved at " + clock12(at) + " · details are optional"));
         head.addView(titles);
         box.addView(head);
-        int[] intensity = {0};
-        String[] trigger = {null};
+        String[] outcome = {preset};
+        LinearLayout seg = ui.grid(8);
+        Button acted = ui.chip("Acted on it", "Acted on it".equals(preset), v -> {}), passed = ui.chip("Let it pass", "Let it pass".equals(preset), v -> {});
+        acted.setOnClickListener(Ui.tap(v -> { outcome[0] = "Acted on it"; styleChip(acted, true); styleChip(passed, false); }));
+        passed.setOnClickListener(Ui.tap(v -> { outcome[0] = "Let it pass"; styleChip(acted, false); styleChip(passed, true); }));
+        seg.addView(acted, new LinearLayout.LayoutParams(0, ui.dp(42), 1)); seg.addView(passed, new LinearLayout.LayoutParams(0, ui.dp(42), 1));
+        box.addView(seg);
         box.addView(ui.text("How strong?", 12, Ui.MUTED, 600));
+        int[] intensity = {0};
         LinearLayout levels = ui.row(8);
         Button[] levelButtons = new Button[5];
         for (int i = 1; i <= 5; i++) {
             int level = i;
             Button b = ui.chip(String.valueOf(i), false, v -> {});
-            b.setOnClickListener(Ui.tap(v -> {
-                intensity[0] = intensity[0] == level ? 0 : level;
-                for (int k = 0; k < 5; k++) styleChip(levelButtons[k], intensity[0] == k + 1);
-            }));
+            b.setOnClickListener(Ui.tap(v -> { intensity[0] = intensity[0] == level ? 0 : level; for (int k = 0; k < 5; k++) styleChip(levelButtons[k], intensity[0] == k + 1); }));
             levelButtons[i - 1] = b;
-            levels.addView(b, new LinearLayout.LayoutParams(0, ui.dp(44), 1));
+            levels.addView(b, new LinearLayout.LayoutParams(0, ui.dp(40), 1));
         }
         box.addView(levels);
-        box.addView(ui.text("What was happening?", 12, Ui.MUTED, 600));
-        Button[] triggerButtons = new Button[TRIGGERS.length];
-        LinearLayout chips = ui.column(8), line = null;
-        for (int i = 0; i < TRIGGERS.length; i++) {
-            if (i % 3 == 0) { line = ui.row(8); chips.addView(line); }
-            String name = TRIGGERS[i];
-            Button b = ui.chip(name, false, v -> {});
-            b.setOnClickListener(Ui.tap(v -> {
-                trigger[0] = name.equals(trigger[0]) ? null : name;
-                for (int k = 0; k < TRIGGERS.length; k++) styleChip(triggerButtons[k], TRIGGERS[k].equals(trigger[0]));
-            }));
-            triggerButtons[i] = b;
-            line.addView(b, new LinearLayout.LayoutParams(Ui.WRAP, ui.dp(36)));
+        box.addView(ui.text("What started it?", 12, Ui.MUTED, 600));
+        String[] trigger = {null};
+        List<Button> chips = new ArrayList<>();
+        List<String> names = new ArrayList<>();
+        LinearLayout lines = ui.column(8);
+        for (String[] rowNames : URGE_TRIGGERS) {
+            LinearLayout line = ui.row(8);
+            for (String name : rowNames) {
+                Button b = ui.chip(name, false, v -> {});
+                chips.add(b); names.add(name);
+                b.setOnClickListener(Ui.tap(v -> {
+                    trigger[0] = name.equals(trigger[0]) ? null : name;
+                    for (int k = 0; k < chips.size(); k++) styleChip(chips.get(k), names.get(k).equals(trigger[0]));
+                }));
+                line.addView(b, new LinearLayout.LayoutParams(Ui.WRAP, ui.dp(36)));
+            }
+            lines.addView(line);
         }
-        box.addView(chips);
-        EditText note = new EditText(this);
-        note.setHint("Note (optional)"); note.setHintTextColor(Ui.FAINT); note.setTextColor(Ui.TEXT); note.setTextSize(14);
-        note.setBackground(ui.round(Ui.BG, 12, 0x1FFFFFFF, 1)); ui.pad(note, 14, 0, 14, 0); note.setSingleLine(true);
-        box.addView(note, new LinearLayout.LayoutParams(Ui.MATCH, ui.dp(48)));
+        box.addView(lines);
+        boolean[] early = {false}, anchor = {false}, place = {prefs.getBoolean("urgeLocation", true)}, touched = {false};
+        box.addView(toggle("Caught the first thought?", "Before it grew into a plan", false, on -> { early[0] = on; touched[0] = true; }));
+        box.addView(toggle("Used my anchor", "Your interrupt technique, as soon as you noticed", false, on -> { anchor[0] = on; touched[0] = true; }));
+        box.addView(toggle("Save location", "Kept on this phone and your Mac only", place[0], on -> { place[0] = on; prefs.edit().putBoolean("urgeLocation", on).apply(); if (on) captureLocation(file); }));
+        box.addView(ui.secondary("Save this place as a spot", v -> saveSpotHere(file)), Ui.wide());
+        JSONObject t = todayFresh();
+        if (t.has("urgesActedToday")) {
+            double avg = t.optDouble("urgesActedWeekAverage", Double.NaN);
+            box.addView(ui.small("Acted on today: " + t.optInt("urgesActedToday") + (Double.isNaN(avg) ? "" : " · 7-day average " + fmt(avg))));
+        }
         LinearLayout buttons = ui.row(10);
         boolean[] saved = {false};
         buttons.addView(ui.secondary("Skip", v -> sheet.dismiss()), new LinearLayout.LayoutParams(Ui.WRAP, ui.dp(52)));
-        buttons.addView(ui.primary("Save details", v -> {
+        buttons.addView(ui.primary("Save", v -> {
             try {
-                JSONObject urge = SyncEngine.readJSON(file);
-                if (intensity[0] > 0) urge.put("intensity", intensity[0]);
-                if (trigger[0] != null) urge.put("trigger", trigger[0]);
-                String text = note.getText().toString().trim();
-                urge.put("note", text.length() > 500 ? text.substring(0, 500) : text);
-                try (OutputStream out = new FileOutputStream(file)) { out.write(SyncEngine.bytes(urge)); }
+                JSONObject u = SyncEngine.readJSON(file);
+                if (outcome[0] != null) u.put("outcome", outcome[0]);
+                if (intensity[0] > 0) u.put("intensity", intensity[0]);
+                if (trigger[0] != null) u.put("trigger", trigger[0]);
+                if (touched[0]) u.put("caughtEarly", early[0]).put("usedAnchor", anchor[0]);
+                if (!place[0]) { u.remove("latitude"); u.remove("longitude"); u.put("noLocation", true); }
+                writeJSON(file, u);
                 saved[0] = true;
+                int delta = ("Acted on it".equals(outcome[0]) ? 1 : 0) - ("Acted on it".equals(preset) ? 1 : 0);
+                if (delta != 0) bumpActed(delta);
             } catch (Exception ignored) {}
             sheet.dismiss();
         }), new LinearLayout.LayoutParams(0, ui.dp(52), 1));
         box.addView(buttons);
-        sheet.setContentView(box);
-        sheet.setOnDismissListener(d -> { toast(saved[0] ? "Urge saved with details" : "Urge saved"); render(); sync(false, true); });
+        ScrollView scroll = new ScrollView(this); scroll.addView(box);
+        sheet.setContentView(scroll);
+        sheet.setOnDismissListener(d -> {
+            String finalOutcome = saved[0] && outcome[0] != null ? outcome[0] : preset;
+            try {
+                JSONArray history = urgeHistory(), next = new JSONArray().put(new JSONObject().put("at", at).put("outcome", finalOutcome == null ? "Not recorded" : finalOutcome));
+                for (int i = 0; i < Math.min(history.length(), 19); i++) next.put(history.get(i));
+                prefs.edit().putString("urgeHistory", next.toString()).apply();
+            } catch (JSONException ignored) {}
+            addHistory(finalOutcome == null ? "Urge" : "Urge · " + (finalOutcome.equals("Acted on it") ? "acted on" : "let it pass"),
+                saved[0] && trigger[0] != null ? trigger[0].toLowerCase(Locale.ROOT) : "");
+            toast(saved[0] ? "Urge saved with details" : "Urge saved");
+            render();
+            // Give a pending location a moment to arrive before sending.
+            if (locating.contains(file.getName())) main.postDelayed(() -> sync(false, true), 8000); else sync(false, true);
+        });
         Window w = sheet.getWindow();
         w.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         w.setLayout(Ui.MATCH, Ui.WRAP); w.setGravity(Gravity.BOTTOM);
         w.setDimAmount(0.55f);
         sheet.show();
     }
-    void styleChip(Button b, boolean on) {
-        b.setBackground(on ? ui.round(Ui.ACCENT_SOFT, 18, Ui.ACCENT, 1) : ui.round(Ui.PANEL2, 18, 0, 0));
-        b.setTextColor(on ? 0xFFE0D8FF : Ui.TEXT);
+
+    // MARK: Spots
+    /** Saves where this urge happened (or where the phone is now) as a spot, then makes sure Android may watch it. */
+    void saveSpotHere(File urge) {
+        if (checkSelfPermission(FINE) != PackageManager.PERMISSION_GRANTED) {
+            pendingLocation = urge; requestPermissions(new String[]{FINE, COARSE}, REQ_LOCATION);
+            toast("Allow precise location, then tap Save this place again.");
+            return;
+        }
+        double[] here = null;
+        try { JSONObject u = SyncEngine.readJSON(urge); if (u.has("latitude")) here = new double[]{u.getDouble("latitude"), u.getDouble("longitude")}; } catch (Exception ignored) {}
+        if (here != null) { finishSpot(here[0], here[1]); return; }
+        toast("Finding where you are…");
+        currentLocation(loc -> { if (loc == null) toast("Couldn’t get your location. Try again outside."); else finishSpot(loc.getLatitude(), loc.getLongitude()); }, "spot");
+    }
+    void finishSpot(double lat, double lon) {
+        try { JSONObject s = SpotReceiver.addSpot(this, lat, lon); toast(s.optString("name") + " saved"); }
+        catch (JSONException e) { toast("Couldn’t save the spot."); return; }
+        if (checkSelfPermission(android.Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            dialog().setTitle("Check-ins at your spots")
+                .setMessage("To ask “Quick check-in?” when you arrive, Android needs location set to “Allow all the time” for Ascend Bridge. Android watches the spot itself, so it costs very little battery.")
+                .setPositiveButton("Continue", (d, w) -> requestPermissions(new String[]{android.Manifest.permission.ACCESS_BACKGROUND_LOCATION}, REQ_BACKGROUND_LOCATION))
+                .setNegativeButton("Not now", null).show();
+        }
+    }
+    View spotsCard() {
+        LinearLayout card = ui.card(10);
+        card.addView(ui.kicker("Spots"));
+        JSONArray spots = SpotReceiver.spots(this);
+        boolean watching = SpotReceiver.canWatch(this);
+        card.addView(ui.small(spots.length() == 0 ? "Save a spot from the Urge sheet. Arriving there asks a neutral “Quick check-in?”; no answer is kept as a visit."
+            : watching ? "Watching " + spots.length() + (spots.length() == 1 ? " spot" : " spots") + " · within " + (int) SpotReceiver.RADIUS_METRES + " m · stays on this phone and your Mac"
+            : "Not watching: set location to “Allow all the time” for Ascend Bridge."));
+        for (int i = 0; i < spots.length(); i++) {
+            JSONObject s = spots.optJSONObject(i);
+            LinearLayout row = ui.row(10);
+            row.addView(ui.text(s.optString("name"), 15, Ui.TEXT, 500), new LinearLayout.LayoutParams(0, Ui.WRAP, 1));
+            String id = s.optString("id");
+            row.addView(ui.chip("Remove", false, v -> { SpotReceiver.removeSpot(this, id); render(); }), new LinearLayout.LayoutParams(Ui.WRAP, ui.dp(34)));
+            card.addView(row);
+        }
+        if (spots.length() > 0 && !watching)
+            card.addView(ui.secondary("Allow all the time", v -> requestPermissions(new String[]{android.Manifest.permission.ACCESS_BACKGROUND_LOCATION}, REQ_BACKGROUND_LOCATION)), Ui.wide());
+        return card;
+    }
+
+    // MARK: Sets
+    View sets() {
+        ViewGroup[] holder = new ViewGroup[1];
+        LinearLayout col = page(holder, false);
+        col.addView(topBar("Workout", Screen.LOG, null));
+        JSONObject w = todayFresh().optJSONObject("workout");
+        if (w == null) {
+            LinearLayout card = ui.card(8);
+            card.addView(ui.text("No gym session planned today", 16, Ui.TEXT, 600));
+            card.addView(ui.small("Your training plan lives in Ascend on the Mac → Body. Sessions planned for today show here with last time’s weights. Sync to refresh."));
+            col.addView(card);
+            return holder[0];
+        }
+        String kind = w.optString("kind");
+        col.addView(ui.kicker(w.optString("name") + (kind.equals("cardio") && w.has("minutes") ? " · " + fmt(w.optDouble("minutes")) + " min" : "")));
+        JSONArray list = w.optJSONArray("exercises");
+        if (kind.equals("cardio") || list == null || list.length() == 0) {
+            col.addView(ui.small(kind.equals("cardio") ? "Cardio day. Your watch records it; nothing to enter here." : "No exercises in today’s session yet. Add them on the Mac → Body."));
+            return holder[0];
+        }
+        for (int i = 0; i < list.length(); i++) col.addView(exerciseCard(list.optJSONObject(i)));
+        return holder[0];
+    }
+    static String setLabel(JSONObject s, boolean timed) { return fmt(s.optDouble("weight")) + " × " + s.optInt("reps") + (timed ? " s" : ""); }
+    View exerciseCard(JSONObject e) {
+        LinearLayout card = ui.card(8);
+        boolean timed = e.optBoolean("timed");
+        LinearLayout head = ui.row(8);
+        head.addView(ui.oneLine(ui.text(e.optString("name"), 15, Ui.TEXT, 600)), new LinearLayout.LayoutParams(0, Ui.WRAP, 1));
+        int minR = e.optInt("minReps"), maxR = e.optInt("maxReps");
+        head.addView(ui.mono(e.optInt("sets") + " × " + (minR == maxR ? String.valueOf(minR) : minR + "–" + maxR) + (timed ? " s" : ""), 12, Ui.MUTED));
+        card.addView(head);
+        JSONArray last = e.optJSONArray("last"), today = e.optJSONArray("today");
+        if (last == null) last = new JSONArray();
+        if (today == null) today = new JSONArray();
+        StringBuilder lastText = new StringBuilder();
+        for (int i = 0; i < last.length(); i++) {
+            JSONObject s = last.optJSONObject(i);
+            lastText.append(i == 0 ? setLabel(s, timed) : ", " + (s.optDouble("weight") == last.optJSONObject(0).optDouble("weight") ? String.valueOf(s.optInt("reps")) : setLabel(s, timed)));
+        }
+        card.addView(ui.small(last.length() == 0 ? "First time: pick a weight you can do for " + minR + " clean reps." : "Last time: " + lastText));
+        // The planned sets, plus one open cell after the last logged set so an extra set is always possible.
+        int total = Math.min(Math.max(e.optInt("sets"), today.length() + 1), 20);
+        List<View> cells = new ArrayList<>();
+        for (int i = 0; i < total; i++) {
+            int index = i;
+            JSONObject done = i < today.length() ? today.optJSONObject(i) : null;
+            boolean next = i == today.length(), extra = i >= e.optInt("sets");
+            LinearLayout cell = ui.column(2); cell.setGravity(Gravity.CENTER); ui.pad(cell, 6, 8, 6, 8);
+            cell.setBackground(done != null ? ui.round(Ui.ACCENT_SOFT, 12, 0, 0) : next ? ui.dashed(Ui.PANEL, 12, 0x8CA18AFF) : ui.round(Ui.PANEL2, 12, 0, 0));
+            cell.addView(ui.kicker(extra && done == null ? "+ set" : "set " + (i + 1)));
+            cell.addView(ui.oneLine(ui.text(done != null ? setLabel(done, timed) : next ? "tap" : "—", 13, done != null ? Ui.TEXT : next ? Ui.ACCENT_TEXT : Ui.FAINT, 600)));
+            if (done != null || next) {
+                JSONArray lastSets = last, todaySets = today;
+                cell.setOnClickListener(Ui.tap(v -> setDialog(e, index, lastSets, todaySets)));
+            }
+            cell.setMinimumHeight(ui.dp(54));
+            cells.add(cell);
+        }
+        for (int i = 0; i < cells.size(); i += 3) {
+            View a = cells.get(i), b = i + 1 < cells.size() ? cells.get(i + 1) : new View(this), c = i + 2 < cells.size() ? cells.get(i + 2) : new View(this);
+            card.addView(ui.grid(8, a, b, c));
+        }
+        return card;
+    }
+    void setDialog(JSONObject e, int index, JSONArray last, JSONArray today) {
+        JSONObject seed = index < today.length() ? today.optJSONObject(index)
+            : index > 0 && index - 1 < today.length() ? today.optJSONObject(index - 1)
+            : last.length() > 0 ? last.optJSONObject(Math.min(index, last.length() - 1)) : null;
+        boolean timed = e.optBoolean("timed");
+        EditText kg = new EditText(this), reps = new EditText(this);
+        for (EditText f : new EditText[]{kg, reps}) { f.setTextColor(Ui.TEXT); f.setHintTextColor(Ui.FAINT); f.setSelectAllOnFocus(true); }
+        kg.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL); kg.setHint("kg");
+        reps.setInputType(android.text.InputType.TYPE_CLASS_NUMBER); reps.setHint(timed ? "seconds" : "reps");
+        if (seed != null) { kg.setText(fmt(seed.optDouble("weight")).replace(",", "")); reps.setText(String.valueOf(seed.optInt("reps"))); }
+        LinearLayout row = ui.row(12); ui.pad(row, 20, 8, 20, 0);
+        row.addView(kg, new LinearLayout.LayoutParams(0, Ui.WRAP, 1)); row.addView(ui.text("×", 16, Ui.MUTED, 500)); row.addView(reps, new LinearLayout.LayoutParams(0, Ui.WRAP, 1));
+        dialog().setTitle(e.optString("name") + " · set " + (index + 1)).setView(row)
+            .setPositiveButton("Save", (x, w) -> {
+                double weight; int r;
+                try { weight = Double.parseDouble(kg.getText().toString().trim().replace(",", ".")); r = Integer.parseInt(reps.getText().toString().trim()); }
+                catch (NumberFormatException ex) { toast("Enter the weight and reps."); return; }
+                if (weight < 0 || weight > 500 || r < 1 || r > 100) { toast("Check the weight and reps."); return; }
+                try {
+                    engine.recordLog(new JSONObject().put("type", "set").put("exerciseID", e.getString("id")).put("setIndex", index).put("weight", weight).put("reps", r));
+                    JSONObject t = engine.today(), wk = t.optJSONObject("workout");
+                    JSONArray list = wk == null ? null : wk.optJSONArray("exercises");
+                    for (int i = 0; list != null && i < list.length(); i++) {
+                        JSONObject x2 = list.getJSONObject(i);
+                        if (!x2.optString("id").equals(e.optString("id"))) continue;
+                        JSONArray td = x2.optJSONArray("today"); if (td == null) { td = new JSONArray(); x2.put("today", td); }
+                        JSONObject s = new JSONObject().put("weight", weight).put("reps", r);
+                        if (index < td.length()) td.put(index, s); else td.put(s);
+                    }
+                    engine.saveToday(t);
+                } catch (Exception ex) { toast("Couldn’t save that on this phone."); return; }
+                addHistory(e.optString("name") + " · set " + (index + 1), fmt(weight) + "×" + r);
+                render(); sync(false, true);
+            })
+            .setNegativeButton("Cancel", null).show();
     }
 
     // MARK: Settings
     View settings() {
         ViewGroup[] holder = new ViewGroup[1];
         LinearLayout col = page(holder, false);
-        col.addView(topBar("Settings", Screen.TODAY, null));
+        col.addView(topBar("Settings", Screen.LOG, null));
         LinearLayout mac = ui.card(12);
         mac.addView(ui.kicker("Your Mac"));
         if (engine.paired()) {
@@ -970,6 +1298,7 @@ public final class BridgeActivity extends Activity {
                 toast(SyncJob.schedule(this,on) ? "Screen-time background preference saved" : "Android could not schedule background sync");render();
             }));
         col.addView(usage);
+        col.addView(spotsCard());
         LinearLayout sync = ui.card(14);
         sync.addView(ui.kicker("Syncing"));
         sync.addView(toggle("Sync in the background", engine.backgroundAllowed() ? "Every hour on Wi-Fi when your Mac is reachable" : "Needs “Access data in the background” in Health Connect",
@@ -1067,6 +1396,14 @@ public final class BridgeActivity extends Activity {
             boolean scheduled = SyncJob.schedule(this, ok);
             toast(!ok ? "Background sync needs “Access data in the background” for Ascend Bridge in Health Connect."
                 : scheduled ? "Background sync on: every hour on Wi-Fi when your Mac is reachable." : "Android didn’t allow the background job. Try again later.");
+        } else if (code == REQ_LOCATION) {
+            File file = pendingLocation; pendingLocation = null;
+            boolean any = false; for (int g : granted) any |= g == PackageManager.PERMISSION_GRANTED;
+            if (any && file != null) captureLocation(file);
+            else if (!any) { prefs.edit().putBoolean("urgeLocation", false).apply(); toast("Location off. Turn it on in the Urge sheet any time."); }
+        } else if (code == REQ_BACKGROUND_LOCATION) {
+            SpotReceiver.register(this);
+            toast(SpotReceiver.canWatch(this) ? "Spots are on: you'll get a quick check-in when you arrive." : "Spots need location “Allow all the time”. You can change it in Settings → Spots.");
         } else if (code == REQ_HEALTH) {
             if (prefs.getBoolean("backgroundSync", false) || engine.backgroundAllowed()) { prefs.edit().putBoolean("backgroundSync", engine.backgroundAllowed()).apply(); SyncJob.schedule(this, engine.backgroundAllowed()); }
             toast(engine.allowedCount() + " of " + SyncEngine.KEYS.length + " health types allowed");

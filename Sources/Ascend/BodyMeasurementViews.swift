@@ -23,6 +23,12 @@ import UniformTypeIdentifiers
         let candidate=try latest.savingManual(id:id,kilograms:kilograms,date:date)
         try BodyStorage.saveManual(candidate,to:url);archive=candidate;failed=false;message=nil
     }
+    /// Saves a weigh-in from the phone. False when that reading was already saved.
+    func savePhoneWeight(id: String, kilograms: Double, date: Date) throws -> Bool {
+        guard let candidate = try BodyStorage.read(url).savingPhoneWeight(id: id, kilograms: kilograms, date: date) else { return false }
+        try BodyStorage.saveManual(candidate, to: url); archive = candidate; failed = false; message = nil
+        return true
+    }
     func deleteManual(_ id:String) throws {
         let candidate=try BodyStorage.read(url).deletingManual(id)
         try BodyStorage.saveManual(candidate,to:url);archive=candidate;failed=false;message=nil

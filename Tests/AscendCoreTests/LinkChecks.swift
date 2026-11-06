@@ -27,6 +27,7 @@ private final class Recorder: @unchecked Sendable {
     var doses: [PhoneDose] = []
     var screenTimes: [ScreenTimeSnapshot] = []
     var checkIns: [PhoneCheckIn] = []
+    var logs: [PhoneLogEntry] = []
     func deliver(_ event: PhoneLinkEvent) async -> PhoneLinkResult {
         switch event {
         case .pairingRequested(let request):
@@ -54,6 +55,9 @@ private final class Recorder: @unchecked Sendable {
             lock.withLock { doses.append(dose) }; return PhoneLinkResult(ok: true, message: "dose ok")
         case .checkIn(let checkIn, _):
             lock.withLock { checkIns.append(checkIn) }; return PhoneLinkResult(ok: true, message: "checkin ok")
+        case .log(let entry, _):
+            do { _ = try entry.validated() } catch { return PhoneLinkResult(ok: false, message: "invalid log") }
+            lock.withLock { logs.append(entry) }; return PhoneLinkResult(ok: true, message: "log ok")
         }
     }
 }
@@ -221,7 +225,10 @@ func runLinkChecks() async -> (count: Int, failures: Int) {
         try expect(log.outcome == .passed && log.trigger == .boredom && log.intensity == 4 && log.note == "bathroom" && log.id.uuidString == urge.id)
         try refuses { _ = try PhoneUrge(id: UUID().uuidString, takenAt: Date().timeIntervalSince1970, outcome: "Maybe").validated() }
         try refuses { _ = try PhoneUrge(id: UUID().uuidString, takenAt: Date().timeIntervalSince1970, outcome: "Acted on it", intensity: 9).validated() }
-        try refuses { _ = try PhoneUrge(id: UUID().uuidString, takenAt: Date().timeIntervalSince1970, outcome: "Acted on it", trigger: "Rain").validated() }
+        // The phone's own trigger words are kept as Other; an empty one is refused.
+        let rain = try PhoneUrge(id: UUID().uuidString, takenAt: Date().timeIntervalSince1970, outcome: "Acted on it", trigger: "Rain").validated()
+        try expect(rain.trigger == .other && rain.customTrigger == "Rain")
+        try refuses { _ = try PhoneUrge(id: UUID().uuidString, takenAt: Date().timeIntervalSince1970, outcome: "Acted on it", trigger: "  ").validated() }
         try refuses { _ = try PhoneUrge(id: "x", takenAt: Date().timeIntervalSince1970, outcome: "Acted on it").validated() }
     }
     check("urge tally counts let pass and acted on per period and days since last acted on") {
@@ -294,6 +301,15 @@ func runLinkChecks() async -> (count: Int, failures: Int) {
             try expect(line("REPLAY").contains("duplicate") && recorder.meals.count == 1)
             try expect(line("URGE").contains("urge ok") && line("URGE").contains("todayPassed") && recorder.urges.first?.intensity == 3 && recorder.urges.first?.trigger == "Stress")
             try expect(line("MEDPHOTO").contains("med photo ok") && line("MEDPHOTO").contains("Cholecalciferol") && recorder.medPhotos.first?.batchSize == 2)
+            let sent = recorder.lock.withLock { recorder.urges.suffix(2) }
+            let visit = try sent.first.map { try $0.validated() }, sheet = sent.last
+            try expect(line("VISIT").contains("urge ok") && visit?.outcome == .unrecorded && visit?.spot == "Spot 1",
+                       "Java spot visit crosses the link as an unanswered urge")
+            try expect(line("SHEET").contains("urge ok") && sheet?.category == nil && sheet?.usedAnchor == true && sheet?.caughtEarly == false && sheet?.latitude == 48.858370,
+                       "Java urge sheet fields cross the link")
+            let logs = recorder.lock.withLock { recorder.logs }
+            try expect(line("WEIGHT").contains("log ok") && line("SET").contains("log ok") && logs.count == 2 && logs[0].kilograms == 77.6 && logs[1].setIndex == 1 && logs[1].reps == 9,
+                       "Java weigh-in and set logs cross the link")
             try expect(line("DOSE").contains("dose ok") && recorder.doses.first?.minute == 540 && recorder.doses.first?.taken == true)
             try expect(line("BADKEY") == "BADKEY 401")
         }

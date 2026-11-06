@@ -115,7 +115,7 @@ private struct KeychainPhoneKeyStore: PhoneKeyStore {
         var result = await handle(event)
         if case .pairingRequested = event { return result }
         if result.urges == nil, let store { result.urges = store.urgeTally.phoneSummary }
-        if let store { result.meds = store.document.phoneMedDoses(today: store.today); result.today = store.document.phoneToday(today: store.today) }
+        if let store { result.meds = store.document.phoneMedDoses(today: store.today); result.today = store.phoneToday() }
         return result
     }
     private func handle(_ event: PhoneLinkEvent) async -> PhoneLinkResult {
@@ -218,6 +218,26 @@ private struct KeychainPhoneKeyStore: PhoneKeyStore {
             }
             touch(phoneID)
             return PhoneLinkResult(ok: true, message: "Check-in saved")
+        case .log(let entry, let phoneID):
+            guard let store else { return PhoneLinkResult(ok: false, message: "Ascend isn’t ready.") }
+            do {
+                switch try entry.validated() {
+                case .weight(let id, let kg, let date):
+                    guard try store.bodyMeasurements.savePhoneWeight(id: id, kilograms: kg, date: date) else { return PhoneLinkResult(ok: true, message: "Already received") }
+                    touch(phoneID); activity = "Weight \(kg) kg logged from \(name(phoneID))."
+                    return PhoneLinkResult(ok: true, message: "Weight saved")
+                case .set(let exerciseID, let index, let set, let date):
+                    var failure: Error?
+                    let saved = store.training.change { a in
+                        var candidate = a
+                        do { try candidate.applyPhoneSet(exerciseID: exerciseID, index: index, set: set, date: date, calendar: store.engine.calendar); a = candidate } catch { failure = error }
+                    }
+                    if let failure { throw failure }
+                    guard saved else { return PhoneLinkResult(ok: false, message: store.training.error ?? "The Mac couldn’t save this set.") }
+                    touch(phoneID)
+                    return PhoneLinkResult(ok: true, message: "Set saved")
+                }
+            } catch { return PhoneLinkResult(ok: false, message: error.localizedDescription) }
         }
     }
     private func name(_ phoneID: String) -> String { phones.first { $0.id == phoneID }?.name ?? "your phone" }

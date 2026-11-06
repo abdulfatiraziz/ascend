@@ -120,8 +120,18 @@ final class SyncEngine {
     int readyMedPhotos() { int n = 0; for (File b : readyMedBatches()) n += json(b).length; return n; }
     File checkInsDir() { return dir("checkins"); }
     File[] queuedCheckIns() { return json(checkInsDir()); }
+    File logsDir() { return dir("logs"); }
+    File[] queuedLogs() { return json(logsDir()); }
+    /** Queues a weigh-in or gym set for the Mac's /v1/log. */
+    JSONObject recordLog(JSONObject entry) throws Exception {
+        entry.put("id", UUID.randomUUID().toString()).put("takenAt", System.currentTimeMillis() / 1000.0);
+        try (OutputStream out = new FileOutputStream(new File(logsDir(), System.currentTimeMillis() + "-" + entry.getString("id") + ".json"))) { out.write(bytes(entry)); }
+        return entry;
+    }
+    /** Replaces the cached Today summary after a local change, until the next sync brings the Mac's version. */
+    void saveToday(JSONObject today) { prefs.edit().putString("today", today.toString()).apply(); }
     /** Everything waiting on this phone for the Mac. */
-    int waiting() { return queuedMeals().length + queuedUrges().length + ReminderReceiver.queuedDoses(context).length + readyMedPhotos() + queuedCheckIns().length; }
+    int waiting() { return queuedMeals().length + queuedUrges().length + ReminderReceiver.queuedDoses(context).length + readyMedPhotos() + queuedCheckIns().length + queuedLogs().length; }
     /**
      * Queues a habit tick, number or clear for the Mac and applies it to the cached Today summary at once,
      * so the checklist and progress update before the next sync confirms them.
@@ -300,6 +310,14 @@ final class SyncEngine {
                 if (reply.optBoolean("ok")) checkIns++; else summary.append(reply.optString("message", "A check-in was rejected.")).append('\n');
             }
             if (checkIns > 0) summary.append(checkIns == 1 ? "Check-in saved on your Mac.\n" : checkIns + " check-ins saved on your Mac.\n");
+            int logs = 0;
+            for (File file : queuedLogs()) {
+                JSONObject reply = send(target, "/v1/log", envelope("log").put("log", readJSON(file)));
+                // Like check-ins, a log the Mac refuses is dropped with its reason rather than retried forever.
+                file.delete();
+                if (reply.optBoolean("ok")) logs++; else summary.append(reply.optString("message", "A log was rejected.")).append('\n');
+            }
+            if (logs > 0) summary.append(logs == 1 ? "Log saved on your Mac.\n" : logs + " logs saved on your Mac.\n");
             // Any reply carries the Mac's counts, doses and today; ask once if nothing was sent.
             if (!heard) { try { send(target, "/v1/hello", envelope("hello")); } catch (Exception ignored) {} }
             if (summary.length() == prefix.length()) summary.append("Up to date with your Mac.");

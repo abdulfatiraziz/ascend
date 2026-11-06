@@ -41,6 +41,22 @@ import SwiftUI
   }
 }
 extension TrackerStore {
+  /// Today's summary for the phone, with the pieces that live outside tracker.json: workout, weight and the current time.
+  func phoneToday() -> PhoneToday {
+    let now = Date()
+    var t = document.phoneToday(today: today)
+    t.now = document.phoneNow(at: now)
+    t.workout = training.archive.phoneWorkout(now: now, calendar: engine.calendar)
+    let urges = document.urgeCounts(at: now)
+    t.urgesActedToday = urges.actedToday
+    t.urgesActedWeekAverage = urges.actedWeekAverage.map { ($0 * 10).rounded() / 10 }
+    t.spotVisitsUnanswered = urges.unansweredVisits
+    if let w = bodyMeasurements.archive.latest {
+      t.latestWeight = w.kilograms
+      t.latestWeightAt = w.date.timeIntervalSince1970
+    }
+    return t
+  }
   func bodyAssistantSummary() -> String? {
     let a = training.archive
     guard !a.plan.isEmpty || a.goal.targetFat != nil || !a.logs.isEmpty else { return nil }

@@ -60,6 +60,15 @@ public final class InteropMain {
         String dose = ",\"dose\":{\"id\":\"" + UUID.randomUUID() + "\",\"medID\":\"" + UUID.randomUUID() + "\",\"day\":\"2026-10-20\",\"minute\":540,\"takenAt\":" + (now - 5) + ".5,\"taken\":true}";
         System.out.println("DOSE " + send(host, port, "/v1/dose", headers, key, envelope("dose", dose)));
         System.out.println("URGE " + send(host, port, "/v1/urge", headers, key, envelope("urge", urge)));
+        // A spot visit as SpotReceiver writes it (no outcome yet), then the urge sheet's fields with the phone-only noLocation flag, a weigh-in and a set.
+        String visit = ",\"urge\":{\"id\":\"" + UUID.randomUUID() + "\",\"takenAt\":" + (now - 25) + ",\"outcome\":\"Not recorded\",\"note\":\"\",\"spot\":\"Spot 1\",\"latitude\":48.858370,\"longitude\":2.294481}";
+        System.out.println("VISIT " + send(host, port, "/v1/urge", headers, key, envelope("urge", visit)));
+        String sheet = ",\"urge\":{\"id\":\"" + UUID.randomUUID() + "\",\"takenAt\":" + (now - 20) + ",\"outcome\":\"Acted on it\",\"note\":\"\",\"trigger\":\"Need quiet\",\"caughtEarly\":false,\"usedAnchor\":true,\"latitude\":48.858370,\"longitude\":2.294481,\"noLocation\":false}";
+        System.out.println("SHEET " + send(host, port, "/v1/urge", headers, key, envelope("urge", sheet)));
+        String weight = ",\"log\":{\"type\":\"weight\",\"kilograms\":77.6,\"id\":\"" + UUID.randomUUID() + "\",\"takenAt\":" + (now - 10) + ".25}";
+        System.out.println("WEIGHT " + send(host, port, "/v1/log", headers, key, envelope("log", weight)));
+        String set = ",\"log\":{\"type\":\"set\",\"exerciseID\":\"" + UUID.randomUUID() + "\",\"setIndex\":1,\"weight\":22.5,\"reps\":9,\"id\":\"" + UUID.randomUUID() + "\",\"takenAt\":" + (now - 5) + ".75}";
+        System.out.println("SET " + send(host, port, "/v1/log", headers, key, envelope("log", set)));
         byte[] wrong = new byte[32];
         r = LinkClient.post(host, port, "/v1/sync", headers, LinkCrypto.seal(envelope("sync", "").getBytes(StandardCharsets.UTF_8), wrong), 5000);
         System.out.println("BADKEY " + r.status);
