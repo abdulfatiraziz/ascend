@@ -43,7 +43,7 @@ public final class BridgeActivity extends Activity {
     enum Screen { LOG, TODAY, MEALS, MEDS, URGES, SETTINGS, ADD_MEDS, SETS }
     static final String LOCAL_NETWORK = "android.permission.ACCESS_LOCAL_NETWORK";
     static final int REQ_HEALTH = 7, REQ_NETWORK = 8, REQ_CAMERA = 11, REQ_PICK = 12, REQ_NOTIFY = 13, REQ_BACKGROUND = 14, REQ_LOCATION = 15, REQ_BACKGROUND_LOCATION = 16, REQ_SPOT_FINE = 17;
-    static final String VERSION = "0.9.2";
+    static final String VERSION = "0.9.3";
 
     SyncEngine engine;
     Ui ui;
@@ -945,19 +945,13 @@ public final class BridgeActivity extends Activity {
             engine.saveToday(t);
         } catch (JSONException ignored) {}
     }
-    /** One tap saves the moment; the sheet then records the outcome and details. `outcome` may be null (choose in the sheet). */
+    /** Opens the urge sheet. Nothing is saved until an outcome is picked and Save is tapped; Cancel leaves no trace. */
     void logUrge(String outcome) {
         long now = System.currentTimeMillis();
-        File file;
-        try {
-            JSONObject urge = new JSONObject().put("id", UUID.randomUUID().toString()).put("takenAt", now / 1000)
-                .put("outcome", outcome == null ? "Not recorded" : outcome).put("note", "");
-            file = new File(engine.urgesDir(), urge.getString("id") + ".json");
-            writeJSON(file, urge);
-        } catch (Exception e) { toast("Couldn’t save that on this phone."); return; }
-        if ("Acted on it".equals(outcome)) bumpActed(1);
-        if (prefs.getBoolean("urgeLocation", true)) captureLocation(file);
-        render();
+        File file = new File(engine.urgesDir(), UUID.randomUUID() + ".json");
+        // Warm up a location fix now so Save can attach it quickly.
+        if (prefs.getBoolean("urgeLocation", true) && (checkSelfPermission(FINE) == PackageManager.PERMISSION_GRANTED || checkSelfPermission(COARSE) == PackageManager.PERMISSION_GRANTED))
+            currentLocation(loc -> {}, "warm-" + file.getName());
         urgeSheet(file, now, outcome);
     }
     void captureLocation(File file) {
@@ -1004,7 +998,7 @@ public final class BridgeActivity extends Activity {
         head.addView(ui.badge("ic_urge", Ui.ACCENT_SOFT, Ui.ACCENT, 40, 20));
         LinearLayout titles = ui.column(2);
         titles.addView(ui.text("Urge", 20, Ui.TEXT, 700));
-        titles.addView(ui.small("Saved at " + clock12(at) + " · details are optional"));
+        titles.addView(ui.small(clock12(at) + " · pick one, then Save"));
         head.addView(titles);
         box.addView(head);
         String[] outcome = {preset};
@@ -1048,7 +1042,7 @@ public final class BridgeActivity extends Activity {
         boolean[] early = {false}, anchor = {false}, place = {prefs.getBoolean("urgeLocation", true)}, touched = {false};
         box.addView(toggle("Caught the first thought?", "Before it grew into a plan", false, on -> { early[0] = on; touched[0] = true; }));
         box.addView(toggle("Used my anchor", "Your interrupt technique, as soon as you noticed", false, on -> { anchor[0] = on; touched[0] = true; }));
-        box.addView(toggle("Save location", "Kept on this phone and your Mac only", place[0], on -> { place[0] = on; prefs.edit().putBoolean("urgeLocation", on).apply(); if (on) captureLocation(file); }));
+        box.addView(toggle("Save location", "Kept on this phone and your Mac only", place[0], on -> { place[0] = on; prefs.edit().putBoolean("urgeLocation", on).apply(); }));
         box.addView(ui.secondary("Save this place as a spot", v -> saveSpotHere(file)), Ui.wide());
         JSONObject t = todayFresh();
         if (t.has("urgesActedToday")) {
@@ -1057,35 +1051,37 @@ public final class BridgeActivity extends Activity {
         }
         LinearLayout buttons = ui.row(10);
         boolean[] saved = {false};
-        buttons.addView(ui.secondary("Skip", v -> sheet.dismiss()), new LinearLayout.LayoutParams(Ui.WRAP, ui.dp(52)));
+        buttons.addView(ui.secondary("Cancel", v -> sheet.dismiss()), new LinearLayout.LayoutParams(Ui.WRAP, ui.dp(52)));
         buttons.addView(ui.primary("Save", v -> {
+            if (outcome[0] == null) { toast("Pick Acted on it or Let it pass first."); return; }
             try {
-                JSONObject u = SyncEngine.readJSON(file);
-                if (outcome[0] != null) u.put("outcome", outcome[0]);
+                JSONObject u = new JSONObject().put("id", file.getName().replace(".json", "")).put("takenAt", at / 1000)
+                    .put("outcome", outcome[0]).put("note", "");
                 if (intensity[0] > 0) u.put("intensity", intensity[0]);
                 if (trigger[0] != null) u.put("trigger", trigger[0]);
                 if (touched[0]) u.put("caughtEarly", early[0]).put("usedAnchor", anchor[0]);
-                if (!place[0]) { u.remove("latitude"); u.remove("longitude"); u.put("noLocation", true); }
+                if (!place[0]) u.put("noLocation", true);
                 writeJSON(file, u);
                 saved[0] = true;
-                int delta = ("Acted on it".equals(outcome[0]) ? 1 : 0) - ("Acted on it".equals(preset) ? 1 : 0);
-                if (delta != 0) bumpActed(delta);
-            } catch (Exception ignored) {}
+                if ("Acted on it".equals(outcome[0])) bumpActed(1);
+                if (place[0]) captureLocation(file);
+            } catch (Exception e) { toast("Couldn’t save that on this phone."); return; }
             sheet.dismiss();
         }), new LinearLayout.LayoutParams(0, ui.dp(52), 1));
         box.addView(buttons);
         ScrollView scroll = new ScrollView(this); scroll.addView(box);
         sheet.setContentView(scroll);
         sheet.setOnDismissListener(d -> {
-            String finalOutcome = saved[0] && outcome[0] != null ? outcome[0] : preset;
+            if (!saved[0]) return; // Cancelled: nothing was logged.
+            String finalOutcome = outcome[0];
             try {
-                JSONArray history = urgeHistory(), next = new JSONArray().put(new JSONObject().put("at", at).put("outcome", finalOutcome == null ? "Not recorded" : finalOutcome));
+                JSONArray history = urgeHistory(), next = new JSONArray().put(new JSONObject().put("at", at).put("outcome", finalOutcome));
                 for (int i = 0; i < Math.min(history.length(), 19); i++) next.put(history.get(i));
                 prefs.edit().putString("urgeHistory", next.toString()).apply();
             } catch (JSONException ignored) {}
-            addHistory(finalOutcome == null ? "Urge" : "Urge · " + (finalOutcome.equals("Acted on it") ? "acted on" : "let it pass"),
-                saved[0] && trigger[0] != null ? trigger[0].toLowerCase(Locale.ROOT) : "");
-            toast(saved[0] ? "Urge saved with details" : "Urge saved");
+            addHistory("Urge · " + (finalOutcome.equals("Acted on it") ? "acted on" : "let it pass"),
+                trigger[0] != null ? trigger[0].toLowerCase(Locale.ROOT) : "");
+            toast("Urge saved");
             render();
             // Give a pending location a moment to arrive before sending.
             if (locating.contains(file.getName())) main.postDelayed(() -> sync(false, true), 8000); else sync(false, true);
