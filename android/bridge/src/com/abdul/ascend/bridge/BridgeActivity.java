@@ -42,7 +42,7 @@ import java.util.function.Consumer;
 public final class BridgeActivity extends Activity {
     enum Screen { LOG, TODAY, MEALS, MEDS, URGES, SETTINGS, ADD_MEDS, SETS }
     static final String LOCAL_NETWORK = "android.permission.ACCESS_LOCAL_NETWORK";
-    static final int REQ_HEALTH = 7, REQ_NETWORK = 8, REQ_CAMERA = 11, REQ_PICK = 12, REQ_NOTIFY = 13, REQ_BACKGROUND = 14, REQ_LOCATION = 15, REQ_BACKGROUND_LOCATION = 16;
+    static final int REQ_HEALTH = 7, REQ_NETWORK = 8, REQ_CAMERA = 11, REQ_PICK = 12, REQ_NOTIFY = 13, REQ_BACKGROUND = 14, REQ_LOCATION = 15, REQ_BACKGROUND_LOCATION = 16, REQ_SPOT_FINE = 17;
     static final String VERSION = "0.9.2";
 
     SyncEngine engine;
@@ -1117,7 +1117,7 @@ public final class BridgeActivity extends Activity {
         if (checkSelfPermission(android.Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             dialog().setTitle("Check-ins at your spots")
                 .setMessage("To ask “Quick check-in?” when you arrive, Android needs location set to “Allow all the time” for Ascend Bridge. Android watches the spot itself, so it costs very little battery.")
-                .setPositiveButton("Continue", (d, w) -> requestPermissions(new String[]{android.Manifest.permission.ACCESS_BACKGROUND_LOCATION}, REQ_BACKGROUND_LOCATION))
+                .setPositiveButton("Continue", (d, w) -> askSpotPermissions())
                 .setNegativeButton("Not now", null).show();
         }
     }
@@ -1138,9 +1138,13 @@ public final class BridgeActivity extends Activity {
             else row.addView(ui.chip("Remove", false, v -> { SpotReceiver.removeSpot(this, id); render(); }), new LinearLayout.LayoutParams(Ui.WRAP, ui.dp(34)));
             card.addView(row);
         }
-        if (spots.length() > 0 && !watching)
-            card.addView(ui.secondary("Allow all the time", v -> requestPermissions(new String[]{android.Manifest.permission.ACCESS_BACKGROUND_LOCATION}, REQ_BACKGROUND_LOCATION)), Ui.wide());
+        if (spots.length() > 0 && !watching) card.addView(ui.secondary("Allow all the time", v -> askSpotPermissions()), Ui.wide());
         return card;
+    }
+    /** Android only offers "Allow all the time" after precise location is allowed, so ask in that order. */
+    void askSpotPermissions() {
+        if (checkSelfPermission(FINE) != PackageManager.PERMISSION_GRANTED) requestPermissions(new String[]{FINE, COARSE}, REQ_SPOT_FINE);
+        else requestPermissions(new String[]{android.Manifest.permission.ACCESS_BACKGROUND_LOCATION}, REQ_BACKGROUND_LOCATION);
     }
 
     // MARK: Sets
@@ -1402,6 +1406,9 @@ public final class BridgeActivity extends Activity {
             boolean any = false; for (int g : granted) any |= g == PackageManager.PERMISSION_GRANTED;
             if (any && file != null) captureLocation(file);
             else if (!any) { prefs.edit().putBoolean("urgeLocation", false).apply(); toast("Location off. Turn it on in the Urge sheet any time."); }
+        } else if (code == REQ_SPOT_FINE) {
+            if (checkSelfPermission(FINE) == PackageManager.PERMISSION_GRANTED) askSpotPermissions();
+            else toast("Spots need precise location. You can allow it in Settings → Spots.");
         } else if (code == REQ_BACKGROUND_LOCATION) {
             SpotReceiver.register(this);
             toast(SpotReceiver.canWatch(this) ? "Spots are on: you'll get a quick check-in when you arrive." : "Spots need location “Allow all the time”. You can change it in Settings → Spots.");
