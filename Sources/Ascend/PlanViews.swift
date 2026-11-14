@@ -144,7 +144,7 @@ struct MenuBarPanel: View {
                 if showClock {
                     TimelineView(.periodic(from: .now, by: 30)) { timeline in RoutineDial(store: store, now: timeline.date, compact: true) }.frame(width: 94, height: 100)
                 } else {
-                    AvatarView(progress: score.ratio ?? 0, evolution: store.engine.evolution(today: store.today), finish: store.document.avatarFinish, compact: true, error: $avatarError)
+                    TimelineView(.periodic(from: .now, by: 30)) { timeline in RoutineDial(store: store, now: timeline.date, compact: true) }
                         .frame(width: 94, height: 100).clipped()
                 }
             }.padding(.leading, 16).background(Ink.panel, in: RoundedRectangle(cornerRadius: 10))

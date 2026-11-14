@@ -212,7 +212,7 @@ struct TodayView: View {
     }
     var body: some View {
         HStack(alignment: .top, spacing: 26) {
-            AvatarHero(store: store, score: score).frame(maxWidth: .infinity)
+            BriefPanel(store: store, day: day, score: score).frame(maxWidth: .infinity)
             VStack(alignment: .leading, spacing: 15) {
                 datePicker
                 HStack {
