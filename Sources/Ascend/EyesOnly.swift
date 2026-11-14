@@ -59,14 +59,29 @@ struct EyesOnlyCover: View {
 
     private var stamp: some View {
         let text = phase == .cleared ? "CLEARED" : phase == .denied ? "ACCESS DENIED" : "EYES ONLY"
-        let color = phase == .cleared ? Ink.onTrack : Ink.offTrack
-        return Text(text).font(.bt(size: 13, weight: .bold, design: .monospaced)).tracking(5)
-            .foregroundStyle(color).padding(.horizontal, 16).padding(.vertical, 8)
-            .overlay(RoundedRectangle(cornerRadius: 4).stroke(color, lineWidth: 2))
-            .rotationEffect(.degrees(phase == .cleared ? 3 : -4))
-            .scaleEffect(phase == .cleared ? 1.08 : 1)
-            .animation(.spring(response: 0.3, dampingFraction: 0.45), value: phase)
+        let color = phase == .cleared ? Ink.lamp : phase == .denied ? Ink.offTrack : Ink.accent
+        let caption = phase == .cleared ? "FILE 0075 · ACCESS GRANTED" : phase == .denied ? "FILE 0075 · NOT RECOGNISED" : "FILE 0075 · CLEARANCE REQUIRED"
+        // Engraved, not stamped: spaced serif capitals between hairline gold rules, like a watch dial or a cufflink box.
+        return VStack(spacing: 9) {
+            Text(caption).font(.bt(size: 9, design: .monospaced)).tracking(2.4).foregroundStyle(Ink.goldDim)
+            HStack(spacing: 12) {
+                rule(color, leading: true)
+                Text(text).font(.custom(Typeface.serif, fixedSize: 21).weight(.semibold)).tracking(7).foregroundStyle(color)
+                    .contentTransition(.opacity).fixedSize()
+                rule(color, leading: false)
+            }
+        }
+        .animation(.easeInOut(duration: 0.35), value: phase)
     }
+    /// A hairline that fades in towards the title, ending in a small diamond.
+    private func rule(_ color: Color, leading: Bool) -> some View {
+        HStack(spacing: 6) {
+            if !leading { diamond(color) }
+            LinearGradient(colors: leading ? [.clear, color.opacity(0.8)] : [color.opacity(0.8), .clear], startPoint: .leading, endPoint: .trailing).frame(width: 64, height: 1)
+            if leading { diamond(color) }
+        }
+    }
+    private func diamond(_ color: Color) -> some View { Rectangle().fill(color).frame(width: 5, height: 5).rotationEffect(.degrees(45)) }
 
     private func seal() {
         guard !reduceMotion else { iris = 0; phase = .sealed; return }
