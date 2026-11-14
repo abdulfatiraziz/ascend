@@ -6,7 +6,7 @@ struct RoutineView: View {
     @ObservedObject var store: TrackerStore
     @Binding var editor: Editor?
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 30)) { timeline in
+        TimelineView(.everyMinute) { timeline in
             let facts = RoutineFacts(store: store, now: timeline.date)
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
@@ -100,7 +100,8 @@ struct WatchDial: View {
         let minutesToBed = facts.minutesToBed, momentName = facts.momentName, nowClock = facts.clockMinute
         let windSpan = max(1, routine.windDownMinutes)
         let skip = reduceMotion, start = shownAt, intro = intro
-        return TimelineView(.animation(minimumInterval: 1 / 60, paused: skip || Date().timeIntervalSince(start) > intro + 0.2)) { tl in
+        return ZStack {
+        TimelineView(.animation(minimumInterval: 1 / 60, paused: skip || Date().timeIntervalSince(start) > intro + 0.2)) { tl in
             let raw = skip ? 1 : min(1, max(0, tl.date.timeIntervalSince(start) / intro))
             let p = 1 - pow(1 - raw, 3)  // ease out
             Canvas { ctx, size in
@@ -232,10 +233,42 @@ struct WatchDial: View {
                 sub(36, "LIGHTS OUT", left == 0 ? "now" : RoutineFacts.span(left), Ink.lamp, hand: left > windSpan ? Double(left % 720) / 720 : frac, fill: frac ?? Double(min(left, 720)) / 720)
             }
         }
+        SecondsSweep(stepped: skip)
+        }
         .onAppear { shownAt = Date() }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Routine dial")
         .accessibilityValue("\(HealthReport.clock(nowClock)), \(momentName)")
+    }
+}
+
+/// The running seconds: a lamp-gold trail and dot that goes round the edge of the face once a minute.
+/// Its own layer, so only this redraws while the rest of the dial stays still.
+struct SecondsSweep: View {
+    var stepped: Bool
+    var body: some View {
+        TimelineView(.animation(minimumInterval: stepped ? 1 : 1 / 30)) { tl in
+            let t = tl.date.timeIntervalSinceReferenceDate
+            let sec = stepped ? floor(t).truncatingRemainder(dividingBy: 60) : t.truncatingRemainder(dividingBy: 60)
+            Canvas { ctx, size in
+                let c = CGPoint(x: size.width / 2, y: size.height / 2)
+                let k = min(size.width, size.height) / 400, r: CGFloat = 163 * k
+                let head = sec / 60 * .pi * 2 - .pi / 2
+                let tail = 0.9  // radians of trail
+                let steps = 24
+                for i in 0..<steps {
+                    let f0 = Double(i) / Double(steps), f1 = Double(i + 1) / Double(steps)
+                    var seg = Path()
+                    seg.addArc(center: c, radius: r, startAngle: .radians(head - tail * (1 - f0)), endAngle: .radians(head - tail * (1 - f1)), clockwise: false)
+                    ctx.stroke(seg, with: .color(Ink.lamp.opacity(0.8 * f1 * f1)), style: StrokeStyle(lineWidth: 1.6 * k, lineCap: .round))
+                }
+                let q = CGPoint(x: c.x + CGFloat(cos(head)) * r, y: c.y + CGFloat(sin(head)) * r)
+                ctx.fill(Path(ellipseIn: CGRect(x: q.x - 5 * k, y: q.y - 5 * k, width: 10 * k, height: 10 * k)), with: .color(Ink.lamp.opacity(0.18)))
+                ctx.fill(Path(ellipseIn: CGRect(x: q.x - 2.4 * k, y: q.y - 2.4 * k, width: 4.8 * k, height: 4.8 * k)), with: .color(Ink.lamp))
+            }
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
 
