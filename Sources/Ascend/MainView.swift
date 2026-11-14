@@ -11,7 +11,7 @@ enum Tab: String, CaseIterable {
     case brief = "Brief", condition = "Condition", fieldLog = "Field log", dossier = "Dossier"
     var screens: [Screen] {
         switch self {
-        case .brief: [.today, .goals, .routine, .calendar, .cycle]
+        case .brief: [.goals, .today, .routine, .calendar, .cycle]
         case .condition: [.health, .body, .photos, .screenTime, .patterns]
         case .fieldLog: [.meals, .meds, .urges, .notes]
         case .dossier: [.dossier]
@@ -44,8 +44,8 @@ enum Editor: Identifiable {
 struct MainView: View {
     @ObservedObject var store: TrackerStore
     // Isolated QA runs (ASCEND_DATA_DIR) can open on a given screen with ASCEND_OPEN_SCREEN, e.g. "Meds".
-    @State private var screen: Screen = ProcessInfo.processInfo.environment["ASCEND_DATA_DIR"] == nil ? .today
-        : Screen(rawValue: ProcessInfo.processInfo.environment["ASCEND_OPEN_SCREEN"] ?? "") ?? .today
+    @State private var screen: Screen = ProcessInfo.processInfo.environment["ASCEND_DATA_DIR"] == nil ? .goals
+        : Screen(rawValue: ProcessInfo.processInfo.environment["ASCEND_OPEN_SCREEN"] ?? "") ?? .goals
     @State private var selectedDay: String
     @State private var editor: Editor?
     @State private var sheetIsPresented=false
