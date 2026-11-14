@@ -285,23 +285,3 @@ struct BriefFacts {
     private func hm(_ s: Double) -> String { let m = Int(s / 60); return m >= 60 ? "\(m / 60) h \(m % 60) m" : "\(m) m" }
     private func ordinal(_ n: Int) -> String { let s = (11...13).contains(n % 100) ? "th" : [1: "st", 2: "nd", 3: "rd"][n % 10] ?? "th"; return "\(n)\(s)" }
 }
-
-/// The Eyes only cover: a sealed folder over the blurred window.
-struct EyesOnlyCover: View {
-    let open: () -> Void
-    var body: some View {
-        ZStack {
-            LitFelt()
-            VStack(spacing: 14) {
-                Text("EYES ONLY").font(.bt(size: 13, weight: .bold, design: .monospaced)).tracking(5)
-                    .foregroundStyle(Ink.offTrack).padding(.horizontal, 16).padding(.vertical, 8)
-                    .overlay(RoundedRectangle(cornerRadius: 4).stroke(Ink.offTrack, lineWidth: 2)).rotationEffect(.degrees(-4))
-                Text("Ascend is sealed.").font(.bt(size: 30)).foregroundStyle(Ink.ivory)
-                Text("Numbers, photos and logs are hidden. It opens again by itself after 30 minutes.").font(.bt(size: 12)).foregroundStyle(Ink.muted)
-                Button(action: open) { Text("Open  ⌘⇧E").font(.bt(size: 12, weight: .semibold)).padding(.horizontal, 18).padding(.vertical, 9) }
-                    .buttonStyle(.plain).background(Ink.accent, in: RoundedRectangle(cornerRadius: 8)).foregroundStyle(Ink.background)
-                    .keyboardShortcut("e", modifiers: [.command, .shift])
-            }.padding(36).background(Ink.panel, in: RoundedRectangle(cornerRadius: 16)).overlay(RoundedRectangle(cornerRadius: 16).stroke(Ink.accent.opacity(0.3)))
-        }
-    }
-}

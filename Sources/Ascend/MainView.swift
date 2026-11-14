@@ -35,18 +35,13 @@ struct MainView: View {
     @State private var queuedDestination:String?
     @Environment(\.openWindow) private var openWindow
     @State private var eyesOnly = false
-    @State private var eyesOnlyTimer: Task<Void, Never>?
     init(store: TrackerStore) { self.store = store; _selectedDay = State(initialValue: store.today); let env = ProcessInfo.processInfo.environment; _eyesOnly = State(initialValue: env["ASCEND_DATA_DIR"] != nil && env["ASCEND_EYES_ONLY"] == "1") }
-    /// Eyes only: seals the window behind a cover (⌘⇧E). Turns itself off after 30 minutes.
-    private func setEyesOnly(_ on: Bool) {
-        eyesOnlyTimer?.cancel(); eyesOnly = on
-        if on { eyesOnlyTimer = Task { try? await Task.sleep(for: .seconds(30 * 60)); if !Task.isCancelled { eyesOnly = false } } }
-    }
+    /// Eyes only: seals the window behind the vault (⌘⇧E); Touch ID or the Mac password opens it.
+    private func setEyesOnly(_ on: Bool) { eyesOnly = on }
     var body: some View {
         mainContent
-            .blur(radius: eyesOnly ? 22 : 0).allowsHitTesting(!eyesOnly).accessibilityHidden(eyesOnly)
+            .allowsHitTesting(!eyesOnly).accessibilityHidden(eyesOnly)
             .overlay { if eyesOnly { EyesOnlyCover { setEyesOnly(false) } } }
-            .animation(.easeInOut(duration: 0.25), value: eyesOnly)
     }
     private var mainContent: some View {
         HStack(spacing: 0) {
