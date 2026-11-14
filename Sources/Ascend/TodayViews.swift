@@ -27,7 +27,7 @@ struct TodayView: View {
                 if memoDay, day == store.today, let m = weeks.debriefMonday { DebriefCard(store: store, monday: m, memo: Debrief.compose(weeks.debriefWeek(m))) }
                 HStack(alignment: .top, spacing: 22) {
                     TodayTapsCard(store: store, day: day, editor: $editor, open: open).frame(maxWidth: .infinity)
-                    TodayGlanceCard(store: store, day: day, editor: $editor).frame(maxWidth: .infinity)
+                    TodayGlanceCard(store: store, day: day, editor: $editor, open: open).frame(maxWidth: .infinity)
                 }
                 HStack(spacing: 12) {
                     ForEach(f.missions) { m in
@@ -211,6 +211,7 @@ struct TodayGlanceCard: View {
     @ObservedObject var store: TrackerStore
     let day: String
     @Binding var editor: Editor?
+    var open: (Screen) -> Void
     var body: some View {
         let lines = Self.lines(store: store, day: day)
         let score = store.engine.score(on: day)
@@ -219,7 +220,8 @@ struct TodayGlanceCard: View {
                 .padding(.bottom, 6)
             ForEach(Array(lines.enumerated()), id: \.element.id) { i, line in
                 if i > 0 { Line() }
-                GlanceRow(store: store, line: line, day: day, onEdit: { if let h = line.habit { editor = .habit(h, nil) } })
+                GlanceRow(store: store, line: line, day: day, onEdit: { if let h = line.habit { editor = .habit(h, nil) } },
+                          openLink: line.id == "urges" ? { open(.urges) } : nil)
             }
             Line().padding(.top, 6)
             HStack(alignment: .firstTextBaseline, spacing: 10) {
@@ -310,7 +312,25 @@ struct TodayGlanceCard: View {
                                   value: e?.completed == true ? "Done" : day >= store.today ? "Tomorrow" : (e == nil ? "No screen data" : "Missed"),
                                   note: "15 min of screens or less in the 2 hours before sleep", habit: h))
         }
+        out.append(urgeLine(doc: doc, engine: engine, day: day))
         return out
+    }
+
+    /// Urges logged today (the phone asks at your spots; nothing is logged for you). Read only.
+    @MainActor static func urgeLine(doc: TrackerDocument, engine: TrackerEngine, day: String) -> GlanceLine {
+        let tally = engine.urgeTally(today: day)
+        let t = tally.today
+        let perDay = Double(tally.week.total) / 7
+        let last = doc.urgeLogs.filter { engine.key($0.timestamp) == day }.max { $0.timestamp < $1.timestamp }
+        var note = String(format: "%.1f a day this week", perDay)
+        if let last {
+            let c = engine.calendar
+            let at = HealthReport.clock(c.component(.hour, from: last.timestamp) * 60 + c.component(.minute, from: last.timestamp))
+            note = "Last \(at)\(last.spot.map { " at \($0)" } ?? "") · " + note
+        } else if day == engine.key(Date()) { note = "Your phone asks when you reach a spot · " + note }
+        let value = t.total == 0 ? "None" : "\(t.total) today · \(t.passed) let pass"
+        let state: GlanceLine.State = t.total == 0 ? .waiting : t.acted == 0 ? .done : .going
+        return GlanceLine(id: "urges", title: "Urges", state: state, value: value, note: note)
     }
 }
 
@@ -319,6 +339,7 @@ struct GlanceRow: View {
     let line: GlanceLine
     let day: String
     var onEdit: () -> Void
+    var openLink: (() -> Void)? = nil
     @State private var hover = false
     var body: some View {
         HStack(spacing: 12) {
@@ -341,10 +362,10 @@ struct GlanceRow: View {
                     Button("Mark not done") { store.answer(h, day: day, done: false) }
                     Divider()
                     Button("Edit habit…", action: onEdit)
-                }
+                } else if let openLink { Button("Open \(line.title)", action: openLink) }
             } label: { Image(systemName: "ellipsis").font(.bt(size: 12)) }
             .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().opacity(hover ? 1 : 0)
-            .disabled(line.habit == nil || day > store.today)
+            .disabled((line.habit == nil && openLink == nil) || day > store.today)
         }
         .padding(.vertical, 10)
         .contentShape(Rectangle())
