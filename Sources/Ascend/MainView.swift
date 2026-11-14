@@ -3,15 +3,15 @@ import AppKit
 import AscendCore
 
 enum Screen: String, CaseIterable {
-    case today = "Today", chat = "Chat", goals = "Goals", routine = "Routine", meals = "Meals", meds = "Meds", notes = "Notes", photos = "Photos", screenTime = "Screen time", health = "Health", body = "Body", patterns = "Patterns", urges = "Urges", dossier = "Dossier", calendar = "Calendar", cycle = "Cycle"
-    var symbol: String { switch self { case .today: "circle.hexagongrid"; case .chat: "sparkles"; case .goals: "scope"; case .routine: "clock"; case .meals: "fork.knife"; case .meds: "pills"; case .notes: "note.text"; case .photos: "person.crop.rectangle.stack"; case .screenTime: "hourglass"; case .health: "heart.text.square"; case .body: "figure.strengthtraining.traditional"; case .patterns: "point.3.connected.trianglepath.dotted"; case .urges: "circle.dotted"; case .dossier: "folder"; case .calendar: "calendar"; case .cycle: "chart.bar.xaxis" } }
+    case today = "Today", chat = "Chat", goals = "Goals", routine = "Routine", meals = "Meals", meds = "Meds", notes = "Notes", photos = "Photos", screenTime = "Screen time", health = "Health", body = "Body", patterns = "Patterns", urges = "Urges", dossier = "Dossier"
+    var symbol: String { switch self { case .today: "circle.hexagongrid"; case .chat: "sparkles"; case .goals: "scope"; case .routine: "clock"; case .meals: "fork.knife"; case .meds: "pills"; case .notes: "note.text"; case .photos: "person.crop.rectangle.stack"; case .screenTime: "hourglass"; case .health: "heart.text.square"; case .body: "figure.strengthtraining.traditional"; case .patterns: "point.3.connected.trianglepath.dotted"; case .urges: "circle.dotted"; case .dossier: "folder" } }
 }
 /// The four sidebar tabs. Every old screen lives inside one of them as a sub-tab; Chat opens from Ask Ascend.
 enum Tab: String, CaseIterable {
     case brief = "Brief", condition = "Condition", fieldLog = "Field log", dossier = "Dossier"
     var screens: [Screen] {
         switch self {
-        case .brief: [.goals, .today, .routine, .calendar, .cycle]
+        case .brief: [.goals, .today, .routine]
         case .condition: [.health, .body, .photos, .screenTime, .patterns]
         case .fieldLog: [.meals, .meds, .urges, .notes]
         case .dossier: [.dossier]
@@ -96,8 +96,6 @@ struct MainView: View {
                     case .patterns: PatternsView(store: store, editor: $editor)
                     case .urges: UrgesView(store: store, editor: $editor)
                     case .dossier: DossierView(store: store, lifestyle: store.lifestyle)
-                    case .calendar: CalendarView(store: store, day: $selectedDay, editor: $editor)
-                    case .cycle: CycleView(store: store)
                     }
                 }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }.padding(.horizontal, 28).padding(.top, 24).padding(.bottom, 20)
@@ -154,6 +152,7 @@ struct MainView: View {
     }
     private func navigate(_ value:String){
             if value == "Routine" { screen = .routine }
+            if value == "Goals" { screen = .goals }
             if value == "Patterns" { screen = .patterns }
             if value == "DailyCheckIn" { editor = .observation(store.today) }
             if value == "Caffeine" { editor = .caffeine(nil, store.today) }
@@ -170,7 +169,8 @@ struct MainView: View {
             if value == "Assistant" { screen = .chat }
             if value == "AISettings" { editor = .aiSettings }
             if value == "RoutineSettings" { editor = .routine }
-            if value == "Calendar" { screen = .calendar; selectedDay = store.today }
+            // Old "Calendar" links: history now lives behind Today's date arrows.
+            if value == "Calendar" { screen = .today; selectedDay = store.today }
             if value == "Settings" { editor = .settings }
             if value == "Today" { screen = .today; selectedDay = store.today }
     }
@@ -221,7 +221,7 @@ struct MainView: View {
         HStack(alignment: .center) {
             VStack(alignment: .leading, spacing: 7) {
                 Kicker("Your next version starts here")
-                Text(screen == .today ? "The Brief." : screen == .goals ? "The blueprint." : screen == .calendar ? "Every day counts." : screen == .routine ? "Find your rhythm." : screen == .patterns ? "Connect the dots." : screen == .meals ? "Eat with intent." : screen == .meds ? "Take it as prescribed." : screen == .notes ? "Remember what matters." : screen == .photos ? "See the change." : screen == .screenTime ? "Own your attention." : screen == .body ? "Build strength. See change." : screen == .health ? "Know your rhythm." : screen == .urges ? "Notice the pattern." : screen == .dossier ? "The Dossier." : "The long game.")
+                Text(screen == .today ? "The Brief." : screen == .goals ? "The blueprint." : screen == .routine ? "Find your rhythm." : screen == .patterns ? "Connect the dots." : screen == .meals ? "Eat with intent." : screen == .meds ? "Take it as prescribed." : screen == .notes ? "Remember what matters." : screen == .photos ? "See the change." : screen == .screenTime ? "Own your attention." : screen == .body ? "Build strength. See change." : screen == .health ? "Know your rhythm." : screen == .urges ? "Notice the pattern." : screen == .dossier ? "The Dossier." : "The long game.")
                     .font(.bt(size: 36, weight: .semibold)).tracking(-1.5).lineLimit(1).minimumScaleFactor(0.8)
             }
             Spacer()

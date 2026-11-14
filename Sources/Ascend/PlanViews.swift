@@ -11,6 +11,7 @@ struct GoalsView: View {
     var body: some View {
         ScrollView {
             MissionBoard(store: store, missions: store.missions, editor: $editor)
+            WeeksStrip(store: store).padding(.top, 22)
             if !oneOffs.isEmpty { milestones.padding(.top, 28) }
         }
     }
@@ -29,57 +30,46 @@ struct GoalsView: View {
         }
     }
 }
-struct CycleView: View {
+/// The long game on one row: consistency for each week of the cycle. Read only.
+struct WeeksStrip: View {
     @ObservedObject var store: TrackerStore
-    @State private var selectedWeek = 0
     private var weeks: [[String]] {
         let days = store.engine.days(from: store.document.cycle.start, through: store.document.cycle.end)
         return stride(from: 0, to: days.count, by: 7).map { Array(days[$0..<min($0 + 7, days.count)]) }
     }
-    private var closed: Score { store.engine.closedScore(today: store.today) }
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 25) {
-                HStack(alignment: .center) {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Kicker("Consistency / closed days")
-                        Text(closed.percentLabel).font(.bt(size: 70, weight: .regular)).tracking(-4)
-                        Text(closed.scheduled == 0 ? "No closed days yet. Your first review starts tomorrow." : "\(closed.completed) of \(closed.scheduled) scheduled check-ins completed.").font(.bt(size: 12)).foregroundStyle(Ink.muted)
-                    }
-                    Spacer()
-                    VStack(alignment: .trailing, spacing: 9) { Text("Consistency, over perfection.").font(.bt(size: 17, weight: .medium)); Text("Aim for \(Int(store.document.cycle.target * 100))%. No streak resets.").font(.bt(size: 12)).foregroundStyle(Ink.muted) }
-                }.panel(padding: 26)
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 6), spacing: 12) {
-                    ForEach(weeks.indices, id: \.self) { index in
-                        let range = weeks[index]
-                        let score = store.engine.score(from: range.first!, through: min(range.last!, store.engine.adding(-1, to: store.today)))
-                        Button { selectedWeek = index } label: {
-                            VStack(spacing: 12) { Kicker("W\(String(format: "%02d", index + 1))"); Text(range.first! > store.today ? "—" : score.percentLabel).font(.bt(size: 16, weight: .medium)) }
-                                .frame(maxWidth: .infinity).padding(.vertical, 18).background(selectedWeek == index ? Ink.accent.opacity(0.12) : Ink.panel, in: RoundedRectangle(cornerRadius: 8))
-                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(selectedWeek == index ? Ink.accent : Ink.line))
-                        }.buttonStyle(.plain).disabled(range.first! > store.today)
-                    }
-                }
-                if weeks.indices.contains(selectedWeek) {
-                    let range = weeks[selectedWeek]
-                    let score = store.engine.score(from: range.first!, through: min(range.last!, store.engine.adding(-1, to: store.today)))
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Week \(selectedWeek + 1) · \(dateText(range.first!, engine: store.engine, pattern: "d MMM")) – \(dateText(range.last!, engine: store.engine, pattern: "d MMM"))").font(.bt(size: 16, weight: .medium))
-                        ProgressTrack(ratio: score.ratio ?? 0, target: store.document.cycle.target)
-                        Text(score.scheduled == 0 ? "No closed-day check-ins in this week yet." : "\(score.completed) of \(score.scheduled) check-ins · \(score.percentLabel)").font(.bt(size: 12)).foregroundStyle(Ink.muted)
-                    }
-                }
-                HStack(alignment: .top, spacing: 30) {
-                    rule("01", "Daily habits", "Each scheduled check-in counts once. Unlogged past check-ins count as missed.")
-                    rule("02", "Gym & rest days", "Only your selected training days count. Rest days stay out of the denominator.")
-                    rule("03", "Milestones", "One-off tasks use due dates and stay separate from consistency.")
-                }.padding(.top, 10)
-                Text("Today’s open check-ins are shown in Today. Schedule edits apply from the edit date; earlier days keep their original rules.").font(.bt(size: 11)).foregroundStyle(Ink.muted)
+        let e = store.engine, today = store.today, target = store.document.cycle.target
+        let closed = e.closedScore(today: today)
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .firstTextBaseline) {
+                CardTitle("The long game · week by week")
+                Spacer()
+                (Text("Overall ") + Text(closed.percentLabel).foregroundColor(Ink.ivory) + Text(" · aim \(Int(target * 100))%"))
+                    .font(.bt(size: 12)).foregroundStyle(Ink.muted)
             }
-        }.onAppear { selectedWeek = max(0, min(weeks.count - 1, (max(1, store.engine.dayNumber(store.today)) - 1) / 7)) }
-    }
-    private func rule(_ number: String, _ title: String, _ text: String) -> some View {
-        VStack(alignment: .leading, spacing: 10) { Kicker(number); Text(title).font(.bt(size: 13, weight: .medium)); Text(text).font(.bt(size: 12)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true) }.frame(maxWidth: .infinity, alignment: .leading)
+            HStack(spacing: 8) {
+                ForEach(weeks.indices, id: \.self) { i in
+                    let range = weeks[i]
+                    let future = range.first! > today
+                    let current = !future && range.last! >= today
+                    let score = e.score(from: range.first!, through: min(range.last!, e.adding(-1, to: today)))
+                    let ratio = score.scheduled > 0 ? score.ratio : nil
+                    VStack(spacing: 7) {
+                        Text("W\(String(format: "%02d", i + 1))").font(.bt(size: 9.5, design: .monospaced)).tracking(1.2).foregroundStyle(current ? Ink.accent : Ink.muted)
+                        Text(future || ratio == nil ? "—" : score.percentLabel).font(.bt(size: 14, weight: .medium))
+                            .foregroundStyle(future ? Ink.muted.opacity(0.5) : (ratio ?? 0) >= target ? Ink.onTrack : Ink.ivory)
+                        Capsule().fill(Ink.line).frame(height: 3)
+                            .overlay(alignment: .leading) { GeometryReader { g in Capsule().fill((ratio ?? 0) >= target ? Ink.onTrack : Ink.accent).frame(width: g.size.width * min(1, (ratio ?? 0))) } }
+                            .frame(height: 3).opacity(future ? 0 : 1)
+                    }
+                    .frame(maxWidth: .infinity).padding(.vertical, 12).padding(.horizontal, 8)
+                    .background(current ? Ink.accent.opacity(0.08) : .clear, in: RoundedRectangle(cornerRadius: 8))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(current ? Ink.accent.opacity(0.7) : Ink.line))
+                    .opacity(future ? 0.55 : 1)
+                    .accessibilityElement(children: .combine)
+                }
+            }
+        }.panel(padding: 22)
     }
 }
 struct MenuBarPanel: View {
@@ -104,7 +94,6 @@ struct MenuBarPanel: View {
                     Button("Log caffeine") { open("Caffeine") }
                     Button("Patterns") { open("Patterns") }
                     Divider()
-                    Button("Calendar & history") { open("Calendar") }
                     Button("Daily routine") { open("Routine") }
                     Button("Urge history") { open("Urges") }
                     Button("Ask Ascend") { open("Assistant") }
@@ -164,7 +153,7 @@ struct MenuBarPanel: View {
             if let error = store.saveError { Text(error).font(.bt(size: 11)).foregroundStyle(.orange).lineLimit(3) }
             PrimaryButton(label: "Open your space  ↗", fullWidth: true) { open("Today") }
             HStack {
-                Button { open("Calendar") } label: { Label("History", systemImage: "calendar") }
+                Button { open("Goals") } label: { Label("Goals", systemImage: "scope") }
                 Spacer()
                 Button { open("Settings") } label: { Label("Reminders", systemImage: "bell") }
             }.buttonStyle(.plain).font(.bt(size: 11)).foregroundStyle(Ink.muted)

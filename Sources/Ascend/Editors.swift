@@ -158,7 +158,7 @@ struct HabitEditor: View {
         }
         .confirmationDialog("Archive this habit?", isPresented: $confirmArchive, titleVisibility: .visible) {
             Button("Archive habit", role: .destructive) { if let habit, store.archive(habit) { dismiss() } }; Button("Cancel", role: .cancel) {}
-        } message: { Text("It will leave today’s plan. Earlier dates stay available in Calendar. You can restore it as a new habit in Settings.") }
+        } message: { Text("It will leave today’s plan. Earlier dates stay in your history. You can restore it as a new habit in Settings.") }
     }
     private var repeatDays: some View {
         FieldGroup(label: "Repeat on") {
@@ -250,7 +250,7 @@ struct SettingsEditor: View {
             Text("Routine and urge tracking stay local. Ask Ascend is optional and uses your personal Claude Code account.").font(.bt(size: 11)).foregroundStyle(Ink.muted)
             Line(); ReminderSettings(store: store, service: store.notifications)
             Line(); Kicker("Start fresh")
-            Text("Start a new cycle today using your active habits. Earlier records stay in Calendar. Today’s values are cleared; all goals get the new dates and one-off due dates move relative to the new start. Archived habits stay archived.").font(.bt(size: 12)).foregroundStyle(Ink.muted)
+            Text("Start a new cycle today using your active habits. Earlier records are kept. Today’s values are cleared; all goals get the new dates and one-off due dates move relative to the new start. Archived habits stay archived.").font(.bt(size: 12)).foregroundStyle(Ink.muted)
             Picker("New cycle length", selection: $restartLength) { Text("84 days").tag(84); Text("90 days").tag(90) }.pickerStyle(.segmented)
             Button("Start a new cycle…") { confirmRestart = true }.disabled(dirty)
             if dirty { Text("Save your cycle edits before starting over.").font(.bt(size: 11)).foregroundStyle(Ink.muted) }
@@ -273,7 +273,7 @@ struct SettingsEditor: View {
         .confirmationDialog("Start a new \(restartLength)-day cycle today?", isPresented: $confirmRestart, titleVisibility: .visible) {
             Button("Start new cycle", role: .destructive) { store.restart(length: restartLength); if store.saveError == nil { syncCycle() } }
             Button("Cancel", role: .cancel) {}
-        } message: { Text("Today’s check-ins will be cleared. Your active habits continue, all goal dates restart, and earlier dates stay in Calendar. A safety backup and Undo will be available in the main window.") }
+        } message: { Text("Today’s check-ins will be cleared. Your active habits continue, all goal dates restart, and earlier dates are kept. A safety backup and Undo will be available in the main window.") }
         .confirmationDialog("Reset all check-in history?", isPresented: $confirmReset, titleVisibility: .visible) {
             Button("Reset all history", role: .destructive) { store.resetProgress() }
             Button("Cancel", role: .cancel) {}

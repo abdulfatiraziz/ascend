@@ -209,7 +209,7 @@ public enum AssistantPlanner {
                 guard let days = action.days, [84,90].contains(days) else { throw ValidationError(message: "Restart length must be 84 or 90 days.") }
                 let old = doc.cycle
                 doc.restart(on: today, length: days)
-                changes.append(ProposedChange(title: "Start a fresh \(days)-day cycle", before: "\(old.start) → \(old.end)", after: "\(today) → \(doc.cycle.end). Today’s check-ins clear; all goal windows restart and milestone due dates move. Earlier records stay in Calendar.", destructive: true))
+                changes.append(ProposedChange(title: "Start a fresh \(days)-day cycle", before: "\(old.start) → \(old.end)", after: "\(today) → \(doc.cycle.end). Today’s check-ins clear; all goal windows restart and milestone due dates move. Earlier records are kept.", destructive: true))
             case .updateRoutine:
                 let old = doc.routine
                 var r = old; r.configured = true
