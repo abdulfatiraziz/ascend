@@ -123,5 +123,32 @@ func runClearanceChecks() -> (count: Int, failures: Int) {
         try expect(done.progress(1) == 1 && done.progress(0) == 0 && done.format(1) == "Done")
         try expect(MissionTarget("i", "Income", unit: "$", target: 12000).format(3000) == "$3,000")
     }
+    check("Orders: behind-plan targets come first by gap, then unlogged ones; done and checklist targets never") {
+        let ms = Missions.defaults
+        let values: [String: Double] = ["a.weight": 78.0, "a.sleep": 1, "a.steps": 10500, "b.income": 3000]
+        let o = Missions.orders(ms, value: { values[$0.id] }, today: "2026-12-01", limit: 4)
+        try expect(o.count == 4)
+        try expect(o[0].target.id == "a.sleep" || o[0].target.id == "a.weight", "first \(o[0].target.id)")
+        try expect(Set(o.prefix(3).map(\.target.id)) == ["a.weight", "a.sleep", "b.income"], "\(o.map(\.target.id))")
+        try expect(o[3].value == nil && o[3].line.hasPrefix("Not logged"))
+        try expect(!o.contains { $0.target.id == "a.steps" || $0.target.checklist })
+    }
+    check("Mission status: no data, on plan, behind") {
+        let b = Missions.defaults[1]
+        try expect(Missions.status(b, value: { _ in nil }, today: "2026-11-20") == .noData)
+        try expect(Missions.status(b, value: { $0.id == "b.income" ? 3100 : nil }, today: "2026-11-20") == .onPlan)
+        try expect(Missions.status(b, value: { $0.id == "b.income" ? 3000 : nil }, today: "2027-06-01") == .behind)
+    }
+    check("A saved missions file gains new targets and keeps typed values") {
+        var old = Missions.defaults
+        old[0].targets.removeAll { $0.id == "a.gym" }
+        old[1].targets[0].current = 3100
+        let m = Missions.merged(old)
+        old[0].targets[0].title = "Old name"
+        let m2 = Missions.merged(old)
+        try expect(m2[0].targets.contains { $0.id == "a.gym" } && m2[1].targets[0].current == 3100 && m2[0].targets[0].title == "Weight")
+        try expect(m[1].targets[0].current == 3100)
+        try expect(Missions.merged(m) == m)
+    }
     return (count, failures)
 }

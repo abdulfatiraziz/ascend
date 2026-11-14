@@ -11,7 +11,8 @@ final class MissionStore: ObservableObject {
     init(folder: URL) {
         url = folder.appendingPathComponent("missions.json")
         if let data = try? Data(contentsOf: url), let decoded = try? JSONDecoder().decode([MissionFile].self, from: data), decoded.count == 5 {
-            missions = decoded
+            missions = Missions.merged(decoded)
+            if missions != decoded { save() }
         } else {
             if FileManager.default.fileExists(atPath: url.path) {
                 try? FileManager.default.moveItem(at: url, to: folder.appendingPathComponent("missions-unreadable-\(Int(Date().timeIntervalSince1970)).json"))
@@ -56,6 +57,9 @@ struct MissionFacts {
         let health = store.document.health
         switch t.auto {
         case "weight": return latestKg
+        case "gym":
+            let w = WeekFacts(store: store)
+            return Double(w.gym(engine.days(from: w.monday(of: store.today), through: store.today)))
         case "ffmi":
             let bf = store.missions.missions.flatMap(\.targets).first { $0.id == "a.bodyfat" }?.current
             guard let kg = latestKg, let bf else { return nil }

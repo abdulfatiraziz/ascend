@@ -54,7 +54,7 @@ public struct MissionTarget: Codable, Identifiable, Equatable, Sendable {
         switch unit {
         case "$": return "$" + n
         case "%": return n + "%"
-        case "/7", "/10": return n + unit
+        case "/3", "/7", "/10": return n + unit
         case "": return n
         default: return n + " " + unit
         }
@@ -108,10 +108,11 @@ public enum Missions {
                 targets: [
                     MissionTarget("a.weight", "Weight", unit: "kg", start: 78.0, target: (at15 * 10).rounded() / 10, auto: "weight", due: "2026-12-31", planStart: "2026-11-03",
                                   detail: "Lean mass \(String(format: "%.1f", lean)) kg ÷ 0.85 = \(String(format: "%.1f", at15)) kg at 15%. About −0.77 kg a week."),
-                    MissionTarget("a.bodyfat", "Body fat", unit: "%", start: 22, target: 15, current: 22, due: "2026-12-31",
+                    MissionTarget("a.bodyfat", "Body fat", unit: "%", start: 22, target: 15, current: 22, due: "2026-12-31", planStart: "2026-11-03",
                                   detail: "Your own estimate; update it monthly. The scale reads lower. Then 12% by 31 Mar 2027."),
-                    MissionTarget("a.ffmi", "Muscle score (FFMI)", start: 18.8, target: 21.5, auto: "ffmi", due: "2029-06-01",
+                    MissionTarget("a.ffmi", "Muscle score (FFMI)", start: 18.8, target: 21.5, auto: "ffmi", due: "2029-06-01", planStart: "2026-11-14",
                                   detail: "Lean mass ÷ height². 21.5 = 70 kg lean, about 78 kg at 11%: +9 kg of muscle over 2–3 years."),
+                    MissionTarget("a.gym", "Gym sessions this week", unit: "/3", target: 3, auto: "gym", detail: "Mon · Wed · Sat. Three a week is a clean week for Clearance."),
                     MissionTarget("a.sleep", "Asleep by 1 am", unit: "/7", start: 1, target: 5, auto: "sleep", detail: "Nights in the last 7. Then move to 12:30 am."),
                     MissionTarget("a.stress", "Evening stress", start: 40, target: 32, auto: "stress", detail: "Watch stress after 6 pm, last 7 days."),
                     MissionTarget("a.rhr", "Resting heart rate", unit: "bpm", target: 59, auto: "rhr", lower: true, detail: "Under 60 means a strong engine."),
@@ -121,8 +122,8 @@ public enum Missions {
                     MissionTarget("a.squat", "Squat", unit: "× bodyweight", target: 1.5),
                     MissionTarget("a.deadlift", "Deadlift", unit: "× bodyweight", target: 2.0),
                     MissionTarget("a.pullups", "Strict pull-ups", unit: "reps", target: 10),
-                    MissionTarget("a.run", "5 km run", unit: "min", start: 35, target: 25, detail: "Under 25 minutes."),
-                    MissionTarget("a.mind", "Breathing or NSDR days this week", unit: "/7", target: 6, current: 0, detail: "10 minutes a day."),
+                    MissionTarget("a.run", "5 km run", unit: "min", start: 35, target: 25, due: "2027-06-30", planStart: "2026-11-14", detail: "Under 25 minutes."),
+                    MissionTarget("a.mind", "Breathing or NSDR days this week", unit: "/7", target: 6, detail: "10 minutes a day."),
                     MissionTarget("a.skin", "Dermatologist visit", target: 1, current: 0, checklist: true, detail: "Then SPF every morning, a night routine."),
                     MissionTarget("a.teeth", "Dental cleaning", target: 1, current: 0, due: "2027-05-14", checklist: true, detail: "Every 6 months; whitening after the cut."),
                     MissionTarget("a.hair", "Hair photo this month", target: 1, current: 0, checklist: true, detail: "Same angle every 4 weeks; keep the current treatment."),
@@ -132,7 +133,7 @@ public enum Missions {
                 targets: [
                     MissionTarget("b.income", "Monthly income", unit: "$", start: 3000, target: 12000, current: 3000, due: "2028-03-31", planStart: "2026-11-14", geometric: true,
                                   detail: "Update on payday. The plan line grows \(String(format: "%.1f", growth * 100))% a month."),
-                    MissionTarget("b.streams", "Income streams", start: 1, target: 3, current: 1, detail: "Job + consulting retainers + products (Cueplane, YouTube)."),
+                    MissionTarget("b.streams", "Income streams", start: 1, target: 3, current: 1, due: "2028-03-31", planStart: "2026-11-14", detail: "Job + consulting retainers + products (Cueplane, YouTube)."),
                     MissionTarget("b.savings", "Savings rate", unit: "%", target: 30, detail: "Saved or invested ÷ income, monthly."),
                     MissionTarget("b.fund", "Emergency fund", unit: "months", target: 6, detail: "Months of expenses in cash."),
                 ]),
@@ -140,7 +141,7 @@ public enum Missions {
                 brief: "Shadow 20 minutes a day, record the same 60-second passage every Sunday, score it honestly.",
                 targets: [
                     MissionTarget("c.score", "Accent score, weekly recording", unit: "/10", target: 9, detail: "Score the Sunday recording 1–10; keep every file."),
-                    MissionTarget("c.shadow", "Shadowing days this week", unit: "/7", target: 6, current: 0, detail: "20 minutes a day."),
+                    MissionTarget("c.shadow", "Shadowing days this week", unit: "/7", target: 6, detail: "20 minutes a day."),
                     MissionTarget("c.vo", "YouTube voice-over with no retakes", target: 1, current: 0, checklist: true),
                     MissionTarget("c.call", "A stranger doesn't ask where you're from", target: 1, current: 0, checklist: true),
                 ]),
@@ -148,22 +149,62 @@ public enum Missions {
                 brief: "How the room sees you: a capsule wardrobe, sharp grooming, a close circle, dating, family.",
                 targets: [
                     MissionTarget("d.wardrobe", "Capsule pieces owned", target: 12, auto: "wardrobe", detail: "Counted from the Dossier's wardrobe."),
-                    MissionTarget("d.grooming", "Grooming routine days this week", unit: "/7", target: 6, current: 0),
-                    MissionTarget("d.circle", "Close-circle meet-ups this month", target: 4, current: 0),
-                    MissionTarget("d.dates", "Dates this month", target: 2, current: 0),
-                    MissionTarget("d.family", "Family calls this week", target: 2, current: 0),
+                    MissionTarget("d.grooming", "Grooming routine days this week", unit: "/7", target: 6),
+                    MissionTarget("d.circle", "Close-circle meet-ups this month", target: 4),
+                    MissionTarget("d.dates", "Dates this month", target: 2),
+                    MissionTarget("d.family", "Family calls this week", target: 2),
                 ]),
             MissionFile(id: "E", codename: "Field Craft", title: "Hard skills", due: "2027-12-31",
                 brief: "Capable, not just good-looking: water, road, ring, kitchen, a second language.",
                 targets: [
                     MissionTarget("e.skills", "Dossier skills, average", unit: "%", target: 100, auto: "skills", detail: "From the Dossier's skill bars."),
-                    MissionTarget("e.swim", "Freestyle without stopping", unit: "m", start: 0, target: 1000, current: 0),
-                    MissionTarget("e.combat", "Boxing or Muay Thai sessions a week", target: 2, current: 0),
-                    MissionTarget("e.cook", "Core meals you can cook", start: 0, target: 6, current: 0, detail: "High protein, under 600 kcal each."),
+                    MissionTarget("e.swim", "Freestyle without stopping", unit: "m", start: 0, target: 1000, due: "2027-12-31", planStart: "2026-11-14"),
+                    MissionTarget("e.combat", "Boxing or Muay Thai sessions a week", target: 2),
+                    MissionTarget("e.cook", "Core meals you can cook", start: 0, target: 6, due: "2027-12-31", planStart: "2026-11-14", detail: "High protein, under 600 kcal each."),
                     MissionTarget("e.drive", "Driving licence", target: 1, current: 0, checklist: true),
                     MissionTarget("e.language", "Second language at A2", target: 1, current: 0, checklist: true),
                 ]),
         ]
+    }
+
+    /// Current definitions (titles, targets, plans) from the code, with every value typed into the saved file kept.
+    public static func merged(_ saved: [MissionFile]) -> [MissionFile] {
+        let typed = Dictionary(saved.flatMap(\.targets).map { ($0.id, $0.current) }, uniquingKeysWith: { a, _ in a })
+        return Missions.defaults.map { def in
+            var m = def
+            for i in m.targets.indices { if let v = typed[m.targets[i].id] { m.targets[i].current = v } }
+            return m
+        }
+    }
+
+    /// The targets most behind, for the Orders list: behind plan first (biggest gap), then not logged yet.
+    public static func orders(_ missions: [MissionFile], value: (MissionTarget) -> Double?, today: String, limit: Int = 3) -> [MissionOrder] {
+        var behind: [MissionOrder] = [], missing: [MissionOrder] = []
+        for m in missions {
+            for t in m.targets where !t.checklist {
+                guard let v = value(t) else {
+                    missing.append(MissionOrder(missionID: m.id, target: t, value: nil, need: nil, severity: 0))
+                    continue
+                }
+                guard let p = t.progress(v), p < 1 else { continue }
+                if let plan = t.planned(on: today) {
+                    let span = abs(t.target - (t.start ?? plan))
+                    let gap = (t.lowerIsBetter ? v - plan : plan - v) / max(span, 1e-9)
+                    if gap > 0.01 { behind.append(MissionOrder(missionID: m.id, target: t, value: v, need: plan, severity: 1 + gap)) }
+                } else if p < 0.6 {
+                    behind.append(MissionOrder(missionID: m.id, target: t, value: v, need: t.target, severity: 1 - p))
+                }
+            }
+        }
+        return Array((behind.sorted { $0.severity > $1.severity } + missing).prefix(limit))
+    }
+
+    /// One word for a mission's state: BEHIND when any order is from it, ON PLAN when anything is measured, else NO DATA.
+    public static func status(_ m: MissionFile, value: (MissionTarget) -> Double?, today: String) -> MissionStatus {
+        let measured = m.targets.filter { !$0.checklist && value($0) != nil }
+        if measured.isEmpty { return .noData }
+        let behind = orders([m], value: value, today: today, limit: 99).contains { $0.value != nil }
+        return behind ? .behind : .onPlan
     }
 
     public static func summary(_ missions: [MissionFile], value: (MissionTarget) -> Double?) -> String {
@@ -177,3 +218,19 @@ public enum Missions {
         return lines.joined(separator: "\n")
     }
 }
+
+public struct MissionOrder: Equatable, Sendable {
+    public var missionID: String
+    public var target: MissionTarget
+    public var value: Double?
+    /// Where the plan says it should be today, or the target when there's no plan; nil when not logged.
+    public var need: Double?
+    public var severity: Double
+    public var line: String {
+        guard let v = value else { return "Not logged yet. Enter it in mission \(missionID)." }
+        let need = need.map { (($0 * 10).rounded() / 10) } ?? target.target
+        return "\(target.format(v)) now · need \(target.format(need))\(target.planned(on: "9999-12-31") != nil ? " to be on plan" : "")"
+    }
+}
+
+public enum MissionStatus: String, Sendable { case onPlan = "On plan", behind = "Behind", noData = "No data" }
