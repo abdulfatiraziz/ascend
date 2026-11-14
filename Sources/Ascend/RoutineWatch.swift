@@ -10,15 +10,14 @@ struct RoutineView: View {
             let facts = RoutineFacts(store: store, now: timeline.date)
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    HStack(alignment: .firstTextBaseline, spacing: 14) {
-                        Text("Tonight: lights out by \(HealthReport.clock(store.document.routine.bedMinute)).").font(.bt(size: 25)).foregroundStyle(Ink.ivory)
-                        facts.ledeDetail.font(.bt(size: 12)).foregroundStyle(Ink.muted)
-                        Spacer()
+                    ViewThatFits(in: .horizontal) {
+                        HStack(alignment: .firstTextBaseline, spacing: 14) { Text("Tonight: lights out by \(HealthReport.clock(store.document.routine.bedMinute)).").font(.bt(size: 25)).foregroundStyle(Ink.ivory).fixedSize(); facts.ledeDetail.font(.bt(size: 12)).foregroundStyle(Ink.muted).fixedSize(); Spacer(minLength: 0) }
+                        VStack(alignment: .leading, spacing: 4) { Text("Tonight: lights out by \(HealthReport.clock(store.document.routine.bedMinute)).").font(.bt(size: 25)).foregroundStyle(Ink.ivory); facts.ledeDetail.font(.bt(size: 12)).foregroundStyle(Ink.muted) }
                     }
                     HStack(alignment: .top, spacing: 22) {
                         VStack(spacing: 10) {
                             HStack { CardTitle("The day on one dial"); Spacer(); Button("Edit times") { editor = .routine }.font(.bt(size: 11)).buttonStyle(.borderless) }
-                            WatchDial(facts: facts).frame(width: 380, height: 380)
+                            WatchDial(facts: facts).frame(width: 392, height: 392)
                             DialLegend()
                         }
                         .padding(22).frame(width: 440)
@@ -92,111 +91,151 @@ struct RoutineView: View {
 
 struct WatchDial: View {
     let facts: RoutineFacts
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var shownAt = Date()
+    private let intro = 1.4
     var body: some View {
         let cal = facts.engine.calendar, routine = facts.doc.routine, plan = facts.plan
         let lastNight = facts.lastNight, naps = facts.naps, bedOffset = facts.bedOffset
         let minutesToBed = facts.minutesToBed, momentName = facts.momentName, nowClock = facts.clockMinute
-        return Canvas { ctx, size in
-            let c = CGPoint(x: size.width / 2, y: size.height / 2)
-            let side = min(size.width, size.height)
-            let k = side / 400
-            let R = 150 * k
-            func pt(_ m: Double, _ r: CGFloat) -> CGPoint {
-                let a = m / 1440 * .pi * 2 - .pi / 2
-                return CGPoint(x: c.x + CGFloat(cos(a)) * r, y: c.y + CGFloat(sin(a)) * r)
-            }
-            func arc(_ m1: Double, _ m2: Double, _ r: CGFloat) -> Path {
-                var end = m2; if end < m1 { end += 1440 }
-                var p = Path()
-                p.addArc(center: c, radius: r, startAngle: .radians(m1 / 1440 * .pi * 2 - .pi / 2), endAngle: .radians(end / 1440 * .pi * 2 - .pi / 2), clockwise: false)
-                return p
-            }
-            func circle(_ r: CGFloat) -> Path { Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: r * 2, height: r * 2)) }
-            // case, bezel, face
-            ctx.stroke(circle(192 * k), with: .linearGradient(Gradient(colors: [Ink.lamp, Ink.goldDim, Ink.accent]), startPoint: CGPoint(x: 0, y: 0), endPoint: CGPoint(x: size.width, y: size.height)), lineWidth: 3 * k)
-            ctx.fill(circle(186 * k), with: .color(Color(hex: 0x0A231B)))
-            ctx.fill(circle(166 * k), with: .radialGradient(Gradient(colors: [Color(hex: 0x15402F), Color(hex: 0x0A261D)]), center: CGPoint(x: c.x, y: c.y - 30 * k), startRadius: 0, endRadius: 190 * k))
-            ctx.stroke(circle(166 * k), with: .color(Ink.accent.opacity(0.35)), lineWidth: 1)
-            for i in 0..<96 {
-                let m = Double(i * 15), major = i % 4 == 0
-                var t = Path(); t.move(to: pt(m, 183 * k)); t.addLine(to: pt(m, (major ? 175 : 179) * k))
-                ctx.stroke(t, with: .color(major ? Ink.accent.opacity(0.7) : Ink.ivory.opacity(0.18)), lineWidth: major ? 1.4 : 1)
-            }
-            let r = routine
-            // sleep plan: recessed band
-            ctx.stroke(arc(Double(r.bedMinute), Double(r.wakeMinute), R), with: .color(Color(hex: 0x04110D)), lineWidth: 16 * k)
-            ctx.stroke(arc(Double(r.bedMinute), Double(r.wakeMinute), R + 8.5 * k), with: .color(Ink.goldDim.opacity(0.6)), lineWidth: 1)
-            ctx.stroke(arc(Double(r.bedMinute), Double(r.wakeMinute), R - 8.5 * k), with: .color(Ink.goldDim.opacity(0.6)), lineWidth: 1)
-            // awake track and black tie hours
-            ctx.stroke(arc(Double(r.wakeMinute), Double(r.windDownMinute), R), with: .color(Ink.accent.opacity(0.22)), lineWidth: 2)
-            ctx.stroke(arc(Double(r.windDownMinute), Double(r.bedMinute), R), with: .color(Ink.lamp.opacity(0.95)), style: StrokeStyle(lineWidth: 6 * k, lineCap: .round))
-            // last night and naps, from the watch
-            func clockMinute(_ t: Double) -> Double {
-                let d = Date(timeIntervalSince1970: t)
-                return Double(cal.component(.hour, from: d) * 60 + cal.component(.minute, from: d))
-            }
-            if let n = lastNight {
-                ctx.stroke(arc(clockMinute(n.start), clockMinute(n.end), R - 22 * k), with: .color(Ink.offTrack), style: StrokeStyle(lineWidth: 5 * k, lineCap: .round))
-            }
-            for nap in naps {
-                ctx.stroke(arc(clockMinute(nap.start), clockMinute(nap.end), R - 22 * k), with: .color(Ink.offTrack.opacity(0.5)), style: StrokeStyle(lineWidth: 5 * k, lineCap: .round))
-            }
-            // hour batons and 12-hour labels
-            for h in 0..<24 where h % 6 != 0 {
-                var t = Path(); t.move(to: pt(Double(h * 60), R - 34 * k)); t.addLine(to: pt(Double(h * 60), R - 42 * k))
-                ctx.stroke(t, with: .color(Ink.ivory.opacity(0.45)), style: StrokeStyle(lineWidth: h % 3 == 0 ? 2.2 : 1.2, lineCap: .round))
-            }
-            for (m, label) in [(0, "12 AM"), (360, "6 AM"), (720, "12 PM"), (1080, "6 PM")] {
-                ctx.draw(Text(label).font(.bt(size: 10.5 * k, design: .monospaced)).foregroundColor(Ink.accent), at: pt(Double(m), R - 46 * k))
-            }
-            // plan dots on the bezel: meals ivory, meds gold
-            for e in plan {
-                let p = pt(Double(e.minute % 1440), R + 18 * k)
-                switch e.kind {
-                case .meal: ctx.fill(Path(ellipseIn: CGRect(x: p.x - 3.6 * k, y: p.y - 3.6 * k, width: 7.2 * k, height: 7.2 * k)), with: .color(e.done ? Ink.onTrack : Ink.ivory))
-                case .meds:
-                    var pill = ctx; pill.translateBy(x: p.x, y: p.y); pill.rotate(by: .degrees(Double(e.minute % 1440) / 1440 * 360))
-                    pill.fill(Path(roundedRect: CGRect(x: -5 * k, y: -2.6 * k, width: 10 * k, height: 5.2 * k), cornerRadius: 2.6 * k), with: .color(e.done ? Ink.onTrack : Ink.accent))
-                default: break
+        let windSpan = max(1, routine.windDownMinutes)
+        let skip = reduceMotion, start = shownAt, intro = intro
+        return TimelineView(.animation(minimumInterval: 1 / 60, paused: skip || Date().timeIntervalSince(start) > intro + 0.2)) { tl in
+            let raw = skip ? 1 : min(1, max(0, tl.date.timeIntervalSince(start) / intro))
+            let p = 1 - pow(1 - raw, 3)  // ease out
+            Canvas { ctx, size in
+                let c = CGPoint(x: size.width / 2, y: size.height / 2)
+                let k = min(size.width, size.height) / 400
+                func ang(_ m: Double) -> Double { m / 1440 * .pi * 2 - .pi / 2 }
+                func pt(_ m: Double, _ r: CGFloat) -> CGPoint { CGPoint(x: c.x + CGFloat(cos(ang(m))) * r * k, y: c.y + CGFloat(sin(ang(m))) * r * k) }
+                func ring(_ r: CGFloat) -> Path { Path(ellipseIn: CGRect(x: c.x - r * k, y: c.y - r * k, width: r * 2 * k, height: r * 2 * k)) }
+                func arc(_ m1: Double, _ m2: Double, _ r: CGFloat, grow: Bool = true) -> Path {
+                    var span = m2 - m1; if span < 0 { span += 1440 }
+                    var path = Path()
+                    path.addArc(center: c, radius: r * k, startAngle: .radians(ang(m1)), endAngle: .radians(ang(m1 + span * (grow ? p : 1))), clockwise: false)
+                    return path
                 }
-            }
-            // sub-dials
-            func sub(_ x: CGFloat, _ title: String, _ value: String, _ frac: Double, _ color: Color) {
-                let sc = CGPoint(x: c.x + x * k, y: c.y + 6 * k), sr = 27 * k
-                ctx.fill(Path(ellipseIn: CGRect(x: sc.x - sr, y: sc.y - sr, width: sr * 2, height: sr * 2)), with: .color(Color(hex: 0x0A231B)))
-                ctx.stroke(Path(ellipseIn: CGRect(x: sc.x - sr, y: sc.y - sr, width: sr * 2, height: sr * 2)), with: .color(Ink.accent.opacity(0.45)), lineWidth: 1)
-                for i in 0..<12 {
-                    let a = Double(i) / 12 * .pi * 2
-                    var t = Path(); t.move(to: CGPoint(x: sc.x + CGFloat(cos(a)) * 24 * k, y: sc.y + CGFloat(sin(a)) * 24 * k)); t.addLine(to: CGPoint(x: sc.x + CGFloat(cos(a)) * 21 * k, y: sc.y + CGFloat(sin(a)) * 21 * k))
-                    ctx.stroke(t, with: .color(Ink.ivory.opacity(0.25)), lineWidth: 1)
+                func clockMin(_ t: Double) -> Double {
+                    let d = Date(timeIntervalSince1970: t); return Double(cal.component(.hour, from: d) * 60 + cal.component(.minute, from: d))
                 }
-                let a = frac * .pi * 2 - .pi / 2
-                var h = Path(); h.move(to: sc); h.addLine(to: CGPoint(x: sc.x + CGFloat(cos(a)) * 18 * k, y: sc.y + CGFloat(sin(a)) * 18 * k))
-                ctx.stroke(h, with: .color(color), style: StrokeStyle(lineWidth: 1.6, lineCap: .round))
-                ctx.fill(Path(ellipseIn: CGRect(x: sc.x - 2.2, y: sc.y - 2.2, width: 4.4, height: 4.4)), with: .color(color))
-                ctx.draw(Text(title).font(.bt(size: 8.5 * k, design: .monospaced)).tracking(1.4).foregroundColor(Ink.muted), at: CGPoint(x: sc.x, y: sc.y + 40 * k))
-                ctx.draw(Text(value).font(.bt(size: 12 * k)).foregroundColor(color), at: CGPoint(x: sc.x, y: sc.y + 53 * k))
+                let fade = GraphicsContext.Shading.color(.clear)
+                _ = fade
+
+                // Case and bezel
+                ctx.fill(ring(197), with: .linearGradient(Gradient(colors: [Ink.lamp, Ink.goldDim, Color(hex: 0x5E4D2E), Ink.accent]),
+                                                         startPoint: CGPoint(x: c.x - 197 * k, y: c.y - 197 * k), endPoint: CGPoint(x: c.x + 197 * k, y: c.y + 197 * k)))
+                ctx.fill(ring(193), with: .color(Color(hex: 0x081E17)))
+                ctx.stroke(ring(168.5), with: .color(Ink.accent.opacity(0.35)), lineWidth: 0.8)
+                // Face
+                ctx.fill(ring(168), with: .radialGradient(Gradient(colors: [Color(hex: 0x17442F), Color(hex: 0x0D2D22), Color(hex: 0x0A251C)]),
+                                                           center: CGPoint(x: c.x, y: c.y - 40 * k), startRadius: 0, endRadius: 200 * k))
+
+                // Bezel ticks: hours gold, quarters faint dots
+                for i in 0..<96 {
+                    let m = Double(i * 15)
+                    if i % 4 == 0 {
+                        let h = i / 4, major = h % 6 == 0
+                        if major { continue }
+                        var t = Path(); t.move(to: pt(m, 189)); t.addLine(to: pt(m, h % 3 == 0 ? 179 : 183))
+                        ctx.stroke(t, with: .color(Ink.accent.opacity(h % 3 == 0 ? 0.9 : 0.6)), style: StrokeStyle(lineWidth: (h % 3 == 0 ? 1.8 : 1.1) * k, lineCap: .round))
+                    } else {
+                        let q = pt(m, 186)
+                        ctx.fill(Path(ellipseIn: CGRect(x: q.x - 0.7 * k, y: q.y - 0.7 * k, width: 1.4 * k, height: 1.4 * k)), with: .color(Ink.ivory.opacity(0.22)))
+                    }
+                }
+                for (m, label) in [(0, "12 AM"), (360, "6 AM"), (720, "12 PM"), (1080, "6 PM")] {
+                    ctx.draw(Text(label).font(.bt(size: 9.5 * k, weight: .medium, design: .monospaced)).tracking(0.6).foregroundColor(Ink.accent), at: pt(Double(m), 176.5))
+                }
+
+                // Event ring: meals and meds sit on their own hairline
+                ctx.stroke(ring(146), with: .color(Ink.ivory.opacity(0.08)), lineWidth: 0.8)
+                for e in plan where e.kind == .meal || e.kind == .meds {
+                    let m = Double(e.minute % 1440), q = pt(m, 146)
+                    var g = ctx; g.opacity = p
+                    if e.kind == .meal {
+                        g.fill(Path(ellipseIn: CGRect(x: q.x - 3.4 * k, y: q.y - 3.4 * k, width: 6.8 * k, height: 6.8 * k)), with: .color(e.done ? Ink.onTrack : Ink.ivory))
+                    } else {
+                        g.translateBy(x: q.x, y: q.y); g.rotate(by: .radians(ang(m)))
+                        g.fill(Path(roundedRect: CGRect(x: -2.6 * k, y: -5.2 * k, width: 5.2 * k, height: 10.4 * k), cornerRadius: 2.6 * k), with: .color(e.done ? Ink.onTrack : Ink.accent))
+                    }
+                }
+
+                // Plan channel: sleep plan and black tie hours
+                let channel: CGFloat = 126, cw: CGFloat = 13
+                ctx.stroke(ring(channel), with: .color(Color.black.opacity(0.22)), lineWidth: cw * k)
+                ctx.stroke(arc(Double(routine.bedMinute), Double(routine.wakeMinute), channel), with: .color(Color(hex: 0x03100C)), lineWidth: cw * k)
+                ctx.stroke(arc(Double(routine.bedMinute), Double(routine.wakeMinute), channel + cw / 2), with: .color(Ink.goldDim.opacity(0.55)), lineWidth: 0.8)
+                ctx.stroke(arc(Double(routine.bedMinute), Double(routine.wakeMinute), channel - cw / 2), with: .color(Ink.goldDim.opacity(0.55)), lineWidth: 0.8)
+                ctx.stroke(arc(Double(routine.windDownMinute), Double(routine.bedMinute), channel),
+                           with: .linearGradient(Gradient(colors: [Ink.accent, Ink.lamp]), startPoint: pt(Double(routine.windDownMinute), channel), endPoint: pt(Double(routine.bedMinute), channel)),
+                           lineWidth: (cw - 4) * k)
+
+                // Sleep track: last night and naps, from the watch
+                let track: CGFloat = 108
+                ctx.stroke(ring(track), with: .color(Ink.ivory.opacity(0.06)), lineWidth: 4 * k)
+                if let n = lastNight {
+                    ctx.stroke(arc(clockMin(n.start), clockMin(n.end), track), with: .color(Ink.offTrack), style: StrokeStyle(lineWidth: 4 * k, lineCap: .round))
+                }
+                for nap in naps {
+                    ctx.stroke(arc(clockMin(nap.start), clockMin(nap.end), track), with: .color(Ink.offTrack.opacity(0.5)), style: StrokeStyle(lineWidth: 4 * k, lineCap: .round))
+                }
+
+                // Now: a GMT-style pointer on the bezel, a hairline across the tracks
+                let nowM = Double(nowClock) * p
+                var line = Path(); line.move(to: pt(nowM, 150)); line.addLine(to: pt(nowM, 101))
+                ctx.stroke(line, with: .color(Ink.lamp.opacity(0.85)), style: StrokeStyle(lineWidth: 1.2 * k, lineCap: .round))
+                var tri = ctx; let tip = pt(nowM, 153)
+                tri.translateBy(x: tip.x, y: tip.y); tri.rotate(by: .radians(ang(nowM) + .pi / 2))
+                var arrow = Path(); arrow.move(to: .zero); arrow.addLine(to: CGPoint(x: -5.5 * k, y: -11 * k)); arrow.addLine(to: CGPoint(x: 5.5 * k, y: -11 * k)); arrow.closeSubpath()
+                tri.fill(arrow, with: .color(Ink.lamp))
+                let dot = pt(nowM, 101)
+                ctx.fill(Path(ellipseIn: CGRect(x: dot.x - 2.4 * k, y: dot.y - 2.4 * k, width: 4.8 * k, height: 4.8 * k)), with: .color(Ink.lamp))
+
+                // Centre: moment, time, two sub-dials
+                ctx.draw(Text(momentName.uppercased()).font(.bt(size: 8.5 * k, design: .monospaced)).tracking(2.4).foregroundColor(Ink.muted), at: CGPoint(x: c.x, y: c.y - 58 * k))
+                ctx.draw(Text(HealthReport.clock(nowClock)).font(.bt(size: 31 * k)).foregroundColor(Ink.ivory), at: CGPoint(x: c.x, y: c.y - 30 * k))
+
+                func sub(_ x: CGFloat, _ title: String, _ value: String, _ color: Color, hand: Double?, fill: Double?) {
+                    let sc = CGPoint(x: c.x + x * k, y: c.y + 24 * k), sr: CGFloat = 21 * k
+                    let rect = CGRect(x: sc.x - sr, y: sc.y - sr, width: sr * 2, height: sr * 2)
+                    ctx.fill(Path(ellipseIn: rect), with: .color(Color(hex: 0x081E17)))
+                    ctx.stroke(Path(ellipseIn: rect), with: .color(Ink.accent.opacity(0.4)), lineWidth: 0.8)
+                    for i in 0..<12 {
+                        let a = Double(i) / 12 * .pi * 2 - .pi / 2, long = i % 3 == 0
+                        var t = Path()
+                        t.move(to: CGPoint(x: sc.x + CGFloat(cos(a)) * (sr - 2 * k), y: sc.y + CGFloat(sin(a)) * (sr - 2 * k)))
+                        t.addLine(to: CGPoint(x: sc.x + CGFloat(cos(a)) * (sr - (long ? 6 : 4) * k), y: sc.y + CGFloat(sin(a)) * (sr - (long ? 6 : 4) * k)))
+                        ctx.stroke(t, with: .color(Ink.ivory.opacity(long ? 0.4 : 0.2)), lineWidth: 0.8)
+                    }
+                    if let f = fill, f > 0 {
+                        var a = Path(); a.addArc(center: sc, radius: sr - 9 * k, startAngle: .radians(-.pi / 2), endAngle: .radians(-.pi / 2 + f * p * .pi * 2), clockwise: false)
+                        ctx.stroke(a, with: .color(color.opacity(0.35)), style: StrokeStyle(lineWidth: 3 * k, lineCap: .round))
+                    }
+                    if let h = hand {
+                        let a = h * p * .pi * 2 - .pi / 2
+                        var l = Path(); l.move(to: sc); l.addLine(to: CGPoint(x: sc.x + CGFloat(cos(a)) * (sr - 6 * k), y: sc.y + CGFloat(sin(a)) * (sr - 6 * k)))
+                        ctx.stroke(l, with: .color(color), style: StrokeStyle(lineWidth: 1.4 * k, lineCap: .round))
+                    }
+                    ctx.fill(Path(ellipseIn: CGRect(x: sc.x - 2 * k, y: sc.y - 2 * k, width: 4 * k, height: 4 * k)), with: .color(hand == nil ? Ink.muted : color))
+                    ctx.draw(Text(title).font(.bt(size: 7.5 * k, design: .monospaced)).tracking(1.6).foregroundColor(Ink.muted), at: CGPoint(x: sc.x, y: sc.y + 32 * k))
+                    ctx.draw(Text(value).font(.bt(size: 11 * k, weight: .medium)).foregroundColor(color), at: CGPoint(x: sc.x, y: sc.y + 45 * k))
+                }
+                if let n = lastNight {
+                    let m = clockMin(n.start)
+                    sub(-36, "ASLEEP", HealthReport.clock(Int(m)), n.minute > bedOffset ? Ink.offTrack : Ink.onTrack, hand: m.truncatingRemainder(dividingBy: 720) / 720, fill: nil)
+                } else {
+                    sub(-36, "ASLEEP", "No data", Ink.muted, hand: nil, fill: nil)
+                }
+                // Lights out: the gold arc is the black tie window still to go
+                let left = minutesToBed
+                let frac = left > windSpan ? nil : Double(left) / Double(windSpan)
+                sub(36, "LIGHTS OUT", left == 0 ? "now" : RoutineFacts.span(left), Ink.lamp, hand: left > windSpan ? Double(left % 720) / 720 : frac, fill: frac ?? Double(min(left, 720)) / 720)
             }
-            if let n = lastNight {
-                let m = clockMinute(n.start)
-                sub(-50, "ASLEEP", HealthReport.clock(Int(m)), m.truncatingRemainder(dividingBy: 720) / 720, n.minute > bedOffset ? Ink.offTrack : Ink.onTrack)
-            } else { sub(-50, "ASLEEP", "—", 0, Ink.muted) }
-            let left = minutesToBed
-            sub(50, "LIGHTS OUT", left == 0 ? "now" : RoutineFacts.span(left), Double(left % 720) / 720, Ink.lamp)
-            // centre
-            ctx.draw(Text(momentName.uppercased()).font(.bt(size: 9 * k, design: .monospaced)).tracking(2.5).foregroundColor(Ink.muted), at: CGPoint(x: c.x, y: c.y - 74 * k))
-            ctx.draw(Text(HealthReport.clock(nowClock)).font(.bt(size: 38 * k)).foregroundColor(Ink.ivory), at: CGPoint(x: c.x, y: c.y - 42 * k))
-            // the hand: a pointer on the bezel, never across the centre
-            let now = Double(nowClock)
-            var hand = Path(); hand.move(to: pt(now, R - 30 * k)); hand.addLine(to: pt(now, R + 12 * k))
-            ctx.stroke(hand, with: .color(Ink.lamp), style: StrokeStyle(lineWidth: 3 * k, lineCap: .round))
-            let l = pt(now, R - 34 * k)
-            ctx.fill(Path(ellipseIn: CGRect(x: l.x - 4.5 * k, y: l.y - 4.5 * k, width: 9 * k, height: 9 * k)), with: .color(Color(hex: 0x0A231B)))
-            ctx.stroke(Path(ellipseIn: CGRect(x: l.x - 4.5 * k, y: l.y - 4.5 * k, width: 9 * k, height: 9 * k)), with: .color(Ink.lamp), lineWidth: 1.6)
         }
+        .onAppear { shownAt = Date() }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Routine dial")
-        .accessibilityValue("\(HealthReport.clock(facts.clockMinute)), \(facts.momentName)")
+        .accessibilityValue("\(HealthReport.clock(nowClock)), \(momentName)")
     }
 }
 
