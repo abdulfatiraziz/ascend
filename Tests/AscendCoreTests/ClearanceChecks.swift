@@ -150,5 +150,19 @@ func runClearanceChecks() -> (count: Int, failures: Int) {
         try expect(m[1].targets[0].current == 3100)
         try expect(Missions.merged(m) == m)
     }
+    check("Mission A splits into synced, calculated and you-log targets, each with a source or rhythm") {
+        let a = Missions.defaults[0].targets
+        try expect(a.filter { $0.kind == .calculated }.map(\.id) == ["a.ffmi"])
+        try expect(a.filter { $0.kind == .synced }.allSatisfy { !$0.source.isEmpty })
+        try expect(a.first { $0.id == "a.bodyfat" }?.kind == .manual && a.first { $0.id == "a.bodyfat" }?.cadence == "Monthly")
+        try expect(a.first { $0.id == "a.bench" }?.unit == "kg")
+    }
+    check("Target state: not logged, behind, on plan, done, and 'not yet' for an unticked box") {
+        let w = Missions.defaults[0].targets.first { $0.id == "a.weight" }!
+        try expect(w.state(nil, today: "2026-11-14") == .notLogged)
+        try expect(w.state(77.1, today: "2026-11-14") == .behind && w.state(76.6, today: "2026-11-14") == .onPlan && w.state(71, today: "2026-11-14") == .done)
+        let box = MissionTarget("x", "Licence", target: 1, checklist: true)
+        try expect(box.state(0, today: "2026-11-14") == .notYet && box.state(1, today: "2026-11-14") == .done)
+    }
     return (count, failures)
 }

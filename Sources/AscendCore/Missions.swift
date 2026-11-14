@@ -118,9 +118,9 @@ public enum Missions {
                     MissionTarget("a.rhr", "Resting heart rate", unit: "bpm", target: 59, auto: "rhr", lower: true, detail: "Under 60 means a strong engine."),
                     MissionTarget("a.steps", "Steps, 7-day average", target: 10000, auto: "steps", detail: "Floor 7,000; mission 10,000."),
                     MissionTarget("a.protein", "Protein, 7-day average", unit: "g", target: 150, auto: "protein", detail: "About 2.5 g per kg of lean mass protects muscle in the cut."),
-                    MissionTarget("a.bench", "Bench press", unit: "× bodyweight", target: 1.0, detail: "One clean rep at your bodyweight."),
-                    MissionTarget("a.squat", "Squat", unit: "× bodyweight", target: 1.5),
-                    MissionTarget("a.deadlift", "Deadlift", unit: "× bodyweight", target: 2.0),
+                    MissionTarget("a.bench", "Bench press, 1 rep", unit: "kg", target: 70, detail: "Your goal bodyweight, 72 kg."),
+                    MissionTarget("a.squat", "Squat, 1 rep", unit: "kg", target: 105, detail: "1.5× your goal bodyweight."),
+                    MissionTarget("a.deadlift", "Deadlift, 1 rep", unit: "kg", target: 140, detail: "2× your goal bodyweight."),
                     MissionTarget("a.pullups", "Strict pull-ups", unit: "reps", target: 10),
                     MissionTarget("a.run", "5 km run", unit: "min", start: 35, target: 25, due: "2027-06-30", planStart: "2026-11-14", detail: "Under 25 minutes."),
                     MissionTarget("a.mind", "Breathing or NSDR days this week", unit: "/7", target: 6, detail: "10 minutes a day."),
@@ -234,3 +234,55 @@ public struct MissionOrder: Equatable, Sendable {
 }
 
 public enum MissionStatus: String, Sendable { case onPlan = "On plan", behind = "Behind", noData = "No data" }
+
+/// How a target gets its number: synced from a device or log, worked out by the app, or typed by you.
+public enum TargetKind: String, CaseIterable, Sendable {
+    case synced = "Syncs automatically", calculated = "Calculated", manual = "You log"
+}
+
+/// One word for one target.
+public enum TargetState: String, Sendable { case done = "Done", onPlan = "On plan", behind = "Behind", notLogged = "Not logged", notYet = "Not yet" }
+
+extension MissionTarget {
+    public var kind: TargetKind {
+        switch auto { case nil: .manual; case "ffmi": .calculated; default: .synced }
+    }
+    /// Where a synced or calculated number comes from.
+    public var source: String {
+        switch auto {
+        case "weight": "Scale"
+        case "ffmi": "Weight + body fat"
+        case "sleep", "stress", "rhr", "steps": "Watch"
+        case "protein": "Food log"
+        case "gym": "Gym check-ins"
+        case "wardrobe", "skills": "Dossier"
+        default: ""
+        }
+    }
+    /// How often to type a manual number.
+    public var cadence: String { Missions.cadence[id] ?? "When it changes" }
+
+    public func state(_ value: Double?, today: String) -> TargetState {
+        guard let v = value else { return .notLogged }
+        if (progress(v) ?? 0) >= 1 { return .done }
+        if checklist { return .notYet }
+        if let plan = planned(on: today) {
+            let span = abs(target - (start ?? plan))
+            let gap = (lowerIsBetter ? v - plan : plan - v) / max(span, 1e-9)
+            return gap > 0.01 ? .behind : .onPlan
+        }
+        return (progress(v) ?? 0) < 0.6 ? .behind : .onPlan
+    }
+}
+
+extension Missions {
+    public static let cadence: [String: String] = [
+        "a.bodyfat": "Monthly", "a.bench": "When you test", "a.squat": "When you test", "a.deadlift": "When you test",
+        "a.pullups": "When you test", "a.run": "When you test", "a.mind": "Weekly", "a.skin": "Once",
+        "a.teeth": "Every 6 months", "a.hair": "Monthly",
+        "b.income": "Monthly", "b.savings": "Monthly", "b.fund": "Monthly",
+        "c.score": "Sundays", "c.shadow": "Weekly", "c.vo": "Once", "c.call": "Once",
+        "d.grooming": "Weekly", "d.circle": "Monthly", "d.dates": "Monthly", "d.family": "Weekly",
+        "e.swim": "When you test", "e.combat": "Weekly", "e.drive": "Once", "e.language": "Once",
+    ]
+}

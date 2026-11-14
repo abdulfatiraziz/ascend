@@ -66,6 +66,10 @@ struct MissionBoard: View {
             }
             Text("Open a mission for every target, the math and the daily habits.").font(.bt(size: 10)).foregroundStyle(Ink.muted)
         }
+        .onAppear {
+            // ASCEND_OPEN_MISSION=A opens a mission file on launch, like ASCEND_OPEN_SCREEN.
+            if let id = ProcessInfo.processInfo.environment["ASCEND_OPEN_MISSION"], open == nil { open = ms.first { $0.id == id } }
+        }
         .sheet(item: $open) { m in
             MissionSheet(missionID: m.id, store: store, missions: missions, facts: facts, today: store.today, close: { open = nil }) { habit in
                 // Close the file first; the habit editor is a sheet of its own.
@@ -215,7 +219,7 @@ enum MissionTargetDate {
     }
 }
 
-/// Every target in one mission, with the math, and fields for the numbers you type by hand.
+/// One mission's file, in three plain groups: what syncs by itself, what the app works out, and what you log.
 struct MissionSheet: View {
     let missionID: String
     @ObservedObject var store: TrackerStore
@@ -225,10 +229,12 @@ struct MissionSheet: View {
     let close: () -> Void
     let editHabit: (Habit?) -> Void
     @State private var drafts: [String: String] = [:]
+    @State private var showHabits = false
+    @FocusState private var focus: String?
 
     var body: some View {
         let m = missions.missions.first { $0.id == missionID } ?? Missions.defaults[0]
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .firstTextBaseline, spacing: 12) {
                 Text(m.id).font(.bt(size: 44, weight: .medium, design: .serif)).foregroundStyle(Ink.accent)
                 VStack(alignment: .leading, spacing: 3) {
@@ -238,71 +244,117 @@ struct MissionSheet: View {
                 Spacer()
                 Button("Done", action: close).keyboardShortcut(.defaultAction)
             }
-            Text(m.brief).font(.bt(size: 13)).foregroundStyle(Ink.ivory.opacity(0.85)).fixedSize(horizontal: false, vertical: true)
-            Line()
             ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
-                    ForEach(m.targets) { t in row(t) }
+                VStack(alignment: .leading, spacing: 26) {
+                    ForEach(TargetKind.allCases, id: \.self) { kind in
+                        let list = m.targets.filter { $0.kind == kind }
+                        if !list.isEmpty { group(kind, list) }
+                    }
                     if m.id == "A" { habits }
-                }.padding(.trailing, 6)
+                }.padding(.trailing, 4)
             }
+            .scrollIndicators(.never)
             if let e = missions.saveError { Text(e).font(.bt(size: 11)).foregroundStyle(Ink.offTrack) }
         }
         .padding(28)
-        .frame(width: 640, height: 620)
+        .frame(width: 620, height: 640)
         .background(Ink.background)
+        // Don't start with a box selected; click one to type.
+        .onAppear { DispatchQueue.main.async { focus = nil } }
     }
 
-    @ViewBuilder private func row(_ t: MissionTarget) -> some View {
-        let v = facts.value(t)
-        let live = facts.isLive(t)
-        VStack(alignment: .leading, spacing: 6) {
+    private func group(_ kind: TargetKind, _ list: [MissionTarget]) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .firstTextBaseline) {
-                Text(t.title).font(.bt(size: 13, weight: .medium)).foregroundStyle(Ink.ivory)
-                if live { Text("LIVE").font(.bt(size: 8, design: .monospaced)).tracking(1.5).foregroundStyle(Ink.onTrack) }
+                Image(systemName: kind == .synced ? "arrow.triangle.2.circlepath" : kind == .calculated ? "function" : "pencil")
+                    .font(.bt(size: 11)).foregroundStyle(Ink.accent)
+                Text(kind.rawValue.uppercased()).font(.bt(size: 10, design: .monospaced)).tracking(2).foregroundStyle(Ink.accent)
                 Spacer()
-                if t.checklist && !live {
+                Text(kind == .synced ? "Nothing to do" : kind == .calculated ? "Worked out for you" : "Type the number, press return")
+                    .font(.bt(size: 10)).foregroundStyle(Ink.muted)
+            }.padding(.bottom, 8)
+            Line()
+            ForEach(list) { t in
+                row(t)
+                Line()
+            }
+        }
+    }
+
+    private func row(_ t: MissionTarget) -> some View {
+        let v = facts.value(t)
+        let state = t.state(v, today: today)
+        return HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(t.title).font(.bt(size: 13, weight: .medium)).foregroundStyle(Ink.ivory)
+                Text(t.kind == .manual ? t.cadence : t.source).font(.bt(size: 10)).foregroundStyle(Ink.muted)
+            }
+            Spacer(minLength: 8)
+            if t.kind == .manual {
+                if t.checklist {
                     Toggle("", isOn: Binding(get: { (t.current ?? 0) >= 1 }, set: { missions.setCurrent(t.id, $0 ? 1 : 0) }))
                         .toggleStyle(.checkbox).labelsHidden()
-                } else if !live {
-                    TextField("—", text: Binding(get: { drafts[t.id] ?? t.current.map { t.format($0).filter { "0123456789.-".contains($0) } } ?? "" },
-                                                 set: { drafts[t.id] = $0 }))
-                        .textFieldStyle(.roundedBorder).frame(width: 90).font(.bt(size: 12, design: .monospaced))
+                } else {
+                    TextField("—", text: Binding(get: { drafts[t.id] ?? t.current.map(plain) ?? "" }, set: { drafts[t.id] = $0 }))
+                        .textFieldStyle(.plain).multilineTextAlignment(.trailing)
+                        .font(.bt(size: 13, design: .monospaced)).foregroundStyle(Ink.lamp)
+                        .padding(.horizontal, 8).padding(.vertical, 5).frame(width: 78)
+                        .background(Ink.panel, in: RoundedRectangle(cornerRadius: 6))
+                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Ink.line))
+                        .focused($focus, equals: t.id)
                         .onSubmit { commit(t) }
+                    Text(t.unit).font(.bt(size: 10, design: .monospaced)).foregroundStyle(Ink.muted).frame(width: 34, alignment: .leading)
                 }
-                Text(t.checklist ? t.format(v) : "\(t.format(v)) → \(t.format(t.target))")
-                    .font(.bt(size: 12, design: .monospaced)).foregroundStyle(statusColor(t, v, today: today)).frame(minWidth: 140, alignment: .trailing)
+            } else {
+                Text(t.format(v)).font(.bt(size: 13, design: .monospaced)).foregroundStyle(Ink.ivory)
             }
-            Bar(value: t.progress(v) ?? 0, color: statusColor(t, v, today: today), height: 2)
-            if let plan = t.planned(on: today) {
-                Text("On plan today: \(t.format((plan * 10).rounded() / 10))").font(.bt(size: 10, design: .monospaced)).foregroundStyle(Ink.goldDim)
-            }
-            if !t.detail.isEmpty { Text(t.detail).font(.bt(size: 11)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true) }
+            Text(t.checklist ? "" : "→ \(t.format(t.target))").font(.bt(size: 11, design: .monospaced)).foregroundStyle(Ink.goldDim).frame(width: 92, alignment: .leading)
+            Text(state.rawValue.uppercased())
+                .font(.bt(size: 9, design: .monospaced)).tracking(1.2)
+                .foregroundStyle(state == .done || state == .onPlan ? Ink.onTrack : state == .behind ? Ink.watch : Ink.muted)
+                .frame(width: 82, alignment: .trailing)
         }
+        .padding(.vertical, 11)
+        .help(helpText(t))
         .onDisappear { commit(t) }
     }
 
-    /// Mission A's daily habits (the old habit goals), grouped by goal. Check-ins and history are unchanged.
+    private func helpText(_ t: MissionTarget) -> String {
+        var parts = [t.detail]
+        if let plan = t.planned(on: today) { parts.append("On plan today: \(t.format((plan * 10).rounded() / 10)).") }
+        return parts.filter { !$0.isEmpty }.joined(separator: " ")
+    }
+    private func plain(_ v: Double) -> String { v.rounded() == v ? String(Int(v)) : String(v) }
+
+    /// Mission A's daily habits (the old habit goals), folded away. Check-ins and history are unchanged.
     private var habits: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Line().padding(.top, 8)
-            HStack { Kicker("Daily habits / scored every day"); Spacer(); Button("+ Habit") { editHabit(nil) }.font(.bt(size: 11)) }
-            ForEach(store.document.goals) { goal in
-                let list = store.document.habits.filter { $0.goalID == goal.id && $0.archivedDay == nil && $0.kind != .milestone }
-                if !list.isEmpty {
-                    Text(goal.title.uppercased()).font(.bt(size: 9, design: .monospaced)).tracking(1.5).foregroundStyle(Ink.goldDim).padding(.top, 4)
+        let goals = store.document.goals.map { g in (g, store.document.habits.filter { $0.goalID == g.id && $0.archivedDay == nil && $0.kind != .milestone }) }.filter { !$0.1.isEmpty }
+        return VStack(alignment: .leading, spacing: 0) {
+            Button { withAnimation(.easeOut(duration: 0.2)) { showHabits.toggle() } } label: {
+                HStack {
+                    Image(systemName: "checklist").font(.bt(size: 11)).foregroundStyle(Ink.accent)
+                    Text("DAILY HABITS · \(goals.map(\.1.count).reduce(0, +))").font(.bt(size: 10, design: .monospaced)).tracking(2).foregroundStyle(Ink.accent)
+                    Spacer()
+                    Text("Ticked on Today").font(.bt(size: 10)).foregroundStyle(Ink.muted)
+                    Image(systemName: showHabits ? "chevron.up" : "chevron.down").font(.bt(size: 10)).foregroundStyle(Ink.muted)
+                }.contentShape(Rectangle())
+            }.buttonStyle(.plain).padding(.bottom, 8)
+            Line()
+            if showHabits {
+                ForEach(goals, id: \.0.id) { goal, list in
                     ForEach(list) { habit in
                         Button { editHabit(habit) } label: {
                             HStack {
-                                Image(systemName: habit.kind == .metric ? "number" : "circle").frame(width: 16).foregroundStyle(Ink.accent)
                                 Text(habit.latest.title).font(.bt(size: 12)).foregroundStyle(Ink.ivory)
                                 Spacer()
                                 Text(habit.latest.schedule.label).font(.bt(size: 10)).foregroundStyle(Ink.muted)
                                 Image(systemName: "chevron.right").font(.bt(size: 9)).foregroundStyle(Ink.muted)
-                            }.contentShape(Rectangle())
+                            }.padding(.vertical, 9).contentShape(Rectangle())
                         }.buttonStyle(.plain)
+                        Line()
                     }
                 }
+                Button("+ Habit") { editHabit(nil) }.buttonStyle(.borderless).font(.bt(size: 11)).padding(.top, 10)
             }
         }
     }
