@@ -137,6 +137,7 @@ private struct KeychainPhoneKeyStore: PhoneKeyStore {
             guard let store else { return PhoneLinkResult(ok:false,message:"Ascend isn’t ready.") }
             do {
                 try store.screenTime.receive(snapshot,phoneID:phoneID,phoneName:name(phoneID))
+                store.refreshAutoTicks()
                 touch(phoneID)
                 return PhoneLinkResult(ok:true,message:snapshot.status=="allowed" ? "Screen time synced" : "Screen-time status updated; earlier readings retained")
             } catch { return PhoneLinkResult(ok:false,message:error.localizedDescription) }

@@ -85,6 +85,8 @@ import UniformTypeIdentifiers
         if !recoveryLocked { migrateHealth() }
         pruneSafetyBackups()
         today = engine.key(Date())
+        notifications.onMedsTaken = { [weak self] day, moment in self?.setMoment(moment, day: day, taken: true, source: "mac") }
+        if !recoveryLocked { refreshAutoTicks() }
         notifications.refresh(document)
         timer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.refreshDay() }
@@ -138,7 +140,13 @@ import UniformTypeIdentifiers
     }
     func refreshDay() {
         let key = engine.key(Date())
-        if today != key { today = key; notifications.refresh(document) }
+        if today != key { today = key; notifications.refresh(document); refreshAutoTicks() }
+    }
+    /// Re-checks the habits that tick themselves (gym, no sweets, wind down) without any other change.
+    func refreshAutoTicks() { change { _ in } }
+    private func applyAutoTicks(_ doc: inout TrackerDocument) {
+        let windDown = WindDown.nights(health: doc.health, screen: screenTime.archive, engine: TrackerEngine(document: doc), today: today)
+        doc.applyAutoTicks(today: today, windDown: windDown)
     }
     @discardableResult func save() -> Bool {
         guard !recoveryLocked else { notice = "Restore a valid backup before making changes. Your unreadable data file is preserved."; return false }
@@ -169,6 +177,7 @@ import UniformTypeIdentifiers
         let previous = document
         var candidate = previous
         update(&candidate)
+        if !recoveryLocked { applyAutoTicks(&candidate) }
         do {
             try candidate.validate()
             if candidate == previous { return true }
@@ -634,6 +643,18 @@ import UniformTypeIdentifiers
         var failure: String?
         let saved = change { doc in
             do { try doc.setDose(medID, day: day, minute: minute, taken: taken, at: at, source: source, today: today) }
+            catch { failure = error.localizedDescription }
+        }
+        if let failure { notice = failure; return false }
+        return saved
+    }
+    /// Marks every dose in a moment (morning, evening, night) taken or not.
+    @discardableResult func setMoment(_ moment: MedMoment, day: String, taken: Bool, source: String) -> Bool {
+        refreshDay()
+        let today = today
+        var failure: String?
+        let saved = change { doc in
+            do { try doc.setMoment(moment, day: day, taken: taken, at: Date(), source: source, today: today) }
             catch { failure = error.localizedDescription }
         }
         if let failure { notice = failure; return false }

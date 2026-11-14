@@ -270,6 +270,7 @@ struct TodayView: View {
                     Label("Rest day · check-ins preserved, excluded from score", systemImage: "moon.stars").font(.bt(size: 12)).foregroundStyle(Ink.accent)
                 }
                 Text(targetText).font(.bt(size: 12)).foregroundStyle(Ink.muted)
+                MedMomentsStrip(store: store, day: day)
                 HStack(spacing: 11) {
                     ForEach(filters, id: \.self) { label in
                         Button { filter = label } label: { Text(label).font(.bt(size: 11)).padding(.bottom, 8).overlay(alignment: .bottom) { if filter == label { Rectangle().fill(Ink.accent).frame(height: 2) } } }
@@ -398,6 +399,42 @@ struct HabitRow: View {
     private var subtitle: String {
         let label = store.engine.target(for: habit, on: day)?.label ?? (revision.note.isEmpty ? revision.schedule.label : revision.note)
         let goal = store.document.goals.first { $0.id == habit.goalID }?.title ?? ""
+        if let auto = store.document.autoTickSource(habit, day: day) { return "Auto · \(auto) · \(goal)" }
         return "\(label) · \(goal)"
+    }
+}
+
+/// One button per medicine moment: a tap logs every dose in it. Hover lists the medicines.
+struct MedMomentsStrip: View {
+    @ObservedObject var store: TrackerStore
+    let day: String
+    var body: some View {
+        let groups = store.document.meds.moments(on: day, engine: store.engine)
+        if !groups.isEmpty {
+            HStack(spacing: 8) {
+                ForEach(groups) { g in
+                    Button { store.setMoment(g.moment, day: day, taken: !g.allTaken, source: "mac") } label: {
+                        HStack(spacing: 7) {
+                            Image(systemName: g.allTaken ? "checkmark.circle.fill" : "pills").font(.bt(size: 11))
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(g.moment.rawValue).font(.bt(size: 11, weight: .medium))
+                                Text(g.allTaken ? "Taken" : "\(HealthReport.clock(g.minute)) · \(g.taken)/\(g.slots.count)").font(.bt(size: 9, design: .monospaced))
+                                    .foregroundStyle(g.allTaken ? Ink.onTrack : Ink.muted)
+                            }
+                            Spacer(minLength: 0)
+                        }
+                        .foregroundStyle(g.allTaken ? Ink.onTrack : Ink.ivory)
+                        .padding(.horizontal, 10).padding(.vertical, 7).frame(maxWidth: .infinity)
+                        .background(g.allTaken ? Ink.onTrack.opacity(0.10) : Ink.panel, in: RoundedRectangle(cornerRadius: 8))
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(g.allTaken ? Ink.onTrack.opacity(0.35) : Ink.line))
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(day > store.today)
+                    .help(g.names + (g.allTaken ? " · click to undo" : " · click when taken"))
+                    .accessibilityLabel("\(g.moment.rawValue) medicines, \(g.taken) of \(g.slots.count) taken")
+                }
+            }
+        }
     }
 }

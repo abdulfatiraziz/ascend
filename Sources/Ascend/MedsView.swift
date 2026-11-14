@@ -65,6 +65,7 @@ struct MedsView: View {
                 Button("Today") { day = store.today }.buttonStyle(.plain).font(.bt(size: 12)).disabled(isToday)
             }
             weekStrip
+            MedMomentsStrip(store: store, day: day)
             if !isToday && !slots.isEmpty {
                 Text("Forgot to log one? Tick it here; it’s saved at its scheduled time and updates that day’s habit.").font(.bt(size: 11)).foregroundStyle(Ink.muted)
             }

@@ -181,5 +181,84 @@ func runClearanceChecks() -> (count: Int, failures: Int) {
         let box = MissionTarget("x", "Licence", target: 1, checklist: true)
         try expect(box.state(0, today: "2026-11-14") == .notYet && box.state(1, today: "2026-11-14") == .done)
     }
+    // Fixture: a seeded plan plus gym, wind-down and meds habits, and three medicines across the day.
+    let today = "2026-11-14"
+    func fixture() -> TrackerDocument {
+        var doc = TrackerDocument.seeded(today: "2026-11-01")
+        let g = doc.goals[0].id
+        func habit(_ title: String, _ days: [Int] = Array(1...7)) -> Habit {
+            Habit(goalID: g, kind: .check, createdDay: "2026-11-01", revisions: [HabitRevision(effectiveDay: "2026-11-01", title: title, note: "", period: .evening, schedule: Schedule(weekdays: days), target: nil)])
+        }
+        doc.habits = [habit("Gym session", [2, 4, 7]), habit("Wind down before bed"), habit("Hair care meds")]
+        func med(_ name: String, _ times: [Int]) -> Medicine {
+            var m = Medicine(name: name); m.confirmed = true; var s = MedSchedule(start: "2026-11-01"); s.times = times; m.schedule = s; return m
+        }
+        doc.meds.medicines = [med("Sola Top", [540]), med("Helio Tone", [540, 1260]), med("Calmora", [600, 1080]), med("Strovin", [1380])]
+        return doc
+    }
+    check("Medicine moments: morning, evening, night; one tap logs the whole moment and ticks the meds habit") {
+        var doc = fixture()
+        let engine = TrackerEngine(document: doc)
+        let m = doc.meds.moments(on: today, engine: engine)
+        try expect(m.map(\.moment) == [.morning, .evening, .night] && m.map(\.slots.count) == [3, 2, 1], "\(m.map(\.slots.count))")
+        try expect(m[0].names == "Helio Tone · Sola Top · Calmora" && m[0].minute == 540)
+        let at = Date(timeIntervalSince1970: 1794110000)
+        for moment in MedMoment.allCases { try doc.setMoment(moment, day: today, taken: true, at: at, source: "mac", today: today) }
+        let e = TrackerEngine(document: doc)
+        try expect(doc.meds.moments(on: today, engine: e).allSatisfy(\.allTaken), "not all taken"); try expect(doc.medHabit != nil, "no med habit"); try expect(e.completed(doc.medHabit!, on: today), "habit not ticked")
+        try doc.setMoment(.evening, day: today, taken: false, at: at, source: "mac", today: today)
+        let e2 = TrackerEngine(document: doc)
+        try expect(doc.meds.moments(on: today, engine: e2)[1].taken == 0 && !e2.completed(doc.medHabit!, on: today))
+        do { try doc.setMoment(.night, day: "2026-11-20", taken: true, at: at, source: "mac", today: today); throw ClearanceFailure(message: "future day accepted") } catch is ValidationError {}
+    }
+    check("Medicine reminders: one per untaken moment, with a Taken-ready id") {
+        var doc = fixture(); doc.reminders.enabled = true
+        let engine = TrackerEngine(document: doc)
+        let now = engine.date(today)!.addingTimeInterval(-12 * 3600 + 8 * 3600)   // 8 am today
+        let r = engine.medMomentReminders(now: now).filter { $0.id.contains(today) }
+        try expect(r.map(\.id) == ["ascend.meds.\(today).Morning", "ascend.meds.\(today).Evening", "ascend.meds.\(today).Night"], "\(r.map(\.id))")
+        try expect(r[0].title == "Morning medicines · 3 doses")
+    }
+    check("Gym ticks itself from a 20+ minute gym workout on the watch, on any day; a hand tick is never touched") {
+        var doc = fixture()
+        let engine = TrackerEngine(document: doc)
+        let fri = engine.date("2026-11-13")!.timeIntervalSince1970   // noon, a Friday (not a gym day)
+        doc.health.records = [HealthRecord(id: "w1", metric: .workout, start: fri + 2 * 3600, end: fri + 3 * 3600, value: 49, detail: "Exercise type 45"),
+                              HealthRecord(id: "w2", metric: .workout, start: fri - 86400, end: fri - 86400 + 600, value: 10, detail: "Exercise type 45"),
+                              HealthRecord(id: "w3", metric: .workout, start: fri - 2 * 86400, end: fri - 2 * 86400 + 3600, value: 60, detail: "Exercise type 33")]
+        doc.applyAutoTicks(today: today, windDown: [:])
+        let e = TrackerEngine(document: doc), gym = doc.gymHabit!
+        try expect(e.completed(gym, on: "2026-11-13") && !e.completed(gym, on: "2026-11-12") && !e.completed(gym, on: "2026-11-11"))
+        try expect(doc.autoTickSource(gym, day: "2026-11-13") == "Watch workout")
+        var manual = fixture(); manual.health.records = doc.health.records
+        manual.setEntry(CheckIn(habitID: gym.id, day: "2026-11-13", completed: false))
+        manual.applyAutoTicks(today: today, windDown: [:])
+        try expect(!TrackerEngine(document: manual).completed(gym, on: "2026-11-13"))
+        doc.health.records.removeAll { $0.id == "w1" }; doc.applyAutoTicks(today: today, windDown: [:])
+        try expect(TrackerEngine(document: doc).entry(for: gym, day: "2026-11-13") == nil, "a tick it wrote goes when the workout goes")
+        try doc.validate()
+    }
+    check("Wind down: 2 hours before the watch's sleep start, 15 minutes of screens or less; no phone data = no decision") {
+        let engine = TrackerEngine(document: fixture())
+        let mid = engine.date("2026-11-13")!.timeIntervalSince1970 - 12 * 3600   // midnight starting 13 Nov
+        let asleep = mid + 25 * 3600                                              // 1 am on 14 Nov
+        var health = HealthArchive()
+        health.records = [HealthRecord(id: "s", metric: .sleep, start: asleep, end: asleep + 7 * 3600, value: 7, detail: "Asleep stages")]
+        func archive(_ hours: [(Double, Double)]) throws -> ScreenTimeArchive {
+            let h = hours.map { ["start": $0.0, "seconds": $0.1] }
+            let json: [String: Any] = ["version": 1, "devices": [["id": UUID().uuidString, "name": "Pixel", "status": "allowed", "timeZoneID": "Asia/Kolkata", "lastSync": asleep + 9 * 3600,
+                "days": [["start": mid + 86400, "end": mid + 2 * 86400, "complete": true, "apps": [], "hours": []],
+                         ["start": mid, "end": mid + 86400, "complete": true, "apps": [], "hours": h]]]]]
+            return try JSONDecoder().decode(ScreenTimeArchive.self, from: JSONSerialization.data(withJSONObject: json))
+        }
+        let quiet = try archive([(mid + 23 * 3600, 300)])                         // 11 pm–midnight: 5 min
+        try expect(WindDown.nights(health: health, screen: quiet, engine: engine, today: today)["2026-11-13"] == true)
+        let busy = try archive([(mid + 23 * 3600, 1800)])                         // 30 min
+        try expect(WindDown.nights(health: health, screen: busy, engine: engine, today: today)["2026-11-13"] == false)
+        try expect(WindDown.nights(health: health, screen: ScreenTimeArchive(), engine: engine, today: today)["2026-11-13"] == nil)
+        var doc = fixture(); doc.applyAutoTicks(today: today, windDown: ["2026-11-13": true, "2026-11-12": false])
+        let e = TrackerEngine(document: doc)
+        try expect(e.completed(doc.windDownHabit!, on: "2026-11-13") && e.entry(for: doc.windDownHabit!, day: "2026-11-12") == nil)
+    }
     return (count, failures)
 }

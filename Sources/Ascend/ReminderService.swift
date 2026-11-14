@@ -7,8 +7,15 @@ import AscendCore
     @Published private(set) var authorized = false
     private let center = UNUserNotificationCenter.current()
     private var scheduling: Task<Void, Never>?
+    /// Called when "Taken" is pressed on a medicines reminder.
+    var onMedsTaken: ((String, MedMoment) -> Void)?
+    static let medsCategory = "ascend.meds"
 
-    override init() { super.init(); center.delegate = self }
+    override init() {
+        super.init(); center.delegate = self
+        let taken = UNNotificationAction(identifier: "taken", title: "Taken", options: [])
+        center.setNotificationCategories([UNNotificationCategory(identifier: Self.medsCategory, actions: [taken], intentIdentifiers: [])])
+    }
 
     func enable(_ document: TrackerDocument) async -> Bool {
         do {
@@ -32,10 +39,13 @@ import AscendCore
             center.removeAllPendingNotificationRequests()
             guard document.reminders.enabled, authorized else { return }
             let engine = TrackerEngine(document: document)
-            for item in engine.plannedReminders(now: Date()) {
+            // macOS keeps at most 64 pending; the soonest 60 win.
+            let all = (engine.plannedReminders(now: Date()) + engine.medMomentReminders(now: Date())).sorted { $0.date < $1.date }.prefix(60)
+            for item in all {
                 guard !Task.isCancelled else { return }
                 let content = UNMutableNotificationContent()
                 content.title = item.title; content.body = item.body
+                if item.id.hasPrefix("ascend.meds.") { content.categoryIdentifier = Self.medsCategory }
                 if document.reminders.sound { content.sound = .default }
                 var components = engine.calendar.dateComponents([.year, .month, .day, .hour, .minute], from: item.date)
                 components.calendar = engine.calendar; components.timeZone = engine.calendar.timeZone
@@ -70,7 +80,14 @@ import AscendCore
     }
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void) {
+        let id = response.notification.request.identifier, action = response.actionIdentifier
         Task { @MainActor in
+            // ascend.meds.<day>.<Moment>: "Taken" logs the whole moment without opening the app.
+            if action == "taken", id.hasPrefix("ascend.meds.") {
+                let parts = id.split(separator: ".")
+                if parts.count == 4, let moment = MedMoment(rawValue: String(parts[3])) { self.onMedsTaken?(String(parts[2]), moment) }
+                return
+            }
             NotificationCenter.default.post(name: .ascendNotificationOpened, object: nil)
             NSApp.windows.first { $0.title == "Ascend" }?.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)

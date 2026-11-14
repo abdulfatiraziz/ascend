@@ -43,6 +43,20 @@ public struct PlannedReminder: Equatable, Sendable {
     public let body: String
 }
 public extension TrackerEngine {
+    /// One reminder per medicine moment today and tomorrow, at its first dose, while any dose in it is still untaken.
+    func medMomentReminders(now: Date) -> [PlannedReminder] {
+        guard document.reminders.enabled else { return [] }
+        let today = key(now)
+        return [today, adding(1, to: today)].flatMap { day -> [PlannedReminder] in
+            guard let date = date(day) else { return [] }
+            return document.meds.moments(on: day, engine: self).compactMap { g in
+                guard !g.allTaken, let fire = calendar.date(bySettingHour: g.minute / 60, minute: g.minute % 60, second: 0, of: date), fire > now else { return nil }
+                let left = g.slots.filter { $0.taken == nil }.count
+                return PlannedReminder(id: "ascend.meds.\(day).\(g.moment.rawValue)", date: fire,
+                    title: "\(g.moment.rawValue) medicines · \(left) dose\(left == 1 ? "" : "s")", body: g.names)
+            }
+        }
+    }
     /// At most 60 requests. Refreshed on launch, activation, a new day, and every saved change.
     func plannedReminders(now: Date) -> [PlannedReminder] {
         guard document.reminders.enabled else { return [] }

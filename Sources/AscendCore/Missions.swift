@@ -261,7 +261,7 @@ extension MissionTarget {
         case "ffmi": "Weight + body fat"
         case "sleep", "stress", "rhr", "steps": "Watch"
         case "protein": "Food log"
-        case "gym": "Gym check-ins"
+        case "gym": "Watch workouts"
         case "wardrobe", "skills": "Dossier"
         default: ""
         }
