@@ -23,10 +23,7 @@ struct RoutineView: View {
                         .padding(22).frame(width: 440)
                         .background(RadialGradient(colors: [Color(hex: 0x12392C), Ink.panel, Ink.background], center: UnitPoint(x: 0.5, y: 0.38), startRadius: 0, endRadius: 520), in: RoundedRectangle(cornerRadius: 12))
                         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Ink.line))
-                        VStack(spacing: 16) {
-                            NightAheadCard(facts: facts)
-                            NightsCard(facts: facts)
-                        }.frame(maxWidth: .infinity)
+                        NightAheadCard(facts: facts).frame(maxWidth: .infinity)
                     }
                 }.padding(.bottom, 8)
             }.scrollIndicators(.never)
@@ -54,7 +51,6 @@ struct RoutineView: View {
     var bedOffset: Int { let b = doc.routine.bedMinute; return b >= 12 * 60 ? b - 1440 : b }
     var onTime: Int { nights.compactMap(\.onset).filter { $0.minute <= bedOffset }.count }
     var known: Int { nights.compactMap(\.onset).count }
-    var average: Int? { let o = nights.compactMap(\.onset); return o.isEmpty ? nil : o.map(\.minute).reduce(0, +) / o.count }
     var minutesToBed: Int { max(0, TrackerDocument.eveningMinute(doc.routine.bedMinute, wake: doc.routine.wakeMinute) - nowMinute) }
     /// What the dial's centre calls this moment: the meal window you're in, black tie hours, or the routine phase.
     var momentName: String {
@@ -93,6 +89,7 @@ struct WatchDial: View {
     let facts: RoutineFacts
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var shownAt = Date()
+    @State private var introDone = false
     private let intro = 1.4
     var body: some View {
         let cal = facts.engine.calendar, routine = facts.doc.routine, plan = facts.plan
@@ -101,7 +98,7 @@ struct WatchDial: View {
         let windSpan = max(1, routine.windDownMinutes)
         let skip = reduceMotion, start = shownAt, intro = intro
         return ZStack {
-        TimelineView(.animation(minimumInterval: 1 / 60, paused: skip || Date().timeIntervalSince(start) > intro + 0.2)) { tl in
+        TimelineView(.animation(minimumInterval: 1 / 60, paused: skip || introDone)) { tl in
             let raw = skip ? 1 : min(1, max(0, tl.date.timeIntervalSince(start) / intro))
             let p = 1 - pow(1 - raw, 3)  // ease out
             Canvas { ctx, size in
@@ -235,7 +232,7 @@ struct WatchDial: View {
         }
         SecondsSweep(stepped: skip)
         }
-        .onAppear { shownAt = Date() }
+        .onAppear { shownAt = Date(); introDone = false; DispatchQueue.main.asyncAfter(deadline: .now() + intro + 0.15) { introDone = true } }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Routine dial")
         .accessibilityValue("\(HealthReport.clock(nowClock)), \(momentName)")
@@ -247,15 +244,23 @@ struct WatchDial: View {
 struct SecondsSweep: View {
     var stepped: Bool
     var body: some View {
-        TimelineView(.animation(minimumInterval: stepped ? 1 : 1 / 30)) { tl in
-            let t = tl.date.timeIntervalSinceReferenceDate
-            let sec = stepped ? floor(t).truncatingRemainder(dividingBy: 60) : t.truncatingRemainder(dividingBy: 60)
+        // The trail is drawn once; Core Animation turns it in 8 beats a second, like a mechanical watch
+        // (28,800 beats an hour), so the app does no work per tick. Reduce Motion: one step a second.
+        SweepLayer(beatsPerSecond: stepped ? 1 : 8)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+    }
+    /// Seconds into the current minute.
+    static func angle(_ d: Date) -> Double { d.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 60) }
+
+    /// A lamp-gold trail ending in a dot at 12 o'clock; rotation moves it round.
+    struct Trail: View {
+        var seconds: Double
+        var body: some View {
             Canvas { ctx, size in
                 let c = CGPoint(x: size.width / 2, y: size.height / 2)
                 let k = min(size.width, size.height) / 400, r: CGFloat = 163 * k
-                let head = sec / 60 * .pi * 2 - .pi / 2
-                let tail = 0.9  // radians of trail
-                let steps = 24
+                let head = seconds / 60 * .pi * 2 - .pi / 2, tail = 0.9, steps = 16
                 for i in 0..<steps {
                     let f0 = Double(i) / Double(steps), f1 = Double(i + 1) / Double(steps)
                     var seg = Path()
@@ -267,8 +272,63 @@ struct SecondsSweep: View {
                 ctx.fill(Path(ellipseIn: CGRect(x: q.x - 2.4 * k, y: q.y - 2.4 * k, width: 4.8 * k, height: 4.8 * k)), with: .color(Ink.lamp))
             }
         }
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
+    }
+}
+
+/// Hosts the seconds trail as a Core Animation layer so the system render server spins it.
+struct SweepLayer: NSViewRepresentable {
+    var beatsPerSecond: Int
+    func makeNSView(context: Context) -> SweepView { SweepView(beats: beatsPerSecond) }
+    func updateNSView(_ view: SweepView, context: Context) {
+        if view.beats != beatsPerSecond { view.beats = beatsPerSecond; view.restart() }
+    }
+
+    @MainActor final class SweepView: NSView {
+        var beats: Int
+        private let trail = CALayer()
+        private var drawnSize: CGSize = .zero
+        init(beats: Int) {
+            self.beats = beats
+            super.init(frame: .zero)
+            wantsLayer = true
+            layer?.addSublayer(trail)
+        }
+        required init?(coder: NSCoder) { fatalError("not used") }
+        override func layout() {
+            super.layout()
+            guard bounds.size != drawnSize, bounds.width > 0 else { return }
+            drawnSize = bounds.size
+            CATransaction.begin(); CATransaction.setDisableActions(true)
+            trail.bounds = CGRect(origin: .zero, size: bounds.size)
+            trail.position = CGPoint(x: bounds.midX, y: bounds.midY)
+            let scale = window?.backingScaleFactor ?? 2
+            let renderer = ImageRenderer(content: SecondsSweep.Trail(seconds: 0).frame(width: bounds.width, height: bounds.height))
+            renderer.scale = scale
+            trail.contents = renderer.cgImage
+            trail.contentsScale = scale
+            CATransaction.commit()
+            restart()
+        }
+        override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); restart() }
+        func restart() {
+            trail.removeAllAnimations()
+            guard window != nil, drawnSize.width > 0 else { return }
+            let perMinute = 60 * beats
+            let now = Date().timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 60)
+            let first = Int(now * Double(beats))
+            // Clockwise on screen is a negative z rotation in an AppKit layer.
+            let values = (0...perMinute).map { -Double(first + $0) / Double(perMinute) * .pi * 2 }
+            let anim = CAKeyframeAnimation(keyPath: "transform.rotation.z")
+            anim.values = values
+            anim.keyTimes = (0...perMinute).map { NSNumber(value: Double($0) / Double(perMinute)) }
+            anim.calculationMode = .discrete
+            anim.duration = 60
+            anim.repeatCount = .infinity
+            anim.isRemovedOnCompletion = false
+            // Line the beats up with the real clock.
+            anim.beginTime = CACurrentMediaTime() - (now * Double(beats) - Double(first)) / Double(beats)
+            trail.add(anim, forKey: "sweep")
+        }
     }
 }
 
@@ -349,64 +409,5 @@ struct NightAheadCard: View {
             if e.done { Image(systemName: "checkmark").font(.system(size: 8, weight: .bold)).foregroundStyle(Ink.onTrack) }
             else { Circle().stroke(e.kind == .meds ? Ink.accent : Ink.goldDim, lineWidth: 1.5).frame(width: 9, height: 9) }
         }
-    }
-}
-
-// MARK: - Last 7 nights
-
-struct NightsCard: View {
-    let facts: RoutineFacts
-    /// Chart spans 11 pm (-60) to 5 am (300).
-    private let top = -60, bottom = 300
-    var body: some View {
-        let nights = facts.nights
-        let bed = facts.bedOffset
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .firstTextBaseline) { CardTitle("Last 7 nights · asleep at"); Spacer(); Text("From the watch").font(.bt(size: 12)).foregroundStyle(Ink.muted) }
-                .padding(.bottom, 14)
-            GeometryReader { g in
-                let h = g.size.height, w = g.size.width - 64
-                let y: (Int) -> CGFloat = { CGFloat(min(max($0, top), bottom) - top) / CGFloat(bottom - top) * h }
-                ZStack(alignment: .topLeading) {
-                    ForEach([-60, 60, 180, 300], id: \.self) { m in
-                        Text(HealthReport.clock(m).replacingOccurrences(of: ":00", with: "").uppercased()).font(.bt(size: 10, design: .monospaced)).foregroundStyle(Ink.muted)
-                            .frame(width: 56, alignment: .trailing).position(x: 28, y: y(m))
-                    }
-                    Path { p in p.move(to: CGPoint(x: 64, y: y(bed))); p.addLine(to: CGPoint(x: g.size.width, y: y(bed))) }
-                        .stroke(Ink.accent.opacity(0.8), style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
-                    ForEach(Array(nights.enumerated()), id: \.offset) { i, n in
-                        let x = 64 + w * (CGFloat(i) + 0.5) / 7
-                        Rectangle().fill(Ink.line).frame(width: 1, height: h).position(x: 64 + w * CGFloat(i) / 7, y: h / 2)
-                        if let o = n.onset {
-                            let ok = o.minute <= bed
-                            Circle().fill(ok ? Ink.onTrack : Ink.offTrack).frame(width: 12, height: 12)
-                                .background(Circle().fill((ok ? Ink.onTrack : Ink.offTrack).opacity(0.15)).frame(width: 20, height: 20))
-                                .position(x: x, y: y(o.minute))
-                            Text(HealthReport.clock(o.minute).replacingOccurrences(of: " am", with: "").replacingOccurrences(of: " pm", with: ""))
-                                .font(.bt(size: 10, design: .monospaced)).foregroundStyle(Ink.ivory).position(x: x, y: y(o.minute) - 17)
-                        } else {
-                            Text("—").font(.bt(size: 11)).foregroundStyle(Ink.muted).position(x: x, y: h / 2)
-                        }
-                    }
-                }
-            }.frame(height: 96).padding(.top, 8)
-            HStack(spacing: 0) {
-                Color.clear.frame(width: 64)
-                ForEach(Array(nights.enumerated()), id: \.offset) { _, n in
-                    Text(dateText(n.day, engine: facts.engine, pattern: "EEE")).font(.bt(size: 10, design: .monospaced)).foregroundStyle(Ink.muted).frame(maxWidth: .infinity)
-                }
-            }.padding(.top, 10)
-            Line().padding(.top, 12)
-            HStack {
-                if let avg = facts.average {
-                    let late = avg - bed
-                    (Text("Average ") + Text(HealthReport.clock(avg)).foregroundColor(Ink.ivory) + Text(late > 0 ? " · \(late / 60) h \(String(format: "%02d", late % 60)) late" : " · on time"))
-                } else { Text("No nights from the watch yet") }
-                Spacer()
-                if let best = nights.compactMap(\.onset).min(by: { $0.minute < $1.minute }) {
-                    Text("Best ") + Text(HealthReport.clock(best.minute)).foregroundColor(Ink.ivory) + Text(" on \(dateText(best.day, engine: facts.engine, pattern: "EEE"))")
-                }
-            }.font(.bt(size: 12)).foregroundStyle(Ink.muted).padding(.top, 12)
-        }.panel(padding: 22)
     }
 }
