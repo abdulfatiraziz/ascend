@@ -60,6 +60,8 @@ struct MainView: View {
     private func setEyesOnly(_ on: Bool) { eyesOnly = on }
     var body: some View {
         mainContent
+            // No grey system scroll bars on the felt; scrolling still works with trackpad and wheel.
+            .scrollIndicators(.never)
             .allowsHitTesting(!eyesOnly).accessibilityHidden(eyesOnly)
             .overlay { if eyesOnly { EyesOnlyCover { setEyesOnly(false) } } }
     }
