@@ -5,6 +5,7 @@ import AscendCore
 struct MissionBoard: View {
     @ObservedObject var store: TrackerStore
     @ObservedObject var missions: MissionStore
+    @Binding var editor: Editor?
     @State private var open: MissionFile?
 
     var body: some View {
@@ -13,7 +14,7 @@ struct MissionBoard: View {
             HStack(alignment: .firstTextBaseline) {
                 Kicker("Missions / top 1% by design")
                 Spacer()
-                Text("Age 30 · 180 cm · click a file for every target").font(.bt(size: 10, design: .monospaced)).foregroundStyle(Ink.muted)
+                Text("Age 30 · 180 cm · open a file for every target and the daily habits").font(.bt(size: 10, design: .monospaced)).foregroundStyle(Ink.muted)
             }
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 250), spacing: 14, alignment: .top)], alignment: .leading, spacing: 14) {
                 ForEach(missions.missions) { m in
@@ -23,7 +24,13 @@ struct MissionBoard: View {
                 }
             }
         }
-        .sheet(item: $open) { m in MissionSheet(missionID: m.id, missions: missions, facts: facts, today: store.today) { open = nil } }
+        .sheet(item: $open) { m in
+            MissionSheet(missionID: m.id, store: store, missions: missions, facts: facts, today: store.today, close: { open = nil }) { habit in
+                // Close the file first; the habit editor is a sheet of its own.
+                open = nil
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { editor = .habit(habit, habit?.goalID ?? store.document.goals.first?.id) }
+            }
+        }
     }
 }
 
@@ -104,10 +111,12 @@ enum MissionTargetDate {
 /// Every target in one mission, with the math, and fields for the numbers you type by hand.
 struct MissionSheet: View {
     let missionID: String
+    @ObservedObject var store: TrackerStore
     @ObservedObject var missions: MissionStore
     let facts: MissionFacts
     let today: String
     let close: () -> Void
+    let editHabit: (Habit?) -> Void
     @State private var drafts: [String: String] = [:]
 
     var body: some View {
@@ -127,6 +136,7 @@ struct MissionSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
                     ForEach(m.targets) { t in row(t) }
+                    if m.id == "A" { habits }
                 }.padding(.trailing, 6)
             }
             if let e = missions.saveError { Text(e).font(.bt(size: 11)).foregroundStyle(Ink.offTrack) }
@@ -163,6 +173,31 @@ struct MissionSheet: View {
             if !t.detail.isEmpty { Text(t.detail).font(.bt(size: 11)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true) }
         }
         .onDisappear { commit(t) }
+    }
+
+    /// Mission A's daily habits (the old habit goals), grouped by goal. Check-ins and history are unchanged.
+    private var habits: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Line().padding(.top, 8)
+            HStack { Kicker("Daily habits / scored every day"); Spacer(); Button("+ Habit") { editHabit(nil) }.font(.bt(size: 11)) }
+            ForEach(store.document.goals) { goal in
+                let list = store.document.habits.filter { $0.goalID == goal.id && $0.archivedDay == nil && $0.kind != .milestone }
+                if !list.isEmpty {
+                    Text(goal.title.uppercased()).font(.bt(size: 9, design: .monospaced)).tracking(1.5).foregroundStyle(Ink.goldDim).padding(.top, 4)
+                    ForEach(list) { habit in
+                        Button { editHabit(habit) } label: {
+                            HStack {
+                                Image(systemName: habit.kind == .metric ? "number" : "circle").frame(width: 16).foregroundStyle(Ink.accent)
+                                Text(habit.latest.title).font(.bt(size: 12)).foregroundStyle(Ink.ivory)
+                                Spacer()
+                                Text(habit.latest.schedule.label).font(.bt(size: 10)).foregroundStyle(Ink.muted)
+                                Image(systemName: "chevron.right").font(.bt(size: 9)).foregroundStyle(Ink.muted)
+                            }.contentShape(Rectangle())
+                        }.buttonStyle(.plain)
+                    }
+                }
+            }
+        }
     }
 
     private func commit(_ t: MissionTarget) {

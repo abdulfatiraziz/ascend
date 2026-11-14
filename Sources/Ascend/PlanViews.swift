@@ -5,40 +5,19 @@ import AscendCore
 struct GoalsView: View {
     @ObservedObject var store: TrackerStore
     @Binding var editor: Editor?
+    private var oneOffs: [Habit] {
+        store.document.habits.filter { $0.kind == .milestone && $0.archivedDay == nil }.sorted { ($0.latest.schedule.once ?? "") < ($1.latest.schedule.once ?? "") }
+    }
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HStack { Kicker("Goals / missions / habits / milestones"); Spacer(); Button("+ Goal") { editor = .goal(nil) }; Button("+ Habit or task") { editor = .habit(nil, nil) } }.font(.bt(size: 12))
-            ScrollView {
-                MissionBoard(store: store, missions: store.missions).padding(.bottom, 26)
-                HStack { Kicker("Habit goals / the daily work behind mission A"); Spacer() }.padding(.bottom, 8)
-                LazyVGrid(columns: [GridItem(.flexible(), alignment: .top), GridItem(.flexible(), alignment: .top)], alignment: .leading, spacing: 16) {
-                    ForEach(store.document.goals) { goal in
-                        VStack(alignment: .leading, spacing: 14) {
-                            HStack { Image(systemName: goal.symbol).foregroundStyle(Ink.accent); Spacer(); Button { editor = .goal(goal) } label: { Image(systemName: "square.and.pencil") }.buttonStyle(.plain).foregroundStyle(Ink.muted).help("Edit \(goal.title)") }
-                            Text(goal.title).font(.bt(size: 18, weight: .medium)).tracking(-0.4).lineLimit(1).help(goal.title)
-                            HStack { Kicker(dateText(goal.latest.start, engine: store.engine)); Text("→").foregroundStyle(Ink.muted); Kicker(dateText(goal.latest.end, engine: store.engine)) }
-                            Line()
-                            ForEach(store.document.habits.filter { $0.goalID == goal.id && $0.archivedDay == nil }) { habit in
-                                Button { editor = .habit(habit, nil) } label: {
-                                    HStack(alignment: .top) {
-                                        Image(systemName: habit.kind == .milestone ? "calendar" : habit.kind == .metric ? "number" : "circle").frame(width: 16).foregroundStyle(Ink.accent)
-                                        VStack(alignment: .leading, spacing: 3) { Text(habit.latest.title).font(.bt(size: 12)); Text(habit.latest.schedule.label).font(.bt(size: 10)).foregroundStyle(Ink.muted) }
-                                        Spacer(); Image(systemName: "chevron.right").font(.bt(size: 9)).foregroundStyle(Ink.muted)
-                                    }
-                                }.buttonStyle(.plain)
-                            }
-                            Button("+ Add to this goal") { editor = .habit(nil, goal.id) }.buttonStyle(.borderless).font(.bt(size: 11))
-                        }.frame(maxWidth: .infinity, alignment: .topLeading).panel()
-                    }
-                }
-                milestones.padding(.top, 24)
-            }
+        ScrollView {
+            MissionBoard(store: store, missions: store.missions, editor: $editor)
+            if !oneOffs.isEmpty { milestones.padding(.top, 28) }
         }
     }
     private var milestones: some View {
         VStack(alignment: .leading, spacing: 12) {
             Kicker("One-off milestones / separate from habit score")
-            ForEach(store.document.habits.filter { $0.kind == .milestone && $0.archivedDay == nil }.sorted { ($0.latest.schedule.once ?? "") < ($1.latest.schedule.once ?? "") }) { habit in
+            ForEach(oneOffs) { habit in
                 HStack {
                     Button { store.completeMilestone(habit) } label: { Image(systemName: store.engine.milestoneCompleted(habit) ? "checkmark.circle.fill" : "circle").foregroundStyle(store.engine.milestoneCompleted(habit) ? Ink.accent : Ink.muted) }.buttonStyle(.plain).accessibilityLabel("Complete \(habit.latest.title)")
                     Text(habit.latest.title).font(.bt(size: 12)); Spacer()

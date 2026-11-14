@@ -98,7 +98,6 @@ struct MainView: View {
                     case .cycle: CycleView(store: store)
                     }
                 }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                footer
             }.padding(.horizontal, 28).padding(.top, 24).padding(.bottom, 20)
             }
         }
@@ -230,27 +229,13 @@ struct MainView: View {
                 .buttonStyle(.plain).background(Ink.panel, in: RoundedRectangle(cornerRadius: 7)).keyboardShortcut("k", modifiers: [.command, .shift])
             Button { store.recordUrge() } label: { Label("Urge", systemImage: "circle.dotted").font(.bt(size: 11)).padding(8) }.buttonStyle(.plain).background(Ink.panel, in: RoundedRectangle(cornerRadius: 7)).accessibilityLabel("Log an urge").keyboardShortcut("u", modifiers: [.command, .shift]).help("Log an urge · ⌘⇧U · time saved immediately")
             Button { screen = .chat } label: { Label("Ask Ascend", systemImage: "sparkles").font(.bt(size: 11)).padding(8) }.buttonStyle(.plain).background(Ink.panel, in: RoundedRectangle(cornerRadius: 7)).help("Open the Ascend chat · ⌘J").keyboardShortcut("j", modifiers: [.command])
-            VStack(alignment: .trailing, spacing: 6) {
-                Kicker(store.document.cycle.title).lineLimit(1).help(store.document.cycle.title)
-                Text("Day \(store.engine.dayNumber(store.today)) / \(store.engine.days(from: store.document.cycle.start, through: store.document.cycle.end).count)").font(.bt(size: 18, weight: .medium))
-                Text("\(dateText(store.document.cycle.start, engine: store.engine, pattern: "d MMM")) — \(dateText(store.document.cycle.end, engine: store.engine))").font(.bt(size: 11, design: .monospaced)).foregroundStyle(Ink.muted)
-            }
-        }
-    }
-    private var footer: some View {
-        VStack(spacing: 17) {
-            Line()
-            HStack(spacing: 20) {
-                VStack(alignment: .leading, spacing: 5) { Kicker("Your goals"); Text("One version of you.").font(.bt(size: 11)).foregroundStyle(Ink.muted) }.frame(width: 140, alignment: .leading)
-                ForEach(store.document.goals.prefix(4)) { goal in
-                    let score = store.engine.score(on: store.today, goalID: goal.id)
-                    Button { editor = .goal(goal) } label: {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("\(score.completed) OF \(score.scheduled) TODAY").font(.bt(size: 10, design: .monospaced)).foregroundStyle(Ink.muted)
-                            HStack { Text(goal.title).font(.bt(size: 12)).lineLimit(1); Text("↗").foregroundStyle(Ink.accent) }
-                        }.frame(maxWidth: .infinity, alignment: .leading)
-                    }.buttonStyle(.plain)
-                }
+            if let next = store.missions.missions.filter({ $0.due >= store.today }).min(by: { $0.due < $1.due }) {
+                let left = store.engine.days(from: store.today, through: next.due).count - 1
+                VStack(alignment: .trailing, spacing: 6) {
+                    Kicker("Mission \(next.id) · \(next.codename)").lineLimit(1)
+                    Text("\(left) days").font(.bt(size: 18, weight: .medium))
+                    Text("to \(dateText(next.due, engine: store.engine))").font(.bt(size: 11, design: .monospaced)).foregroundStyle(Ink.muted)
+                }.help("The next mission deadline: \(next.title)")
             }
         }
     }
