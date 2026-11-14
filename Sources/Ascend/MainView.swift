@@ -6,6 +6,24 @@ enum Screen: String, CaseIterable {
     case today = "Today", chat = "Chat", goals = "Goals", routine = "Routine", meals = "Meals", meds = "Meds", notes = "Notes", photos = "Photos", screenTime = "Screen time", health = "Health", body = "Body", patterns = "Patterns", urges = "Urges", dossier = "Dossier", calendar = "Calendar", cycle = "Cycle"
     var symbol: String { switch self { case .today: "circle.hexagongrid"; case .chat: "sparkles"; case .goals: "scope"; case .routine: "clock"; case .meals: "fork.knife"; case .meds: "pills"; case .notes: "note.text"; case .photos: "person.crop.rectangle.stack"; case .screenTime: "hourglass"; case .health: "heart.text.square"; case .body: "figure.strengthtraining.traditional"; case .patterns: "point.3.connected.trianglepath.dotted"; case .urges: "circle.dotted"; case .dossier: "folder"; case .calendar: "calendar"; case .cycle: "chart.bar.xaxis" } }
 }
+/// The four sidebar tabs. Every old screen lives inside one of them as a sub-tab; Chat opens from Ask Ascend.
+enum Tab: String, CaseIterable {
+    case brief = "Brief", condition = "Condition", fieldLog = "Field log", dossier = "Dossier"
+    var screens: [Screen] {
+        switch self {
+        case .brief: [.today, .goals, .routine, .calendar, .cycle]
+        case .condition: [.health, .body, .photos, .screenTime, .patterns]
+        case .fieldLog: [.meals, .meds, .urges, .notes]
+        case .dossier: [.dossier]
+        }
+    }
+    var symbol: String { switch self { case .brief: "doc.text"; case .condition: "waveform.path.ecg"; case .fieldLog: "square.and.pencil"; case .dossier: "folder" } }
+    static func of(_ screen: Screen) -> Tab? { allCases.first { $0.screens.contains(screen) } }
+}
+extension Screen {
+    /// Sub-tab label inside its tab.
+    var subLabel: String { self == .today ? "Today" : rawValue }
+}
 enum Editor: Identifiable {
     case goal(Goal?), habit(Habit?, UUID?), metric(Habit, String), urge(UUID), observation(String), caffeine(CaffeineEntry?, String), routine, aiSettings, settings, quick
     var id: String {
@@ -35,6 +53,8 @@ struct MainView: View {
     @State private var queuedDestination:String?
     @Environment(\.openWindow) private var openWindow
     @State private var eyesOnly = false
+    /// The sub-tab each tab was last left on, so switching tabs comes back to the same place.
+    @State private var lastScreen: [Tab: Screen] = [:]
     init(store: TrackerStore) { self.store = store; _selectedDay = State(initialValue: store.today); let env = ProcessInfo.processInfo.environment; _eyesOnly = State(initialValue: env["ASCEND_DATA_DIR"] != nil && env["ASCEND_EYES_ONLY"] == "1") }
     /// Eyes only: seals the window behind the vault (⌘⇧E); Touch ID or the Mac password opens it.
     private func setEyesOnly(_ on: Bool) { eyesOnly = on }
@@ -50,6 +70,7 @@ struct MainView: View {
             if screen == .chat { ChatView(store: store, settings: { editor = .aiSettings }) } else {
             VStack(alignment: .leading, spacing: 22) {
                 header
+                subTabs
                 if let error = store.saveError {
                     HStack { Image(systemName: "exclamationmark.triangle"); Text(error); Spacer(); Button("Settings") { editor = .settings } }
                         .font(.bt(size: 12)).padding(12).background(Ink.watch.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
@@ -156,18 +177,44 @@ struct MainView: View {
         VStack(spacing: 12) {
             Text("A↗").font(.bt(size: 26, weight: .bold)).tracking(-3).foregroundStyle(.white)
             // Thirteen screens don't fit a short window; the list scrolls instead of clipping.
-            ScrollView(.vertical, showsIndicators: false) { VStack(spacing: 2) {
-                ForEach(Screen.allCases, id: \.self) { item in
-                    Button { screen = item; if item == .today { selectedDay = store.today } } label: {
-                        VStack(spacing: 3) { Image(systemName: item.symbol).font(.bt(size: 16)); Text(item.rawValue).font(.bt(size: 10)) }
-                            .frame(width: 58, height: 43).background(screen == item ? Ink.accent.opacity(0.12) : .clear, in: RoundedRectangle(cornerRadius: 9))
-                    }.buttonStyle(.plain).foregroundStyle(screen == item ? Ink.accent : Ink.muted).accessibilityLabel(item.rawValue)
+            VStack(spacing: 6) {
+                ForEach(Tab.allCases, id: \.self) { tab in
+                    let on = Tab.of(screen) == tab
+                    Button { open(tab) } label: {
+                        VStack(spacing: 5) { Image(systemName: tab.symbol).font(.bt(size: 18)); Text(tab.rawValue).font(.bt(size: 10.5)) }
+                            .frame(width: 64, height: 56).background(on ? Ink.accent.opacity(0.12) : .clear, in: RoundedRectangle(cornerRadius: 10))
+                            .overlay(alignment: .leading) { if on { Capsule().fill(Ink.accent).frame(width: 2, height: 22).offset(x: -7) } }
+                    }.buttonStyle(.plain).foregroundStyle(on ? Ink.accent : Ink.muted).accessibilityLabel(tab.rawValue)
+                    .keyboardShortcut(KeyEquivalent(Character(String(Tab.allCases.firstIndex(of: tab)! + 1))), modifiers: .command)
+                    .help("\(tab.rawValue) · ⌘\(Tab.allCases.firstIndex(of: tab)! + 1)")
                 }
-            } }.scrollBounceBehavior(.basedOnSize)
+            }
             Spacer(minLength: 0)
             Button { editor = .settings } label: { Image(systemName: "slider.horizontal.3").font(.bt(size: 18)).frame(width: 44, height: 44) }.buttonStyle(.plain).foregroundStyle(Ink.muted).help("Settings, avatar finish and backups")
             VStack(spacing: 8) { Circle().fill(Ink.muted).frame(width: 4, height: 4); Kicker("Local") }
         }.padding(.top, 26).padding(.bottom, 18).frame(width: 78).frame(maxHeight: .infinity).overlay(alignment: .trailing) { Rectangle().fill(Ink.line).frame(width: 1) }
+    }
+    private func open(_ tab: Tab) {
+        if Tab.of(screen) == tab, screen != tab.screens[0] { screen = tab.screens[0] } else { screen = lastScreen[tab] ?? tab.screens[0] }
+        if screen == .today { selectedDay = store.today }
+    }
+    /// Sub-tabs for the current tab (hidden when the tab has one screen).
+    @ViewBuilder private var subTabs: some View {
+        if let tab = Tab.of(screen), tab.screens.count > 1 {
+            HStack(spacing: 4) {
+                ForEach(tab.screens, id: \.self) { item in
+                    let on = item == screen
+                    Button { screen = item; if item == .today { selectedDay = store.today } } label: {
+                        Label(item.subLabel, systemImage: item.symbol).font(.bt(size: 12, weight: on ? .semibold : .regular))
+                            .padding(.horizontal, 12).padding(.vertical, 7)
+                            .background(on ? Ink.accent.opacity(0.14) : .clear, in: Capsule())
+                            .overlay(Capsule().stroke(on ? Ink.accent.opacity(0.5) : Ink.line))
+                    }.buttonStyle(.plain).foregroundStyle(on ? Ink.lamp : Ink.muted)
+                }
+                Spacer()
+            }
+            .onChange(of: screen, initial: true) { _, new in if let t = Tab.of(new) { lastScreen[t] = new } }
+        }
     }
     private var header: some View {
         HStack(alignment: .center) {
