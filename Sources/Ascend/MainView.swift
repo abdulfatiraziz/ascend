@@ -180,7 +180,7 @@ struct MainView: View {
                     .font(.bt(size: 36, weight: .semibold)).tracking(-1.5).lineLimit(1).minimumScaleFactor(0.8)
             }
             Spacer()
-            Button { setEyesOnly(true) } label: { Label("Eyes only", systemImage: "eye.slash").labelStyle(.iconOnly).font(.bt(size: 11)).padding(8) }
+            Button { setEyesOnly(true) } label: { Label("Eyes only", systemImage: "eye.slash").font(.bt(size: 11)).padding(8) }
                 .buttonStyle(.plain).background(Ink.panel, in: RoundedRectangle(cornerRadius: 7)).keyboardShortcut("e", modifiers: [.command, .shift]).help("Eyes only · ⌘⇧E · hides everything until you open it again")
             Button { editor = .quick } label: { Label("Quick check-in", systemImage: "menubar.rectangle").font(.bt(size: 11)).padding(8) }
                 .buttonStyle(.plain).background(Ink.panel, in: RoundedRectangle(cornerRadius: 7)).keyboardShortcut("k", modifiers: [.command, .shift])
