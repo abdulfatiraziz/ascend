@@ -34,8 +34,21 @@ struct MainView: View {
     @State private var queuedEditor:Editor?
     @State private var queuedDestination:String?
     @Environment(\.openWindow) private var openWindow
-    init(store: TrackerStore) { self.store = store; _selectedDay = State(initialValue: store.today) }
+    @State private var eyesOnly = false
+    @State private var eyesOnlyTimer: Task<Void, Never>?
+    init(store: TrackerStore) { self.store = store; _selectedDay = State(initialValue: store.today); let env = ProcessInfo.processInfo.environment; _eyesOnly = State(initialValue: env["ASCEND_DATA_DIR"] != nil && env["ASCEND_EYES_ONLY"] == "1") }
+    /// Eyes only: seals the window behind a cover (⌘⇧E). Turns itself off after 30 minutes.
+    private func setEyesOnly(_ on: Bool) {
+        eyesOnlyTimer?.cancel(); eyesOnly = on
+        if on { eyesOnlyTimer = Task { try? await Task.sleep(for: .seconds(30 * 60)); if !Task.isCancelled { eyesOnly = false } } }
+    }
     var body: some View {
+        mainContent
+            .blur(radius: eyesOnly ? 22 : 0).allowsHitTesting(!eyesOnly).accessibilityHidden(eyesOnly)
+            .overlay { if eyesOnly { EyesOnlyCover { setEyesOnly(false) } } }
+            .animation(.easeInOut(duration: 0.25), value: eyesOnly)
+    }
+    private var mainContent: some View {
         HStack(spacing: 0) {
             sidebar
             // The chat fills the whole content area, like a chat app; other screens keep the header and goals footer.
@@ -163,10 +176,12 @@ struct MainView: View {
         HStack(alignment: .center) {
             VStack(alignment: .leading, spacing: 7) {
                 Kicker("Your next version starts here")
-                Text(screen == .today ? "Build yourself." : screen == .goals ? "The blueprint." : screen == .calendar ? "Every day counts." : screen == .routine ? "Find your rhythm." : screen == .patterns ? "Connect the dots." : screen == .meals ? "Eat with intent." : screen == .meds ? "Take it as prescribed." : screen == .notes ? "Remember what matters." : screen == .photos ? "See the change." : screen == .screenTime ? "Own your attention." : screen == .body ? "Build strength. See change." : screen == .health ? "Know your rhythm." : screen == .urges ? "Notice the pattern." : "The long game.")
+                Text(screen == .today ? "The Brief." : screen == .goals ? "The blueprint." : screen == .calendar ? "Every day counts." : screen == .routine ? "Find your rhythm." : screen == .patterns ? "Connect the dots." : screen == .meals ? "Eat with intent." : screen == .meds ? "Take it as prescribed." : screen == .notes ? "Remember what matters." : screen == .photos ? "See the change." : screen == .screenTime ? "Own your attention." : screen == .body ? "Build strength. See change." : screen == .health ? "Know your rhythm." : screen == .urges ? "Notice the pattern." : "The long game.")
                     .font(.bt(size: 36, weight: .semibold)).tracking(-1.5).lineLimit(1).minimumScaleFactor(0.8)
             }
             Spacer()
+            Button { setEyesOnly(true) } label: { Label("Eyes only", systemImage: "eye.slash").labelStyle(.iconOnly).font(.bt(size: 11)).padding(8) }
+                .buttonStyle(.plain).background(Ink.panel, in: RoundedRectangle(cornerRadius: 7)).keyboardShortcut("e", modifiers: [.command, .shift]).help("Eyes only · ⌘⇧E · hides everything until you open it again")
             Button { editor = .quick } label: { Label("Quick check-in", systemImage: "menubar.rectangle").font(.bt(size: 11)).padding(8) }
                 .buttonStyle(.plain).background(Ink.panel, in: RoundedRectangle(cornerRadius: 7)).keyboardShortcut("k", modifiers: [.command, .shift])
             Button { store.recordUrge() } label: { Label("Urge", systemImage: "circle.dotted").font(.bt(size: 11)).padding(8) }.buttonStyle(.plain).background(Ink.panel, in: RoundedRectangle(cornerRadius: 7)).accessibilityLabel("Log an urge").keyboardShortcut("u", modifiers: [.command, .shift]).help("Log an urge · ⌘⇧U · time saved immediately")
