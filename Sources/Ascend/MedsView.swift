@@ -16,10 +16,10 @@ struct MedsView: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 6) {
                         Kicker("Photos → Claude sorts and reads → your review")
-                        Text("Snap every side of your medicines in Ascend Bridge, in any order, or drop photos here. Add the schedule your doctor gave you; the phone reminds you and you tap Taken.").font(.system(size: 12)).foregroundStyle(Ink.muted)
+                        Text("Snap every side of your medicines in Ascend Bridge, in any order, or drop photos here. Add the schedule your doctor gave you; the phone reminds you and you tap Taken.").font(.bt(size: 12)).foregroundStyle(Ink.muted)
                     }
                     Spacer()
-                    Button("Add by name") { _ = store.newMedicine() }.font(.system(size: 12))
+                    Button("Add by name") { _ = store.newMedicine() }.font(.bt(size: 12))
                     PrimaryButton(label: "Add photos…") { choose() }
                 }
                 todayPanel
@@ -33,17 +33,17 @@ struct MedsView: View {
                 Kicker(active.isEmpty ? "Your medicines" : "Your medicines · \(active.count)")
                 if active.isEmpty && review.isEmpty && cabinet.inbox.isEmpty {
                     VStack(alignment: .leading, spacing: 10) {
-                        Text("No medicines yet.").font(.system(size: 18, weight: .semibold))
-                        Text("On your phone: Ascend Bridge → Add medicines, photograph the front, back and strip of each one, tap Done. Claude groups the photos and reads the labels; you check each card and add the schedule.").font(.system(size: 12)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
+                        Text("No medicines yet.").font(.bt(size: 18, weight: .semibold))
+                        Text("On your phone: Ascend Bridge → Add medicines, photograph the front, back and strip of each one, tap Done. Claude groups the photos and reads the labels; you check each card and add the schedule.").font(.bt(size: 12)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
                     }.frame(maxWidth: .infinity, alignment: .leading).panel()
                 }
                 ForEach(active) { MedCard(store: store, reader: reader, medicine: $0) }
                 let archived = cabinet.medicines.filter(\.archived)
                 if !archived.isEmpty {
-                    Button(showArchived ? "Hide stopped medicines" : "Show stopped medicines · \(archived.count)") { showArchived.toggle() }.buttonStyle(.plain).font(.system(size: 12)).foregroundStyle(Ink.accent)
+                    Button(showArchived ? "Hide stopped medicines" : "Show stopped medicines · \(archived.count)") { showArchived.toggle() }.buttonStyle(.plain).font(.bt(size: 12)).foregroundStyle(Ink.accent)
                     if showArchived { ForEach(archived) { MedCard(store: store, reader: reader, medicine: $0) } }
                 }
-                Text("Claude only reads what's printed on the packaging; categories and uses are general information, not medical advice. Schedules are what you enter from your doctor's instructions. Photos stay on this Mac; sorting sends them to Claude through your personal Claude profile.").font(.system(size: 11)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
+                Text("Claude only reads what's printed on the packaging; categories and uses are general information, not medical advice. Schedules are what you enter from your doctor's instructions. Photos stay on this Mac; sorting sends them to Claude through your personal Claude profile.").font(.bt(size: 11)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
             }.padding(.bottom, 10)
         }
         .dropDestination(for: URL.self) { urls, _ in add(urls.filter { ChatPhotos.isImage($0) && !store.isMedPhoto($0) }); return true }
@@ -56,43 +56,43 @@ struct MedsView: View {
         let cycle = cabinet.adherence(today: store.today, days: cycleDays, engine: engine)
         return VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
-                Text(isToday ? "Today" : dateText(day, engine: engine, pattern: "EEEE d MMM")).font(.system(size: 15, weight: .semibold))
-                Text("\(slots.filter { $0.taken != nil }.count) of \(slots.count) taken").font(.system(size: 12)).foregroundStyle(Ink.muted)
+                Text(isToday ? "Today" : dateText(day, engine: engine, pattern: "EEEE d MMM")).font(.bt(size: 15, weight: .semibold))
+                Text("\(slots.filter { $0.taken != nil }.count) of \(slots.count) taken").font(.bt(size: 12)).foregroundStyle(Ink.muted)
                 Spacer()
                 Button { day = engine.adding(-1, to: day) } label: { Image(systemName: "chevron.left") }.buttonStyle(.plain).accessibilityLabel("Previous day")
                 DatePicker("Dose date", selection: Binding(get: { engine.date(day) ?? Date() }, set: { day = engine.key($0) }), in: ...Date(), displayedComponents: .date).labelsHidden().fixedSize()
                 Button { day = engine.adding(1, to: day) } label: { Image(systemName: "chevron.right") }.buttonStyle(.plain).disabled(day >= store.today).accessibilityLabel("Next day")
-                Button("Today") { day = store.today }.buttonStyle(.plain).font(.system(size: 12)).disabled(isToday)
+                Button("Today") { day = store.today }.buttonStyle(.plain).font(.bt(size: 12)).disabled(isToday)
             }
             weekStrip
             if !isToday && !slots.isEmpty {
-                Text("Forgot to log one? Tick it here; it’s saved at its scheduled time and updates that day’s habit.").font(.system(size: 11)).foregroundStyle(Ink.muted)
+                Text("Forgot to log one? Tick it here; it’s saved at its scheduled time and updates that day’s habit.").font(.bt(size: 11)).foregroundStyle(Ink.muted)
             }
             if slots.isEmpty {
-                Text(isToday ? "Nothing scheduled today. Confirm a medicine and add its schedule to see doses here." : "Nothing was scheduled on this day.").font(.system(size: 12)).foregroundStyle(Ink.muted)
+                Text(isToday ? "Nothing scheduled today. Confirm a medicine and add its schedule to see doses here." : "Nothing was scheduled on this day.").font(.bt(size: 12)).foregroundStyle(Ink.muted)
             }
             ForEach(slots) { slot in
                 HStack(spacing: 14) {
-                    Text(clockTime(slot.minute)).font(.system(size: 15, weight: .medium, design: .monospaced)).frame(width: 52, alignment: .leading)
+                    Text(clockTime(slot.minute)).font(.bt(size: 15, weight: .medium, design: .monospaced)).frame(width: 52, alignment: .leading)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(slot.medicine.title).font(.system(size: 13))
-                        Text([slot.medicine.schedule?.amount ?? "", slot.medicine.schedule.map { $0.food == .any ? "" : $0.food.label } ?? ""].filter { !$0.isEmpty }.joined(separator: " · ")).font(.system(size: 11)).foregroundStyle(Ink.muted)
+                        Text(slot.medicine.title).font(.bt(size: 13))
+                        Text([slot.medicine.schedule?.amount ?? "", slot.medicine.schedule.map { $0.food == .any ? "" : $0.food.label } ?? ""].filter { !$0.isEmpty }.joined(separator: " · ")).font(.bt(size: 11)).foregroundStyle(Ink.muted)
                     }
                     Spacer()
-                    if let taken = slot.taken { Text("\(timeText(Date(timeIntervalSince1970: taken.takenAt), engine: engine)) · \(taken.source == "phone" ? "phone" : "Mac")").font(.system(size: 10)).foregroundStyle(Ink.muted) }
+                    if let taken = slot.taken { Text("\(timeText(Date(timeIntervalSince1970: taken.takenAt), engine: engine)) · \(taken.source == "phone" ? "phone" : "Mac")").font(.bt(size: 10)).foregroundStyle(Ink.muted) }
                     // A dose logged for an earlier day is recorded at its scheduled time, not now.
                     Button { store.setDose(slot.medicine.id, day: slot.day, minute: slot.minute, taken: slot.taken == nil,
                                            at: isToday ? Date() : engine.time(on: slot.day, minute: slot.minute) ?? Date(), source: "mac") } label: {
                         Label(slot.taken == nil ? "Taken" : "Taken ✓", systemImage: slot.taken == nil ? "circle" : "checkmark.circle.fill")
-                    }.buttonStyle(.plain).foregroundStyle(slot.taken == nil ? Color.primary : Ink.accent).font(.system(size: 12))
+                    }.buttonStyle(.plain).foregroundStyle(slot.taken == nil ? Color.primary : Ink.accent).font(.bt(size: 12))
                 }
             }
             Divider()
             HStack(spacing: 24) {
-                Text("Last 7 days: \(week.taken) taken · \(week.missed) missed").font(.system(size: 11)).foregroundStyle(week.missed > 0 ? Color.orange : Ink.muted)
-                Text("This cycle: \(cycle.taken) taken · \(cycle.missed) missed").font(.system(size: 11)).foregroundStyle(Ink.muted)
+                Text("Last 7 days: \(week.taken) taken · \(week.missed) missed").font(.bt(size: 11)).foregroundStyle(week.missed > 0 ? Ink.watch : Ink.muted)
+                Text("This cycle: \(cycle.taken) taken · \(cycle.missed) missed").font(.bt(size: 11)).foregroundStyle(Ink.muted)
                 Spacer()
-                if let habit = store.document.medHabit { Text("Taking every dose ticks “\(habit.latest.title)”").font(.system(size: 11)).foregroundStyle(Ink.muted) }
+                if let habit = store.document.medHabit { Text("Taking every dose ticks “\(habit.latest.title)”").font(.bt(size: 11)).foregroundStyle(Ink.muted) }
             }
         }.panel(padding: 16)
             .onChange(of: store.today) { old, new in if day == old { day = new } }
@@ -106,10 +106,10 @@ struct MedsView: View {
                 let missed = d < store.today && taken < slots.count
                 Button { day = d } label: {
                     VStack(spacing: 3) {
-                        Text(dateText(d, engine: engine, pattern: "EEE")).font(.system(size: 10)).foregroundStyle(Ink.muted)
-                        Text(dateText(d, engine: engine, pattern: "d")).font(.system(size: 13, weight: .medium))
-                        Text(slots.isEmpty ? "–" : "\(taken)/\(slots.count)").font(.system(size: 10, design: .monospaced))
-                            .foregroundStyle(slots.isEmpty ? Ink.muted : missed ? Color.orange : taken == slots.count ? Ink.accent : Ink.muted)
+                        Text(dateText(d, engine: engine, pattern: "EEE")).font(.bt(size: 10)).foregroundStyle(Ink.muted)
+                        Text(dateText(d, engine: engine, pattern: "d")).font(.bt(size: 13, weight: .medium))
+                        Text(slots.isEmpty ? "–" : "\(taken)/\(slots.count)").font(.bt(size: 10, design: .monospaced))
+                            .foregroundStyle(slots.isEmpty ? Ink.muted : missed ? Ink.watch : taken == slots.count ? Ink.accent : Ink.muted)
                     }.frame(maxWidth: .infinity).padding(.vertical, 6)
                         .background(d == day ? Ink.accent.opacity(0.14) : Color.white.opacity(0.03), in: RoundedRectangle(cornerRadius: 8))
                         .overlay(RoundedRectangle(cornerRadius: 8).stroke(d == day ? Ink.accent.opacity(0.5) : .clear))
@@ -124,26 +124,26 @@ struct MedsView: View {
             HStack(spacing: 12) {
                 ForEach(photos.prefix(8)) { PhotoThumbnail(url: store.medPhotoURL($0.photo), size: 44) }
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(sorting ? "Sorting \(photos.count) photos with Claude…" : cabinet.ready(batch) ? "\(photos.count) photos waiting to sort" : "\(photos.count) of \(batch.expected) photos received from your \(batch.source == "phone" ? "phone" : "Mac")").font(.system(size: 12))
-                    if let error = batch.error { Text(error).font(.system(size: 11)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true) }
+                    Text(sorting ? "Sorting \(photos.count) photos with Claude…" : cabinet.ready(batch) ? "\(photos.count) photos waiting to sort" : "\(photos.count) of \(batch.expected) photos received from your \(batch.source == "phone" ? "phone" : "Mac")").font(.bt(size: 12))
+                    if let error = batch.error { Text(error).font(.bt(size: 11)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true) }
                 }
                 Spacer()
                 if sorting { ProgressView().controlSize(.small) }
-                else { Button(batch.error == nil ? "Sort now" : "Retry") { reader.sortNow(batch.id) }.font(.system(size: 12)) }
+                else { Button(batch.error == nil ? "Sort now" : "Retry") { reader.sortNow(batch.id) }.font(.bt(size: 12)) }
             }.panel(padding: 14)
         }
         if !cabinet.unsure.isEmpty {
             VStack(alignment: .leading, spacing: 10) {
-                Text("Not sure which medicine").font(.system(size: 13, weight: .medium))
-                Text("Drag a photo onto the right card, or make it a new medicine.").font(.system(size: 11)).foregroundStyle(Ink.muted)
+                Text("Not sure which medicine").font(.bt(size: 13, weight: .medium))
+                Text("Drag a photo onto the right card, or make it a new medicine.").font(.bt(size: 11)).foregroundStyle(Ink.muted)
                 ScrollView(.horizontal) {
                     HStack(spacing: 12) {
                         ForEach(cabinet.unsure) { photo in
                             VStack(spacing: 6) {
                                 PhotoThumbnail(url: store.medPhotoURL(photo.photo), size: 84).draggable(store.medPhotoURL(photo.photo))
                                 HStack(spacing: 8) {
-                                    Button("New") { if let id = store.newMedicine(photo: photo.photo) { reader.enqueue(.medicine(id)) } }.font(.system(size: 11))
-                                    Button { store.removeMedPhoto(photo.photo) } label: { Image(systemName: "trash") }.buttonStyle(.plain).font(.system(size: 11)).accessibilityLabel("Remove photo")
+                                    Button("New") { if let id = store.newMedicine(photo: photo.photo) { reader.enqueue(.medicine(id)) } }.font(.bt(size: 11))
+                                    Button { store.removeMedPhoto(photo.photo) } label: { Image(systemName: "trash") }.buttonStyle(.plain).font(.bt(size: 11)).accessibilityLabel("Remove photo")
                                 }
                             }
                         }
@@ -182,22 +182,22 @@ private struct MedCard: View {
                             Button("Remove photo", role: .destructive) { store.removeMedPhoto(photo) }
                         }
                 }
-                if medicine.photos.isEmpty { Image(systemName: "pills").font(.system(size: 28)).foregroundStyle(Ink.muted).frame(width: 96, height: 96).background(Ink.panel).clipShape(RoundedRectangle(cornerRadius: 7)) }
-                Text("Drop more sides here").font(.system(size: 9)).foregroundStyle(Ink.muted)
+                if medicine.photos.isEmpty { Image(systemName: "pills").font(.bt(size: 28)).foregroundStyle(Ink.muted).frame(width: 96, height: 96).background(Ink.panel).clipShape(RoundedRectangle(cornerRadius: 7)) }
+                Text("Drop more sides here").font(.bt(size: 9)).foregroundStyle(Ink.muted)
             }.frame(width: 96)
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Text(reading ? "Reading the label…" : medicine.title).font(.system(size: 15, weight: .semibold))
-                    if medicine.archived { Text("Stopped").font(.system(size: 11)).foregroundStyle(Ink.muted) }
-                    else if medicine.confirmed { Label("Active", systemImage: "checkmark.circle.fill").font(.system(size: 11)).foregroundStyle(Ink.accent) }
-                    else { Text("Needs review").font(.system(size: 11)).foregroundStyle(.orange) }
+                    Text(reading ? "Reading the label…" : medicine.title).font(.bt(size: 15, weight: .semibold))
+                    if medicine.archived { Text("Stopped").font(.bt(size: 11)).foregroundStyle(Ink.muted) }
+                    else if medicine.confirmed { Label("Active", systemImage: "checkmark.circle.fill").font(.bt(size: 11)).foregroundStyle(Ink.accent) }
+                    else { Text("Needs review").font(.bt(size: 11)).foregroundStyle(.orange) }
                     Spacer()
-                    if !medicine.confidence.isEmpty { Text("\(medicine.confidence) confidence").font(.system(size: 11)).foregroundStyle(Ink.muted) }
+                    if !medicine.confidence.isEmpty { Text("\(medicine.confidence) confidence").font(.bt(size: 11)).foregroundStyle(Ink.muted) }
                 }
                 if reading { ProgressView().controlSize(.small) }
-                if !medicine.reading.isEmpty { Text(medicine.reading).font(.system(size: 11)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true) }
+                if !medicine.reading.isEmpty { Text(medicine.reading).font(.bt(size: 11)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true) }
                 if let error = medicine.error {
-                    HStack { Text(error).font(.system(size: 11)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true); Button("Retry") { reader.reRead(medicine.id) }.font(.system(size: 11)) }
+                    HStack { Text(error).font(.bt(size: 11)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true); Button("Retry") { reader.reRead(medicine.id) }.font(.bt(size: 11)) }
                 }
                 Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 8) {
                     GridRow { field("Name", $draft.name); field("Strength", $draft.strength); field("Form", $draft.form) }
@@ -206,11 +206,11 @@ private struct MedCard: View {
                 }
                 MedScheduleEditor(engine: store.engine, today: store.today, schedule: $draft.schedule)
                 HStack {
-                    Button("Delete…") { confirmDelete = true }.font(.system(size: 11))
-                    if !medicine.photos.isEmpty { Button("Re-read label") { reader.reRead(medicine.id) }.font(.system(size: 11)).disabled(reading) }
-                    if medicine.confirmed { Button(medicine.archived ? "Restart" : "Stop taking") { var m = medicine; m.archived.toggle(); store.saveMedicine(m) }.font(.system(size: 11)) }
+                    Button("Delete…") { confirmDelete = true }.font(.bt(size: 11))
+                    if !medicine.photos.isEmpty { Button("Re-read label") { reader.reRead(medicine.id) }.font(.bt(size: 11)).disabled(reading) }
+                    if medicine.confirmed { Button(medicine.archived ? "Restart" : "Stop taking") { var m = medicine; m.archived.toggle(); store.saveMedicine(m) }.font(.bt(size: 11)) }
                     Spacer()
-                    if changed { Button("Revert") { load() }.font(.system(size: 12)) }
+                    if changed { Button("Revert") { load() }.font(.bt(size: 12)) }
                     PrimaryButton(label: medicine.confirmed ? "Save" : "Confirm medicine") { save() }.disabled((medicine.confirmed && !changed) || draft.name.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }
@@ -235,8 +235,8 @@ private struct MedCard: View {
     private var changed: Bool { edited != medicine }
     private func field(_ label: String, _ value: Binding<String>) -> some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text(label).font(.system(size: 10)).foregroundStyle(Ink.muted)
-            TextField(label, text: value).textFieldStyle(.roundedBorder).font(.system(size: 12))
+            Text(label).font(.bt(size: 10)).foregroundStyle(Ink.muted)
+            TextField(label, text: value).textFieldStyle(.roundedBorder).font(.bt(size: 12))
         }
     }
     private func load() { draft = medicine; ingredients = medicine.ingredients.joined(separator: ", ") }
@@ -253,10 +253,10 @@ private struct MedScheduleEditor: View {
         VStack(alignment: .leading, spacing: 8) {
             if let s = schedule {
                 HStack {
-                    Text("Schedule").font(.system(size: 12, weight: .medium))
-                    Text(s.summary).font(.system(size: 11)).foregroundStyle(Ink.muted)
+                    Text("Schedule").font(.bt(size: 12, weight: .medium))
+                    Text(s.summary).font(.bt(size: 11)).foregroundStyle(Ink.muted)
                     Spacer()
-                    Button("Remove schedule") { schedule = nil }.font(.system(size: 11))
+                    Button("Remove schedule") { schedule = nil }.font(.bt(size: 11))
                 }
                 Picker("How often", selection: bind(\.frequency)) { ForEach(MedFrequency.allCases, id: \.self) { Text($0.label).tag($0) } }.pickerStyle(.segmented).labelsHidden()
                 if s.frequency == .weekdays {
@@ -270,10 +270,10 @@ private struct MedScheduleEditor: View {
                         }
                     }
                 }
-                if s.frequency == .everyNDays { Stepper("Every \(s.interval) days, counting from the start date", value: bind(\.interval), in: 2...60).font(.system(size: 12)) }
+                if s.frequency == .everyNDays { Stepper("Every \(s.interval) days, counting from the start date", value: bind(\.interval), in: 2...60).font(.bt(size: 12)) }
                 if s.frequency != .asNeeded {
                     HStack(spacing: 10) {
-                        Text("Times").font(.system(size: 11)).foregroundStyle(Ink.muted)
+                        Text("Times").font(.bt(size: 11)).foregroundStyle(Ink.muted)
                         ForEach(s.times.indices, id: \.self) { i in
                             DatePicker("Dose \(i + 1)", selection: timeBinding(i), displayedComponents: .hourAndMinute).labelsHidden().fixedSize()
                         }
@@ -282,18 +282,18 @@ private struct MedScheduleEditor: View {
                     }
                 }
                 HStack(spacing: 12) {
-                    TextField("Amount, e.g. 1 tablet", text: bind(\.amount)).textFieldStyle(.roundedBorder).frame(width: 170).font(.system(size: 12))
+                    TextField("Amount, e.g. 1 tablet", text: bind(\.amount)).textFieldStyle(.roundedBorder).frame(width: 170).font(.bt(size: 12))
                     Picker("Food", selection: bind(\.food)) { ForEach(MedFood.allCases, id: \.self) { Text($0.label).tag($0) } }.labelsHidden().fixedSize()
-                    DatePicker("From", selection: dayBinding(\.start), displayedComponents: .date).font(.system(size: 11)).fixedSize()
-                    Toggle("Ends", isOn: Binding(get: { s.end != nil }, set: { schedule?.end = $0 ? engine.adding(29, to: s.start) : nil })).font(.system(size: 11))
+                    DatePicker("From", selection: dayBinding(\.start), displayedComponents: .date).font(.bt(size: 11)).fixedSize()
+                    Toggle("Ends", isOn: Binding(get: { s.end != nil }, set: { schedule?.end = $0 ? engine.adding(29, to: s.start) : nil })).font(.bt(size: 11))
                     if s.end != nil { DatePicker("Until", selection: Binding(get: { engine.date(s.end ?? s.start) ?? Date() }, set: { schedule?.end = engine.key($0) }), displayedComponents: .date).labelsHidden().fixedSize() }
                 }
-                if (try? s.validate(engine: engine)) == nil { Text("Pick at least one weekday, and an end date after the start.").font(.system(size: 11)).foregroundStyle(.orange) }
+                if (try? s.validate(engine: engine)) == nil { Text("Pick at least one weekday, and an end date after the start.").font(.bt(size: 11)).foregroundStyle(.orange) }
             } else {
                 HStack {
-                    Text("No schedule yet").font(.system(size: 12)).foregroundStyle(Ink.muted)
-                    Button("Add the doctor's schedule") { schedule = MedSchedule(start: today) }.font(.system(size: 12))
-                    Text("or tell Ask Ascend, e.g. “once daily after breakfast”").font(.system(size: 11)).foregroundStyle(Ink.muted)
+                    Text("No schedule yet").font(.bt(size: 12)).foregroundStyle(Ink.muted)
+                    Button("Add the doctor's schedule") { schedule = MedSchedule(start: today) }.font(.bt(size: 12))
+                    Text("or tell Ask Ascend, e.g. “once daily after breakfast”").font(.bt(size: 11)).foregroundStyle(Ink.muted)
                 }
             }
         }.padding(10).background(Ink.panel.opacity(0.6)).clipShape(RoundedRectangle(cornerRadius: 8))

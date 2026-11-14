@@ -20,9 +20,9 @@ struct ManualWeightEditor: View {
         Text("Time")
         DatePicker("Time", selection: $date, displayedComponents: .hourAndMinute).labelsHidden()
           .environment(\.locale, Locale(identifier: "en_US_POSIX"))
-        Text(bodyClock(date, calendar: calendar)).font(.caption).foregroundStyle(Ink.muted)
+        Text(bodyClock(date, calendar: calendar)).font(.bt(size: 11)).foregroundStyle(Ink.muted)
       }
-      Text("Manual weight only. Scale body-fat estimates remain unchanged.").font(.caption)
+      Text("Manual weight only. Scale body-fat estimates remain unchanged.").font(.bt(size: 11))
         .foregroundStyle(Ink.muted)
       if let error { Text(error).foregroundStyle(.orange) }
       HStack {
@@ -121,7 +121,7 @@ struct BodySettingsEditor: View {
             minutePicker("Nudge after", value: $draft.rules.nudgeMinute)
             Text(
               "10–20 min walk after your next meal. Recent meal entries let the nudge prefer within 30 min after a meal. Missing steps do not trigger a false low-step warning."
-            ).font(.caption).foregroundStyle(Ink.muted)
+            ).font(.bt(size: 11)).foregroundStyle(Ink.muted)
           }
           Section("Strength") {
             Toggle("Priority-muscle volume warnings", isOn: $draft.rules.volumeWarnings)
@@ -144,7 +144,7 @@ struct BodySettingsEditor: View {
               in: 2...26)
             Text(
               "Suggestions never modify the plan automatically. Use the plan editor to accept a change."
-            ).font(.caption).foregroundStyle(Ink.muted)
+            ).font(.bt(size: 11)).foregroundStyle(Ink.muted)
           }
           Section("Timing & cardio") {
             Toggle("Flag late hard sessions", isOn: $draft.rules.lateEnabled)
@@ -154,7 +154,7 @@ struct BodySettingsEditor: View {
             TextField("Walking-only HR cutoff", value: $draft.rules.walkingHR, format: .number)
             Text(
               "Watch type codes do not include incline. A walking-pad plan with zero incline and low/unknown HR earns walking only; incline treadmill plans count as cardio. HR intensity is an age-based estimate."
-            ).font(.caption).foregroundStyle(Ink.muted)
+            ).font(.bt(size: 11)).foregroundStyle(Ink.muted)
           }
           Section("Daily step blocks") {
             ForEach($draft.stepBlocks) { $block in
@@ -192,7 +192,7 @@ struct BodySettingsEditor: View {
             Toggle("Show watch-calorie caution", isOn: $draft.rules.calorieCaution)
             Text(
               "Calories are informational. Turning off this note never enables eat-back recommendations."
-            ).font(.caption).foregroundStyle(Ink.muted)
+            ).font(.bt(size: 11)).foregroundStyle(Ink.muted)
           }
         }.formStyle(.grouped)
       }
@@ -274,7 +274,7 @@ struct TrainingPlanEditor: View {
         }
         Divider()
         HStack {
-          Text("Exercise library").font(.headline)
+          Text("Exercise library").font(.bt(size: 13, weight: .semibold))
           Spacer()
           Button("New exercise") { exercise = TrainingExercise() }
         }
@@ -282,7 +282,7 @@ struct TrainingPlanEditor: View {
           HStack {
             VStack(alignment: .leading) {
               Text(e.name)
-              Text(e.muscles.map(\.title).joined(separator: ", ")).font(.caption).foregroundStyle(
+              Text(e.muscles.map(\.title).joined(separator: ", ")).font(.bt(size: 11)).foregroundStyle(
                 Ink.muted)
             }
             Spacer()
@@ -349,7 +349,7 @@ struct TrainingPlanEditor: View {
                   draft.plan[i].supersets.removeAll { $0.contains(id) || $0.contains(next) }
                   if on { draft.plan[i].supersets.append([id, next]) }
                 })
-            ).font(.caption)
+            ).font(.bt(size: 11))
           }
           Button("Remove") {
             draft.plan[i].supersets.removeAll { $0.contains(id) }
@@ -394,7 +394,7 @@ struct TrainingExerciseEditor: View {
                 draft.priorityTags.removeAll { $0 == m }
                 if on { draft.priorityTags.append(m) }
               })
-          ).font(.system(size: 11))
+          ).font(.bt(size: 11))
         }
       }
       HStack {
@@ -403,7 +403,7 @@ struct TrainingExerciseEditor: View {
         }
         if draft.animationID != nil { Button("Remove artwork") { draft.animationID = nil } }
       }
-      Text("Muscle tags").font(.headline)
+      Text("Muscle tags").font(.bt(size: 13, weight: .semibold))
       LazyVGrid(columns: [GridItem(.adaptive(minimum: 150))], alignment: .leading) {
         ForEach(MuscleRegion.allCases, id: \.self) { m in
           Toggle(
@@ -414,7 +414,7 @@ struct TrainingExerciseEditor: View {
                 draft.muscles.removeAll { $0 == m }
                 if on { draft.muscles.append(m) }
               })
-          ).toggleStyle(.checkbox).font(.system(size: 11))
+          ).toggleStyle(.checkbox).font(.bt(size: 11))
         }
       }
       if let error { Text(error).foregroundStyle(.orange) }
@@ -456,7 +456,7 @@ struct SetLogEditor: View {
         Text(exercise.timed ? "Seconds" : "Reps").frame(width: 70)
         Text("RPE (optional)").frame(width: 105)
         Text("Hard set")
-      }.font(.caption).foregroundStyle(Ink.muted)
+      }.font(.bt(size: 11)).foregroundStyle(Ink.muted)
       ScrollView {
         ForEach(sets.indices, id: \.self) { i in
           HStack {
@@ -522,15 +522,15 @@ struct ExerciseHistoryView: View {
       }
       if exercise.timed {
         Text("Best hold: \(all.map(\.reps).max() ?? 0) s · no estimated 1RM for timed holds").font(
-          .system(size: 12))
+          .bt(size: 12))
       } else if exercise.assisted {
         Text(
           "Best assistance: \(bodyNumber(all.map(\.weight).min(),unit:" kg")) · lower is progress. External-load volume shown below; e1RM is not valid for assisted moves."
-        ).font(.system(size: 12))
+        ).font(.bt(size: 12))
       } else {
         Text(
           "Best set: \(all.max{$0.epley<$1.epley}.map{"\(bodyNumber($0.weight)) kg × \($0.reps)"} ?? "—") · Epley estimated 1RM: \(bodyNumber(all.map(\.epley).max(),unit:" kg"))"
-        ).font(.system(size: 12))
+        ).font(.bt(size: 12))
       }
       Chart(logs) { l in
         BarMark(
@@ -553,11 +553,11 @@ struct ExerciseHistoryView: View {
             Button("Delete log", role: .destructive) {
               store.change { $0.logs.removeAll { $0.id == l.id } }
             }
-          }.font(.system(size: 11)).padding(.vertical, 6)
+          }.font(.bt(size: 11)).padding(.vertical, 6)
         }
       }
       Text("Estimated 1RM is a trend aid, not a tested maximum. PRs compare with earlier sessions.")
-        .font(.caption).foregroundStyle(Ink.muted)
+        .font(.bt(size: 11)).foregroundStyle(Ink.muted)
     }.padding(24).frame(width: 720, height: 560)
   }
   private func isPR(_ l: LiftLog) -> Bool {

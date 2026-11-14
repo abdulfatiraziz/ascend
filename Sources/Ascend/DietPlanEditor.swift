@@ -17,8 +17,8 @@ struct DietPlanEditor: View {
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack { Text("Your diet plan").font(.system(size: 24, weight: .semibold)); Spacer(); Button("Cancel") { dismiss() } }
-            Text("Meal windows, food references and checkpoints are your editable plan. Calorie changes start today; earlier habit revisions are preserved.").font(.system(size: 12)).foregroundStyle(Ink.muted)
+            HStack { Text("Your diet plan").font(.bt(size: 24, weight: .semibold)); Spacer(); Button("Cancel") { dismiss() } }
+            Text("Meal windows, food references and checkpoints are your editable plan. Calorie changes start today; earlier habit revisions are preserved.").font(.bt(size: 12)).foregroundStyle(Ink.muted)
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     budgetEditor
@@ -28,7 +28,7 @@ struct DietPlanEditor: View {
                     checkpointsEditor
                 }.padding(.trailing, 6)
             }
-            if let error { Text(error).font(.system(size: 12)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true) }
+            if let error { Text(error).font(.bt(size: 12)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true) }
             if let e=store.saveError { Text(e).foregroundStyle(.orange) }
             HStack { Spacer(); PrimaryButton(label:"Save plan") { save() } }
         }.padding(24).frame(width:820,height:740).background(Ink.background).foregroundStyle(.white).tint(Ink.accent)
@@ -37,17 +37,17 @@ struct DietPlanEditor: View {
     private var budgetEditor: some View {
         VStack(alignment: .leading, spacing: 12) {
             Kicker("WEEKDAY CALORIE TARGETS")
-            if store.document.mealHabits.calories == nil { Text("Add a calorie habit measured in kcal first. Meal planning can still be saved.").font(.caption).foregroundStyle(Ink.muted) }
+            if store.document.mealHabits.calories == nil { Text("Add a calorie habit measured in kcal first. Meal planning can still be saved.").font(.bt(size: 11)).foregroundStyle(Ink.muted) }
             else {
                 HStack {
                     ForEach(1...7,id:\.self) { weekday in
                         VStack(alignment:.leading,spacing:5) {
-                            Text(["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][weekday-1]).font(.caption)
+                            Text(["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][weekday-1]).font(.bt(size: 11))
                             TextField("kcal",text:$limits[weekday-1]).textFieldStyle(.roundedBorder).frame(width:82)
                         }
                     }
                 }
-                Text("Weekly total: \(limits.compactMap { Double($0.replacingOccurrences(of:",",with:"")) }.reduce(0,+).pretty) kcal · applies to the existing calorie habit on all seven days.").font(.caption).foregroundStyle(Ink.muted)
+                Text("Weekly total: \(limits.compactMap { Double($0.replacingOccurrences(of:",",with:"")) }.reduce(0,+).pretty) kcal · applies to the existing calorie habit on all seven days.").font(.bt(size: 11)).foregroundStyle(Ink.muted)
             }
         }
     }
@@ -66,16 +66,16 @@ struct DietPlanEditor: View {
                 Text("No linked habit").tag(nil as UUID?)
                 ForEach(store.document.habits.filter{$0.kind == .check && $0.archivedDay == nil}) { h in Text(h.latest.title).tag(Optional(h.id)) }
             }
-            Text("Sweet choices, one per line").font(.caption).foregroundStyle(Ink.muted)
-            TextEditor(text:$sweets).font(.system(size:12)).frame(height:90).padding(6).background(Ink.panel,in:RoundedRectangle(cornerRadius:8))
-            Text("Only meals explicitly tagged Sweet are checked. A confirmed sweet outside every sweet window makes the linked habit incomplete; it never marks a day successful automatically.").font(.caption).foregroundStyle(Ink.muted)
+            Text("Sweet choices, one per line").font(.bt(size: 11)).foregroundStyle(Ink.muted)
+            TextEditor(text:$sweets).font(.bt(size:12)).frame(height:90).padding(6).background(Ink.panel,in:RoundedRectangle(cornerRadius:8))
+            Text("Only meals explicitly tagged Sweet are checked. A confirmed sweet outside every sweet window makes the linked habit incomplete; it never marks a day successful automatically.").font(.bt(size: 11)).foregroundStyle(Ink.muted)
         }
     }
     private var referencesEditor: some View {
         VStack(alignment:.leading,spacing:12) {
             HStack { Kicker("FOOD REFERENCES · PER 100 G");Spacer();Button("Add food") { plan.references.append(FoodReference(name:"",kcal:0)) } }
             ForEach($plan.references) { $food in DietFoodEditorRow(food:$food) { plan.references.removeAll{$0.id==food.id} } }
-            Text("Leave tablespoon/spray grams blank until calibrated. All nutrition is editable; these are planning references, not photo estimates.").font(.caption).foregroundStyle(Ink.muted)
+            Text("Leave tablespoon/spray grams blank until calibrated. All nutrition is editable; these are planning references, not photo estimates.").font(.bt(size: 11)).foregroundStyle(Ink.muted)
         }
     }
     private var checkpointsEditor: some View {
@@ -88,7 +88,7 @@ struct DietPlanEditor: View {
                     Text("kg").foregroundStyle(Ink.muted);Spacer();Button("Remove") { plan.checkpoints.remove(at:index) }
                 }
             }
-            HStack { Text("On-pace tolerance ± kg");TextField("kg",value:$plan.checkpointTolerance,format:.number).textFieldStyle(.roundedBorder).frame(width:75) }.font(.caption)
+            HStack { Text("On-pace tolerance ± kg");TextField("kg",value:$plan.checkpointTolerance,format:.number).textFieldStyle(.roundedBorder).frame(width:75) }.font(.bt(size: 11))
         }
     }
     private func addSlot() {
@@ -128,8 +128,8 @@ private struct DietSlotEditorRow: View {
                 DatePicker("Until",selection:timeBinding(end:true),displayedComponents:.hourAndMinute)
                 TextField("Planned kcal",text:optionalNumber($slot.kcal)).textFieldStyle(.roundedBorder).frame(width:100)
                 TextField("Protein g",text:optionalNumber($slot.protein)).textFieldStyle(.roundedBorder).frame(width:90)
-            }.font(.system(size:12))
-            HStack { Toggle("Sweet window",isOn:$slot.sweet);Toggle("Café can replace this slot",isOn:$slot.cafeReplacement) }.font(.caption)
+            }.font(.bt(size:12))
+            HStack { Toggle("Sweet window",isOn:$slot.sweet);Toggle("Café can replace this slot",isOn:$slot.cafeReplacement) }.font(.bt(size: 11))
         }.padding(12).background(Ink.panel,in:RoundedRectangle(cornerRadius:10))
     }
     private func timeBinding(end:Bool) -> Binding<Date> {

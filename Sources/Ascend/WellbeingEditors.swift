@@ -48,30 +48,30 @@ struct DailyObservationEditor: View {
     }
     var body: some View {
         EditorShell(title: "Your day · \(dateText(day, engine: store.engine, pattern: "d MMM"))", dirty: dirty) {
-            Text("An overall reflection for this date. Everything is optional and stays separate from your habit score.").font(.system(size: 12)).foregroundStyle(Ink.muted)
+            Text("An overall reflection for this date. Everything is optional and stays separate from your habit score.").font(.bt(size: 12)).foregroundStyle(Ink.muted)
             rating("Overall energy", selection: $energy, legend: "1 · drained                 5 · energetic")
             DisclosureGroup("Mood & stress (optional)") {
                 VStack(alignment: .leading, spacing: 18) {
                     rating("Mood", selection: $mood, legend: "1 · low                         5 · good")
                     rating("Stress", selection: $stress, legend: "1 · low                         5 · high")
                 }.padding(.top, 12)
-            }.font(.system(size: 12))
+            }.font(.bt(size: 12))
             VStack(alignment: .leading, spacing: 12) {
-                Toggle("Use a manual sleep window", isOn: $manualSleep).toggleStyle(.switch).font(.system(size: 12))
+                Toggle("Use a manual sleep window", isOn: $manualSleep).toggleStyle(.switch).font(.bt(size: 12))
                 if manualSleep {
                     FieldGroup(label: "Bedtime") { DatePicker("Bedtime", selection: $bedtime, in: ...Date(), displayedComponents: [.date, .hourAndMinute]).labelsHidden() }
                     FieldGroup(label: "Wake time") { DatePicker("Wake time", selection: $wakeTime, in: ...Date(), displayedComponents: [.date, .hourAndMinute]).labelsHidden() }
                     FieldGroup(label: "Asleep hours (optional)") { TextField("Leave empty if unknown", text: $asleep).labelsHidden() }
-                    Text("Sleep belongs to its wake date. The window includes time awake. Your correction takes priority over the main watch session until you turn it off.").font(.system(size: 11)).foregroundStyle(Ink.muted)
-                } else { Text("Uses the main Mi Fitness sleep session when available. Add a manual window to fill a gap or correct it.").font(.system(size: 11)).foregroundStyle(Ink.muted) }
+                    Text("Sleep belongs to its wake date. The window includes time awake. Your correction takes priority over the main watch session until you turn it off.").font(.bt(size: 11)).foregroundStyle(Ink.muted)
+                } else { Text("Uses the main Mi Fitness sleep session when available. Add a manual window to fill a gap or correct it.").font(.bt(size: 11)).foregroundStyle(Ink.muted) }
             }
             FieldGroup(label: "Finished logging for this date?") {
-                Toggle("Caffeine log complete", isOn: $caffeineComplete).font(.system(size: 12))
-                Toggle("Urge log complete", isOn: $urgesComplete).font(.system(size: 12))
-                Text("Mark complete when the day's record is finished, including a day with none. Incomplete logs stay unknown in comparisons.").font(.system(size: 11)).foregroundStyle(Ink.muted)
+                Toggle("Caffeine log complete", isOn: $caffeineComplete).font(.bt(size: 12))
+                Toggle("Urge log complete", isOn: $urgesComplete).font(.bt(size: 12))
+                Text("Mark complete when the day's record is finished, including a day with none. Incomplete logs stay unknown in comparisons.").font(.bt(size: 11)).foregroundStyle(Ink.muted)
             }
             FieldGroup(label: "Note (optional)") { TextField("What shaped your day?", text: $note, axis: .vertical).lineLimit(2...4).labelsHidden() }
-            if let error { Text(error).font(.system(size: 11)).foregroundStyle(.orange) }
+            if let error { Text(error).font(.bt(size: 11)).foregroundStyle(.orange) }
             SaveError(store: store)
         } actions: {
             HStack {
@@ -86,7 +86,7 @@ struct DailyObservationEditor: View {
     private func rating(_ label: String, selection: Binding<Int>, legend: String) -> some View {
         FieldGroup(label: label) {
             Picker(label, selection: selection) { Text("Skip").tag(0); ForEach(1...5, id: \.self) { Text("\($0)").tag($0) } }.pickerStyle(.segmented).labelsHidden()
-            Text(legend).font(.system(size: 10)).foregroundStyle(Ink.muted)
+            Text(legend).font(.bt(size: 10)).foregroundStyle(Ink.muted)
         }
     }
 }
@@ -114,9 +114,9 @@ struct CaffeineEditor: View {
             FieldGroup(label: "What did you have?") { TextField("Give this a name", text: $name).labelsHidden() }
             FieldGroup(label: "Date & time") { DatePicker("Caffeine time", selection: $timestamp, in: ...Date(), displayedComponents: [.date, .hourAndMinute]).labelsHidden() }
             FieldGroup(label: "Caffeine amount (mg, optional)") { TextField("Leave empty if unknown", text: $amount).labelsHidden() }
-            Text("Use an amount from the label or your own estimate. Leaving it blank keeps the amount unknown; the time still appears in your timeline.").font(.system(size: 12)).foregroundStyle(Ink.muted)
-            if invalidAmount { Text("Use a finite amount from 0–2,000 mg, or leave it empty.").font(.system(size: 11)).foregroundStyle(.orange) }
-            if name.count > 60 { Text("Use a name with 60 characters or fewer.").font(.system(size: 11)).foregroundStyle(.orange) }
+            Text("Use an amount from the label or your own estimate. Leaving it blank keeps the amount unknown; the time still appears in your timeline.").font(.bt(size: 12)).foregroundStyle(Ink.muted)
+            if invalidAmount { Text("Use a finite amount from 0–2,000 mg, or leave it empty.").font(.bt(size: 11)).foregroundStyle(.orange) }
+            if name.count > 60 { Text("Use a name with 60 characters or fewer.").font(.bt(size: 11)).foregroundStyle(.orange) }
             SaveError(store: store)
         } actions: {
             HStack {

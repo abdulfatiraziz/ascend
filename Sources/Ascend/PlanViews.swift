@@ -7,25 +7,25 @@ struct GoalsView: View {
     @Binding var editor: Editor?
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            HStack { Kicker("Goals / recurring habits / milestones"); Spacer(); Button("+ Goal") { editor = .goal(nil) }; Button("+ Habit or task") { editor = .habit(nil, nil) } }.font(.system(size: 12))
+            HStack { Kicker("Goals / recurring habits / milestones"); Spacer(); Button("+ Goal") { editor = .goal(nil) }; Button("+ Habit or task") { editor = .habit(nil, nil) } }.font(.bt(size: 12))
             ScrollView {
                 LazyVGrid(columns: [GridItem(.flexible(), alignment: .top), GridItem(.flexible(), alignment: .top)], alignment: .leading, spacing: 16) {
                     ForEach(store.document.goals) { goal in
                         VStack(alignment: .leading, spacing: 14) {
                             HStack { Image(systemName: goal.symbol).foregroundStyle(Ink.accent); Spacer(); Button { editor = .goal(goal) } label: { Image(systemName: "square.and.pencil") }.buttonStyle(.plain).foregroundStyle(Ink.muted).help("Edit \(goal.title)") }
-                            Text(goal.title).font(.system(size: 18, weight: .medium)).tracking(-0.4).lineLimit(1).help(goal.title)
+                            Text(goal.title).font(.bt(size: 18, weight: .medium)).tracking(-0.4).lineLimit(1).help(goal.title)
                             HStack { Kicker(dateText(goal.latest.start, engine: store.engine)); Text("→").foregroundStyle(Ink.muted); Kicker(dateText(goal.latest.end, engine: store.engine)) }
                             Line()
                             ForEach(store.document.habits.filter { $0.goalID == goal.id && $0.archivedDay == nil }) { habit in
                                 Button { editor = .habit(habit, nil) } label: {
                                     HStack(alignment: .top) {
                                         Image(systemName: habit.kind == .milestone ? "calendar" : habit.kind == .metric ? "number" : "circle").frame(width: 16).foregroundStyle(Ink.accent)
-                                        VStack(alignment: .leading, spacing: 3) { Text(habit.latest.title).font(.system(size: 12)); Text(habit.latest.schedule.label).font(.system(size: 10)).foregroundStyle(Ink.muted) }
-                                        Spacer(); Image(systemName: "chevron.right").font(.system(size: 9)).foregroundStyle(Ink.muted)
+                                        VStack(alignment: .leading, spacing: 3) { Text(habit.latest.title).font(.bt(size: 12)); Text(habit.latest.schedule.label).font(.bt(size: 10)).foregroundStyle(Ink.muted) }
+                                        Spacer(); Image(systemName: "chevron.right").font(.bt(size: 9)).foregroundStyle(Ink.muted)
                                     }
                                 }.buttonStyle(.plain)
                             }
-                            Button("+ Add to this goal") { editor = .habit(nil, goal.id) }.buttonStyle(.borderless).font(.system(size: 11))
+                            Button("+ Add to this goal") { editor = .habit(nil, goal.id) }.buttonStyle(.borderless).font(.bt(size: 11))
                         }.frame(maxWidth: .infinity, alignment: .topLeading).panel()
                     }
                 }
@@ -39,8 +39,8 @@ struct GoalsView: View {
             ForEach(store.document.habits.filter { $0.kind == .milestone && $0.archivedDay == nil }.sorted { ($0.latest.schedule.once ?? "") < ($1.latest.schedule.once ?? "") }) { habit in
                 HStack {
                     Button { store.completeMilestone(habit) } label: { Image(systemName: store.engine.milestoneCompleted(habit) ? "checkmark.circle.fill" : "circle").foregroundStyle(store.engine.milestoneCompleted(habit) ? Ink.accent : Ink.muted) }.buttonStyle(.plain).accessibilityLabel("Complete \(habit.latest.title)")
-                    Text(habit.latest.title).font(.system(size: 12)); Spacer()
-                    Text(habit.latest.schedule.once.map { dateText($0, engine: store.engine) } ?? "").font(.system(size: 11, design: .monospaced)).foregroundStyle(Ink.muted)
+                    Text(habit.latest.title).font(.bt(size: 12)); Spacer()
+                    Text(habit.latest.schedule.once.map { dateText($0, engine: store.engine) } ?? "").font(.bt(size: 11, design: .monospaced)).foregroundStyle(Ink.muted)
                     Button { editor = .habit(habit, nil) } label: { Image(systemName: "ellipsis") }.buttonStyle(.plain)
                 }.padding(.vertical, 7)
                 Line()
@@ -62,18 +62,18 @@ struct CycleView: View {
                 HStack(alignment: .center) {
                     VStack(alignment: .leading, spacing: 10) {
                         Kicker("Consistency / closed days")
-                        Text(closed.percentLabel).font(.system(size: 70, weight: .regular)).tracking(-4)
-                        Text(closed.scheduled == 0 ? "No closed days yet. Your first review starts tomorrow." : "\(closed.completed) of \(closed.scheduled) scheduled check-ins completed.").font(.system(size: 12)).foregroundStyle(Ink.muted)
+                        Text(closed.percentLabel).font(.bt(size: 70, weight: .regular)).tracking(-4)
+                        Text(closed.scheduled == 0 ? "No closed days yet. Your first review starts tomorrow." : "\(closed.completed) of \(closed.scheduled) scheduled check-ins completed.").font(.bt(size: 12)).foregroundStyle(Ink.muted)
                     }
                     Spacer()
-                    VStack(alignment: .trailing, spacing: 9) { Text("Consistency, over perfection.").font(.system(size: 17, weight: .medium)); Text("Aim for \(Int(store.document.cycle.target * 100))%. No streak resets.").font(.system(size: 12)).foregroundStyle(Ink.muted) }
+                    VStack(alignment: .trailing, spacing: 9) { Text("Consistency, over perfection.").font(.bt(size: 17, weight: .medium)); Text("Aim for \(Int(store.document.cycle.target * 100))%. No streak resets.").font(.bt(size: 12)).foregroundStyle(Ink.muted) }
                 }.panel(padding: 26)
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 6), spacing: 12) {
                     ForEach(weeks.indices, id: \.self) { index in
                         let range = weeks[index]
                         let score = store.engine.score(from: range.first!, through: min(range.last!, store.engine.adding(-1, to: store.today)))
                         Button { selectedWeek = index } label: {
-                            VStack(spacing: 12) { Kicker("W\(String(format: "%02d", index + 1))"); Text(range.first! > store.today ? "—" : score.percentLabel).font(.system(size: 16, weight: .medium)) }
+                            VStack(spacing: 12) { Kicker("W\(String(format: "%02d", index + 1))"); Text(range.first! > store.today ? "—" : score.percentLabel).font(.bt(size: 16, weight: .medium)) }
                                 .frame(maxWidth: .infinity).padding(.vertical, 18).background(selectedWeek == index ? Ink.accent.opacity(0.12) : Ink.panel, in: RoundedRectangle(cornerRadius: 8))
                                 .overlay(RoundedRectangle(cornerRadius: 8).stroke(selectedWeek == index ? Ink.accent : Ink.line))
                         }.buttonStyle(.plain).disabled(range.first! > store.today)
@@ -83,9 +83,9 @@ struct CycleView: View {
                     let range = weeks[selectedWeek]
                     let score = store.engine.score(from: range.first!, through: min(range.last!, store.engine.adding(-1, to: store.today)))
                     VStack(alignment: .leading, spacing: 10) {
-                        Text("Week \(selectedWeek + 1) · \(dateText(range.first!, engine: store.engine, pattern: "d MMM")) – \(dateText(range.last!, engine: store.engine, pattern: "d MMM"))").font(.system(size: 16, weight: .medium))
+                        Text("Week \(selectedWeek + 1) · \(dateText(range.first!, engine: store.engine, pattern: "d MMM")) – \(dateText(range.last!, engine: store.engine, pattern: "d MMM"))").font(.bt(size: 16, weight: .medium))
                         ProgressTrack(ratio: score.ratio ?? 0, target: store.document.cycle.target)
-                        Text(score.scheduled == 0 ? "No closed-day check-ins in this week yet." : "\(score.completed) of \(score.scheduled) check-ins · \(score.percentLabel)").font(.system(size: 12)).foregroundStyle(Ink.muted)
+                        Text(score.scheduled == 0 ? "No closed-day check-ins in this week yet." : "\(score.completed) of \(score.scheduled) check-ins · \(score.percentLabel)").font(.bt(size: 12)).foregroundStyle(Ink.muted)
                     }
                 }
                 HStack(alignment: .top, spacing: 30) {
@@ -93,12 +93,12 @@ struct CycleView: View {
                     rule("02", "Gym & rest days", "Only your selected training days count. Rest days stay out of the denominator.")
                     rule("03", "Milestones", "One-off tasks use due dates and stay separate from consistency.")
                 }.padding(.top, 10)
-                Text("Today’s open check-ins are shown in Today. Schedule edits apply from the edit date; earlier days keep their original rules.").font(.system(size: 11)).foregroundStyle(Ink.muted)
+                Text("Today’s open check-ins are shown in Today. Schedule edits apply from the edit date; earlier days keep their original rules.").font(.bt(size: 11)).foregroundStyle(Ink.muted)
             }
         }.onAppear { selectedWeek = max(0, min(weeks.count - 1, (max(1, store.engine.dayNumber(store.today)) - 1) / 7)) }
     }
     private func rule(_ number: String, _ title: String, _ text: String) -> some View {
-        VStack(alignment: .leading, spacing: 10) { Kicker(number); Text(title).font(.system(size: 13, weight: .medium)); Text(text).font(.system(size: 12)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true) }.frame(maxWidth: .infinity, alignment: .leading)
+        VStack(alignment: .leading, spacing: 10) { Kicker(number); Text(title).font(.bt(size: 13, weight: .medium)); Text(text).font(.bt(size: 12)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true) }.frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 struct MenuBarPanel: View {
@@ -116,7 +116,7 @@ struct MenuBarPanel: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("ASCEND ↗").font(.system(size: 13, weight: .semibold)).tracking(3)
+                Text("ASCEND ↗").font(.bt(size: 13, weight: .semibold)).tracking(3)
                 Spacer()
                 Menu {
                     Button("Daily check-in") { open("DailyCheckIn") }
@@ -138,8 +138,8 @@ struct MenuBarPanel: View {
             HStack(spacing: 8) {
                 VStack(alignment: .leading, spacing: 8) {
                     Kicker(dateText(store.today, engine: store.engine, pattern: "EEEE, d MMM"))
-                    Text(rest ? "Rest day." : score.percentLabel).font(.system(size: 34, weight: .medium)).tracking(-1.3)
-                    Text(rest ? "Recovery counts, too." : "\(score.completed) of \(score.scheduled) check-ins").font(.system(size: 12)).foregroundStyle(Ink.muted)
+                    Text(rest ? "Rest day." : score.percentLabel).font(.bt(size: 34, weight: .medium)).tracking(-1.3)
+                    Text(rest ? "Recovery counts, too." : "\(score.completed) of \(score.scheduled) check-ins").font(.bt(size: 12)).foregroundStyle(Ink.muted)
                 }.frame(maxWidth: .infinity, alignment: .leading)
                 if showClock {
                     TimelineView(.periodic(from: .now, by: 30)) { timeline in RoutineDial(store: store, now: timeline.date, compact: true) }.frame(width: 94, height: 100)
@@ -154,22 +154,22 @@ struct MenuBarPanel: View {
                     HStack {
                         if let next = store.engine.nextRoutineEvent(after: timeline.date) { Text("Next · \(next.title)").lineLimit(1); Spacer(); Text("\(timeText(next.date, engine: store.engine))\(store.engine.key(next.date) == store.today ? "" : " tomorrow")").monospacedDigit() }
                         else { Text("Set your routine clock"); Spacer(); Text("Example windows  ↗") }
-                    }.font(.system(size: 11)).foregroundStyle(Ink.muted)
+                    }.font(.bt(size: 11)).foregroundStyle(Ink.muted)
                 }.buttonStyle(.plain)
             }
-            Button { loggedUrgeID = store.recordUrge() } label: { Label("Log an urge", systemImage: "circle.dotted").font(.system(size: 12)).foregroundStyle(.white.opacity(0.9)).frame(maxWidth: .infinity).padding(.vertical, 9).background(Ink.panel, in: RoundedRectangle(cornerRadius: 7)) }.buttonStyle(.plain).accessibilityLabel("Log an urge")
+            Button { loggedUrgeID = store.recordUrge() } label: { Label("Log an urge", systemImage: "circle.dotted").font(.bt(size: 12)).foregroundStyle(.white.opacity(0.9)).frame(maxWidth: .infinity).padding(.vertical, 9).background(Ink.panel, in: RoundedRectangle(cornerRadius: 7)) }.buttonStyle(.plain).accessibilityLabel("Log an urge")
             if let id = loggedUrgeID, store.document.urgeLogs.contains(where: { $0.id == id }) {
                 HStack {
                     Text("Time saved").foregroundStyle(Ink.muted)
                     Button("Details") { store.pendingUrge = id; open(nil) }
                     Spacer(); Button("Undo") { store.undoProgressAction(); loggedUrgeID = nil }.disabled(store.undoLabel != "urge log" || store.lastUrgeID != id)
-                }.font(.system(size: 11)).buttonStyle(.borderless)
+                }.font(.bt(size: 11)).buttonStyle(.borderless)
             }
             HStack {
                 Picker("Task view", selection: $showAll) { Text("Remaining").tag(false); Text("All").tag(true) }.pickerStyle(.segmented).labelsHidden().frame(width: 180, height: 26)
                 Spacer(); DayActions(store: store, day: store.today).labelStyle(.iconOnly)
             }.frame(height: 26)
-            if rest { Text("Resume the day from Day options to check in.").font(.system(size: 12)).foregroundStyle(Ink.muted) }
+            if rest { Text("Resume the day from Day options to check in.").font(.bt(size: 12)).foregroundStyle(Ink.muted) }
             ScrollView {
                 LazyVStack(spacing: 0) {
                     ForEach(tasks) { habit in
@@ -177,16 +177,16 @@ struct MenuBarPanel: View {
                             store.pendingLog = habit.id; open(nil)
                         })
                     }
-                    if tasks.isEmpty { Text(score.scheduled > 0 ? "All done. You showed up." : "No check-ins scheduled.").font(.system(size: 12)).foregroundStyle(Ink.muted).padding(.vertical, 24) }
+                    if tasks.isEmpty { Text(score.scheduled > 0 ? "All done. You showed up." : "No check-ins scheduled.").font(.bt(size: 12)).foregroundStyle(Ink.muted).padding(.vertical, 24) }
                 }
             }.frame(height: min(250, max(65, CGFloat(tasks.count) * 61)))
-            if let error = store.saveError { Text(error).font(.system(size: 11)).foregroundStyle(.orange).lineLimit(3) }
+            if let error = store.saveError { Text(error).font(.bt(size: 11)).foregroundStyle(.orange).lineLimit(3) }
             PrimaryButton(label: "Open your space  ↗", fullWidth: true) { open("Today") }
             HStack {
                 Button { open("Calendar") } label: { Label("History", systemImage: "calendar") }
                 Spacer()
                 Button { open("Settings") } label: { Label("Reminders", systemImage: "bell") }
-            }.buttonStyle(.plain).font(.system(size: 11)).foregroundStyle(Ink.muted)
+            }.buttonStyle(.plain).font(.bt(size: 11)).foregroundStyle(Ink.muted)
         }.padding(18).frame(width: 370).background(Ink.background).tint(Ink.accent).onAppear { store.refreshDay() }.onDisappear { loggedUrgeID = nil }
     }
     private func open(_ destination:String?){

@@ -18,11 +18,11 @@ public final class ExerciseDemoActivity extends Activity {
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         playing=false;
-        LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(24,24,24,24);root.setBackgroundColor(0xff0d0c12);
-        title=new TextView(this);title.setText("Workout artwork");title.setTextSize(24);title.setTextColor(0xffeeeeef);root.addView(title);
+        LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(24,24,24,24);root.setBackgroundColor(0xFF0B2A21);
+        title=new TextView(this);title.setText("Workout artwork");title.setTextSize(24);title.setTextColor(Ui.TEXT);root.addView(title);
         TextView note=new TextView(this);note.setText("Generated illustrations · transparent backgrounds");note.setTextColor(0xffaaa5b5);root.addView(note);
         Spinner picker=new Spinner(this);root.addView(picker);
-        player=new WebView(this);player.setBackgroundColor(0xff0d0c12);
+        player=new WebView(this);player.setBackgroundColor(0xFF0B2A21);
         player.getSettings().setJavaScriptEnabled(false);player.getSettings().setAllowFileAccess(false);player.getSettings().setAllowContentAccess(false);player.getSettings().setBlockNetworkLoads(true);player.getSettings().setBlockNetworkImage(true);
         player.setWebViewClient(new WebViewClient(){@Override public boolean shouldOverrideUrlLoading(WebView view,String url){return true;}});
         root.addView(player,new LinearLayout.LayoutParams(-1,0,1));

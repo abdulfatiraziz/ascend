@@ -42,15 +42,15 @@ struct HealthView: View {
         HStack(alignment: .bottom, spacing: 20) {
             VStack(alignment: .leading, spacing: 8) {
                 Mono(dateText(day, engine: store.engine, pattern: "EEEE d MMMM").uppercased().replacingOccurrences(of: ",", with: ""), prefix: "HEALTH REPORT · ", color: Ink.accent)
-                Text(report.headline).font(.system(size: 30, weight: .semibold)).tracking(-0.4)
-                if !report.summary.isEmpty { Text(report.summary).font(.system(size: 13)).foregroundStyle(Ink.muted).lineSpacing(3).frame(maxWidth: 760, alignment: .leading).fixedSize(horizontal: false, vertical: true) }
+                Text(report.headline).font(.bt(size: 30, weight: .semibold)).tracking(-0.4)
+                if !report.summary.isEmpty { Text(report.summary).font(.bt(size: 13)).foregroundStyle(Ink.muted).lineSpacing(3).frame(maxWidth: 760, alignment: .leading).fixedSize(horizontal: false, vertical: true) }
             }
             Spacer(minLength: 12)
             VStack(alignment: .trailing, spacing: 10) {
                 HStack(spacing: 6) {
                     Button { day = store.engine.adding(-1, to: day) } label: { Image(systemName: "chevron.left").frame(width: 30, height: 30) }.buttonStyle(.plain).background(Ink.panel, in: RoundedRectangle(cornerRadius: 9)).accessibilityLabel("Previous day")
                     DatePicker("Health date", selection: Binding(get: { store.engine.date(day) ?? Date() }, set: { day = store.engine.key($0) }), in: ...Date(), displayedComponents: .date).labelsHidden().fixedSize()
-                    Button("Today") { day = store.today }.buttonStyle(.plain).font(.system(size: 12)).padding(.horizontal, 12).frame(height: 30).background(Ink.accent.opacity(day == store.today ? 0.16 : 0.06), in: RoundedRectangle(cornerRadius: 9))
+                    Button("Today") { day = store.today }.buttonStyle(.plain).font(.bt(size: 12)).padding(.horizontal, 12).frame(height: 30).background(Ink.accent.opacity(day == store.today ? 0.16 : 0.06), in: RoundedRectangle(cornerRadius: 9))
                     Button { day = store.engine.adding(1, to: day) } label: { Image(systemName: "chevron.right").frame(width: 30, height: 30) }.buttonStyle(.plain).background(Ink.panel, in: RoundedRectangle(cornerRadius: 9)).disabled(day >= store.today).accessibilityLabel("Next day")
                 }
                 HStack(spacing: 8) {
@@ -65,8 +65,8 @@ struct HealthView: View {
         let label = time.map { "\(name) · \(HealthReport.clock(minute(of: $0)).uppercased())" } ?? "\(name) · NOT CONNECTED"
         let fresh = time.map { Date().timeIntervalSince1970 - $0 < 3 * 3600 } ?? false
         return HStack(spacing: 6) {
-            Circle().fill(fresh ? Health.green : Color.orange).frame(width: 6, height: 6)
-            Text(label).font(.system(size: 10, design: .monospaced)).foregroundStyle(Ink.muted)
+            Circle().fill(fresh ? Health.green : Ink.watch).frame(width: 6, height: 6)
+            Text(label).font(.bt(size: 10, design: .monospaced)).foregroundStyle(Ink.muted)
         }.padding(.horizontal, 10).padding(.vertical, 5).background(Ink.panel, in: Capsule()).overlay(Capsule().stroke(Ink.line))
     }
     private func minute(of t: Double) -> Int {
@@ -131,8 +131,8 @@ struct HealthView: View {
                 HStack(alignment: .top, spacing: 14) {
                     Circle().fill(s.tone == .warn ? Health.amber : s.tone == .good ? Ink.accent : Health.teal).frame(width: 8, height: 8).padding(.top, 6)
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(s.title).font(.system(size: 14))
-                        Text(s.detail).font(.system(size: 12)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
+                        Text(s.title).font(.bt(size: 14))
+                        Text(s.detail).font(.bt(size: 12)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 0)
                 }.padding(.vertical, 11).overlay(alignment: .top) { Rectangle().fill(Color.white.opacity(0.07)).frame(height: 1) }
@@ -141,8 +141,8 @@ struct HealthView: View {
     }
     private var emptyState: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("No watch data for this day.").font(.system(size: 20, weight: .semibold))
-            Text("1. Sign in to the Mi Fitness cloud below for heart rate, stress, SpO2 and resting heart rate.\n2. Pair Ascend Bridge on your phone for sleep, steps and workouts, then tap Sync to Mac.\n3. Pick another day with the arrows above to see earlier reports.").font(.system(size: 13)).lineSpacing(6)
+            Text("No watch data for this day.").font(.bt(size: 20, weight: .semibold))
+            Text("1. Sign in to the Mi Fitness cloud below for heart rate, stress, SpO2 and resting heart rate.\n2. Pair Ascend Bridge on your phone for sleep, steps and workouts, then tap Sync to Mac.\n3. Pick another day with the arrows above to see earlier reports.").font(.bt(size: 13)).lineSpacing(6)
         }.frame(maxWidth: .infinity, alignment: .leading).healthCard()
     }
     private var sources: some View {
@@ -151,10 +151,10 @@ struct HealthView: View {
             PhoneLinkPanel(link: store.phoneLink)
             XiaomiCloudPanel(cloud: store.xiaomi)
             if !archive.errors.isEmpty {
-                VStack(alignment: .leading, spacing: 7) { Mono("SOME TYPES COULD NOT REFRESH"); ForEach(archive.errors.keys.sorted(), id: \.self) { key in Text("\(HealthMetric(rawValue: key)?.title ?? key): \(archive.errors[key] ?? "")").font(.system(size: 12)).foregroundStyle(.orange) } }.panel()
+                VStack(alignment: .leading, spacing: 7) { Mono("SOME TYPES COULD NOT REFRESH"); ForEach(archive.errors.keys.sorted(), id: \.self) { key in Text("\(HealthMetric(rawValue: key)?.title ?? key): \(archive.errors[key] ?? "")").font(.bt(size: 12)).foregroundStyle(.orange) } }.panel()
             }
             Text((archive.cloudSync == nil ? "Sleep, steps, heart rate and SpO2 from Health Connect via Ascend Bridge." : "Heart rate, SpO2, stress and resting heart rate from the Mi Fitness cloud · sleep, steps, calories and workouts from Health Connect via Ascend Bridge.") + " Stored on this Mac and left out of Ask Ascend. Sleep and step habits fill from these readings; a value you type yourself is kept.")
-                .font(.system(size: 11)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
+                .font(.bt(size: 11)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
         }
     }
 }
@@ -162,10 +162,10 @@ struct HealthView: View {
 // MARK: - Pieces
 
 enum Health {
-    static let amber = Color(red: 0.95, green: 0.70, blue: 0.36)
-    static let teal = Color(red: 0.37, green: 0.83, blue: 0.88)
-    static let green = Color(red: 0.49, green: 0.88, blue: 0.63)
-    static let light = Color(red: 0.63, green: 0.54, blue: 1).opacity(0.55)
+    static let amber = Ink.watch
+    static let teal = Color(hex: 0x7FC4B8)
+    static let green = Ink.onTrack
+    static let light = Ink.accent.opacity(0.55)
 }
 private extension View {
     func healthCard(padding: CGFloat = 22) -> some View {
@@ -177,7 +177,7 @@ private extension View {
 private struct Mono: View {
     var text: String, prefix: String = "", color: Color = Ink.muted
     init(_ text: String, prefix: String = "", color: Color = Ink.muted) { self.text = text; self.prefix = prefix; self.color = color }
-    var body: some View { Text(prefix + text).font(.system(size: 10.5, design: .monospaced)).tracking(1.4).foregroundStyle(color) }
+    var body: some View { Text(prefix + text).font(.bt(size: 10.5, design: .monospaced)).tracking(1.4).foregroundStyle(color) }
 }
 /// A line through `values`, scaled to fit.
 private struct Sparkline: View {
@@ -202,11 +202,11 @@ private struct VitalTile: View {
         VStack(alignment: .leading, spacing: 9) {
             HStack { Mono(label); Spacer(); Circle().fill(color).frame(width: 7, height: 7) }
             HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text(value ?? "—").font(.system(size: 30, weight: .semibold)).tracking(-0.5).lineLimit(1).minimumScaleFactor(0.6)
-                Text(unit).font(.system(size: 10, design: .monospaced)).foregroundStyle(Ink.muted)
+                Text(value ?? "—").font(.bt(size: 30, weight: .semibold)).tracking(-0.5).lineLimit(1).minimumScaleFactor(0.6)
+                Text(unit).font(.bt(size: 10, design: .monospaced)).foregroundStyle(Ink.muted)
             }
             Sparkline(values: series, color: color).frame(height: 26)
-            Text(note).font(.system(size: 11)).foregroundStyle(Ink.muted).lineLimit(2).frame(minHeight: 28, alignment: .top)
+            Text(note).font(.bt(size: 11)).foregroundStyle(Ink.muted).lineLimit(2).frame(minHeight: 28, alignment: .top)
         }.healthCard(padding: 16)
     }
 }
@@ -222,8 +222,8 @@ private struct RecoveryCard: View {
                     Circle().trim(from: 0, to: CGFloat(rec?.score ?? 0) / 100).stroke(Ink.accent, style: StrokeStyle(lineWidth: 9, lineCap: .round)).rotationEffect(.degrees(-90))
                     Circle().inset(by: 14).stroke(Ink.accent.opacity(0.2), style: StrokeStyle(lineWidth: 1, dash: [2, 5]))
                     VStack(spacing: 0) {
-                        Text(rec.map { "\($0.score)" } ?? "—").font(.system(size: 38, weight: .semibold))
-                        Text("/ 100").font(.system(size: 9, design: .monospaced)).foregroundStyle(Ink.muted)
+                        Text(rec.map { "\($0.score)" } ?? "—").font(.bt(size: 38, weight: .semibold))
+                        Text("/ 100").font(.bt(size: 9, design: .monospaced)).foregroundStyle(Ink.muted)
                     }
                 }.frame(width: 128, height: 128).accessibilityElement(children: .ignore).accessibilityLabel(rec.map { "Recovery \($0.score) out of 100" } ?? "Recovery not available")
                 VStack(alignment: .leading, spacing: 11) {
@@ -232,12 +232,12 @@ private struct RecoveryCard: View {
                     factor("Night stress", report.overnightStress.map { "\(Int($0.rounded()))" + ($0 < 30 ? " · relaxed" : "") } ?? "—", rec?.stress, Health.amber)
                 }
             }
-            Text("Resting heart rate against your 14-day baseline (40%), time asleep against your plan (40%) and overnight stress (20%).").font(.system(size: 11)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
+            Text("Resting heart rate against your 14-day baseline (40%), time asleep against your plan (40%) and overnight stress (20%).").font(.bt(size: 11)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
         }.healthCard()
     }
     private func factor(_ label: String, _ value: String, _ part: Double?, _ color: Color) -> some View {
         VStack(alignment: .leading, spacing: 5) {
-            HStack { Text(label).foregroundStyle(Ink.muted); Spacer(); Text(value) }.font(.system(size: 11))
+            HStack { Text(label).foregroundStyle(Ink.muted); Spacer(); Text(value) }.font(.bt(size: 11))
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     Capsule().fill(Color.white.opacity(0.08))
@@ -258,13 +258,13 @@ private struct DayTrace: View {
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 4) {
                     Mono("YOUR DAY · HOUR BY HOUR")
-                    Text(caption).font(.system(size: 16, weight: .medium))
+                    Text(caption).font(.bt(size: 16, weight: .medium))
                 }
                 Spacer()
                 HStack(spacing: 14) { legend("Heart rate", Ink.accent, line: true); legend("Stress", Health.amber, line: true); legend("Asleep", Ink.accent.opacity(0.25)); legend("Workout", Health.amber.opacity(0.3)) }
             }
             if r.heart.isEmpty && r.stress.isEmpty {
-                Text("No heart-rate or stress readings for this date. Sign in to the Mi Fitness cloud under Sources for all-day readings.").font(.system(size: 12)).foregroundStyle(Ink.muted).frame(maxWidth: .infinity, minHeight: 120)
+                Text("No heart-rate or stress readings for this date. Sign in to the Mi Fitness cloud under Sources for all-day readings.").font(.bt(size: 12)).foregroundStyle(Ink.muted).frame(maxWidth: .infinity, minHeight: 120)
             } else {
                 Chart {
                     if let sleep { RectangleMark(xStart: .value("From", Date(timeIntervalSince1970: max(sleep.0, r.dayStart))), xEnd: .value("To", Date(timeIntervalSince1970: sleep.1))).foregroundStyle(Ink.accent.opacity(0.10)) }
@@ -279,7 +279,7 @@ private struct DayTrace: View {
                 }
                 .chartXScale(domain: start...end).chartYScale(domain: 40...max(130, (r.heart.map(\.value).max() ?? 0) + 5))
                 .chartXAxis(.hidden)
-                .chartYAxis { AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { _ in AxisGridLine().foregroundStyle(Color.white.opacity(0.06)); AxisValueLabel().font(.system(size: 9, design: .monospaced)) } }
+                .chartYAxis { AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { _ in AxisGridLine().foregroundStyle(Color.white.opacity(0.06)); AxisValueLabel().font(.bt(size: 9, design: .monospaced)) } }
                 .frame(height: 190)
                 Chart {
                     if let sleep { RectangleMark(xStart: .value("From", Date(timeIntervalSince1970: max(sleep.0, r.dayStart))), xEnd: .value("To", Date(timeIntervalSince1970: sleep.1))).foregroundStyle(Ink.accent.opacity(0.10)) }
@@ -289,10 +289,10 @@ private struct DayTrace: View {
                     if isToday { RuleMark(x: .value("Now", Date())).foregroundStyle(Color.white.opacity(0.45)).lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 4])) }
                 }
                 .chartXScale(domain: start...end).chartYScale(domain: 0...100)
-                .chartXAxis { AxisMarks(values: .stride(by: .hour, count: 6)) { value in AxisGridLine().foregroundStyle(Color.white.opacity(0.05)); AxisValueLabel { if let d = value.as(Date.self) { Text(hourLabel(d)).font(.system(size: 9, design: .monospaced)) } } } }
-                .chartYAxis { AxisMarks(position: .leading, values: [0, 50, 100]) { _ in AxisGridLine().foregroundStyle(Color.white.opacity(0.05)); AxisValueLabel().font(.system(size: 9, design: .monospaced)) } }
+                .chartXAxis { AxisMarks(values: .stride(by: .hour, count: 6)) { value in AxisGridLine().foregroundStyle(Color.white.opacity(0.05)); AxisValueLabel { if let d = value.as(Date.self) { Text(hourLabel(d)).font(.bt(size: 9, design: .monospaced)) } } } }
+                .chartYAxis { AxisMarks(position: .leading, values: [0, 50, 100]) { _ in AxisGridLine().foregroundStyle(Color.white.opacity(0.05)); AxisValueLabel().font(.bt(size: 9, design: .monospaced)) } }
                 .frame(height: 80)
-                Text("Top: heart rate in bpm. Bottom: stress 0–100. 10-minute averages; gaps are not filled in.").font(.system(size: 11)).foregroundStyle(Ink.muted)
+                Text("Top: heart rate in bpm. Bottom: stress 0–100. 10-minute averages; gaps are not filled in.").font(.bt(size: 11)).foregroundStyle(Ink.muted)
             }
         }.healthCard()
     }
@@ -315,7 +315,7 @@ private struct DayTrace: View {
     private func legend(_ text: String, _ color: Color, line: Bool = false) -> some View {
         HStack(spacing: 6) {
             RoundedRectangle(cornerRadius: line ? 1 : 2).fill(color).frame(width: line ? 14 : 12, height: line ? 2 : 10)
-            Text(text).font(.system(size: 11)).foregroundStyle(Ink.muted)
+            Text(text).font(.bt(size: 11)).foregroundStyle(Ink.muted)
         }
     }
 }
@@ -330,12 +330,12 @@ private struct SleepCard: View {
                 HStack(alignment: .firstTextBaseline) {
                     VStack(alignment: .leading, spacing: 4) {
                         Mono("LAST NIGHT · \(clock(night.start)) → \(clock(night.end))".uppercased())
-                        Text(title(stages)).font(.system(size: 16, weight: .medium))
+                        Text(title(stages)).font(.bt(size: 16, weight: .medium))
                     }
                     Spacer()
                 }
                 if stages.isEmpty {
-                    Text("Mi Fitness sent this night without stages.").font(.system(size: 12)).foregroundStyle(Ink.muted)
+                    Text("Mi Fitness sent this night without stages.").font(.bt(size: 12)).foregroundStyle(Ink.muted)
                 } else {
                     HStack(spacing: 10) {
                         VStack(alignment: .leading, spacing: 0) { ForEach(["AWAKE", "REM", "LIGHT", "DEEP"], id: \.self) { Mono($0).frame(height: 34, alignment: .center) } }.frame(width: 50, alignment: .leading)
@@ -357,7 +357,7 @@ private struct SleepCard: View {
                 }
             } else {
                 Mono("LAST NIGHT")
-                Text("No sleep recorded for this date. Sleep comes from Mi Fitness through Ascend Bridge.").font(.system(size: 12)).foregroundStyle(Ink.muted)
+                Text("No sleep recorded for this date. Sleep comes from Mi Fitness through Ascend Bridge.").font(.bt(size: 12)).foregroundStyle(Ink.muted)
             }
         }.healthCard()
     }
@@ -378,9 +378,9 @@ private struct SleepCard: View {
     private func total(_ label: String, _ kind: SleepStageKind, _ target: String?, _ asleep: Double) -> some View {
         let minutes = report.stageMinutes.filter { kind == .awake ? $0.key.depth == 0 : $0.key == kind || (kind == .light && $0.key == .asleep) }.values.reduce(0, +)
         return VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) { RoundedRectangle(cornerRadius: 2).fill(color(kind)).frame(width: 8, height: 8); Text(label).font(.system(size: 11)).foregroundStyle(Ink.muted) }
-            Text(HealthReport.duration(minutes)).font(.system(size: 18, weight: .semibold))
-            Text(kind == .awake ? " " : "\(asleep > 0 ? Int(minutes / asleep * 100) : 0)%" + (target.map { " · \($0)" } ?? "")).font(.system(size: 10, design: .monospaced)).foregroundStyle(Ink.muted)
+            HStack(spacing: 6) { RoundedRectangle(cornerRadius: 2).fill(color(kind)).frame(width: 8, height: 8); Text(label).font(.bt(size: 11)).foregroundStyle(Ink.muted) }
+            Text(HealthReport.duration(minutes)).font(.bt(size: 18, weight: .semibold))
+            Text(kind == .awake ? " " : "\(asleep > 0 ? Int(minutes / asleep * 100) : 0)%" + (target.map { " · \($0)" } ?? "")).font(.bt(size: 10, design: .monospaced)).foregroundStyle(Ink.muted)
         }.padding(12).frame(maxWidth: .infinity, alignment: .leading).background(Color.white.opacity(0.03), in: RoundedRectangle(cornerRadius: 11)).overlay(RoundedRectangle(cornerRadius: 11).stroke(Color.white.opacity(0.06)))
     }
 }
@@ -396,7 +396,7 @@ private struct PlanCard: View {
                 line("Time asleep", HealthReport.duration(report.asleepMinutes ?? 0), HealthReport.duration(report.planMinutes),
                      short > 5 ? "\(HealthReport.duration(short)) short" : "on plan", short > 15 ? Health.amber : Ink.muted)
             } else {
-                Text(report.night == nil ? "No sleep recorded for this date." : "Set your routine's bedtime and wake to compare each night with your plan.").font(.system(size: 12)).foregroundStyle(Ink.muted)
+                Text(report.night == nil ? "No sleep recorded for this date." : "Set your routine's bedtime and wake to compare each night with your plan.").font(.bt(size: 12)).foregroundStyle(Ink.muted)
             }
         }.healthCard()
     }
@@ -409,8 +409,8 @@ private struct PlanCard: View {
     }
     private func line(_ label: String, _ actual: String, _ plan: String, _ delta: String, _ color: Color) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack { Text(label).foregroundStyle(Ink.muted); Spacer(); Text(delta).foregroundStyle(color) }.font(.system(size: 12))
-            HStack(alignment: .firstTextBaseline, spacing: 8) { Text(actual).font(.system(size: 24, weight: .semibold)); Mono("PLAN \(plan.uppercased())") }
+            HStack { Text(label).foregroundStyle(Ink.muted); Spacer(); Text(delta).foregroundStyle(color) }.font(.bt(size: 12))
+            HStack(alignment: .firstTextBaseline, spacing: 8) { Text(actual).font(.bt(size: 24, weight: .semibold)); Mono("PLAN \(plan.uppercased())") }
         }.padding(.vertical, 12).overlay(alignment: .top) { Rectangle().fill(Color.white.opacity(0.07)).frame(height: 1) }
     }
 }
@@ -420,7 +420,7 @@ private struct TrendCard: View {
     var note: String
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .firstTextBaseline) { Text(title).font(.system(size: 14, weight: .medium)); Spacer(); Mono(summary) }
+            HStack(alignment: .firstTextBaseline) { Text(title).font(.bt(size: 14, weight: .medium)); Spacer(); Mono(summary) }
             GeometryReader { geo in
                 let height = geo.size.height
                 ZStack(alignment: .bottomLeading) {
@@ -440,8 +440,8 @@ private struct TrendCard: View {
                     }
                 }
             }.frame(height: 100)
-            HStack(spacing: 8) { ForEach(Array(labels.enumerated()), id: \.offset) { _, l in Text(l).font(.system(size: 9, design: .monospaced)).foregroundStyle(Ink.muted).frame(maxWidth: .infinity) } }
-            Text(note).font(.system(size: 11)).foregroundStyle(Ink.muted).lineLimit(2).frame(minHeight: 30, alignment: .top)
+            HStack(spacing: 8) { ForEach(Array(labels.enumerated()), id: \.offset) { _, l in Text(l).font(.bt(size: 9, design: .monospaced)).foregroundStyle(Ink.muted).frame(maxWidth: .infinity) } }
+            Text(note).font(.bt(size: 11)).foregroundStyle(Ink.muted).lineLimit(2).frame(minHeight: 30, alignment: .top)
         }.healthCard(padding: 18)
     }
 }

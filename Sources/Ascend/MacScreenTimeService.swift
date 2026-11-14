@@ -103,19 +103,19 @@ struct MacScreenTimePanel:View {
     var body:some View {
         VStack(alignment:.leading,spacing:10) {
             HStack {
-                Label("This Mac’s history",systemImage:"desktopcomputer").font(.system(size:15,weight:.medium))
+                Label("This Mac’s history",systemImage:"desktopcomputer").font(.bt(size:15,weight:.medium))
                 Spacer()
                 if service.busy { ProgressView().controlSize(.small) }
                 Button("Refresh Mac history") { service.refresh() }.disabled(!service.enabled || service.busy)
             }
             Toggle("Refresh Mac history every 15 minutes while Ascend is open",isOn:Binding(get:{service.automatic},set:{service.setAutomatic($0)}))
-                .font(.system(size:12)).disabled(!service.enabled)
+                .font(.bt(size:12)).disabled(!service.enabled)
             Text("Reads this Mac’s recorded app-use intervals locally. It doesn’t collect websites, window titles, notifications or screenshots. App-use time is shown separately from the phone’s screen-on time.")
-                .font(.system(size:11)).foregroundStyle(Ink.muted).fixedSize(horizontal:false,vertical:true)
-            if let status=service.status { Text(status).font(.system(size:12)).foregroundStyle(service.failed ? .orange:Ink.muted).fixedSize(horizontal:false,vertical:true) }
+                .font(.bt(size:11)).foregroundStyle(Ink.muted).fixedSize(horizontal:false,vertical:true)
+            if let status=service.status { Text(status).font(.bt(size:12)).foregroundStyle(service.failed ? .orange:Ink.muted).fixedSize(horizontal:false,vertical:true) }
             if service.needsAccess {
                 Text("For historical access, add Ascend in System Settings → Privacy & Security → Full Disk Access, then quit and reopen Ascend. Full Disk Access is a broad macOS permission; this connector reads only the local app-usage stream.")
-                    .font(.system(size:11)).foregroundStyle(Ink.muted).fixedSize(horizontal:false,vertical:true)
+                    .font(.bt(size:11)).foregroundStyle(Ink.muted).fixedSize(horizontal:false,vertical:true)
                 HStack { Button("Open Full Disk Access settings") { service.openPrivacy() };Button("Show this Ascend app in Finder") { service.revealApp() } }
             }
         }.panel(padding:16)

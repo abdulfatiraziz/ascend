@@ -44,7 +44,7 @@ struct BodyMapView: View {
     let count = volumes[name] ?? 0
     return count == 0
       ? Color.white.opacity(0.08)
-      : count < 10 ? Ink.accent.opacity(0.3) : count <= 20 ? Ink.accent : Color.orange
+      : count < 10 ? Ink.accent.opacity(0.3) : count <= 20 ? Ink.accent : Ink.watch
   }
   private func select(_ point: CGPoint) {
     if let r = regions.first(where: {
@@ -84,17 +84,17 @@ struct BodyMapView: View {
           ) { Text($0.replacingOccurrences(of: "_", with: " ").capitalized).tag($0) }
         }.frame(width: 200)
         Text("\(volumes[selected] ?? 0) hard sets this week").font(
-          .system(size: 12, weight: .medium)
+          .bt(size: 12, weight: .medium)
         ).foregroundStyle(Ink.accent)
         Text(
           (exerciseNames[selected] ?? []).joined(separator: ", ").isEmpty
             ? "No logged exercises" : (exerciseNames[selected] ?? []).joined(separator: ", ")
-        ).font(.system(size: 10)).foregroundStyle(Ink.muted).multilineTextAlignment(.center)
+        ).font(.bt(size: 10)).foregroundStyle(Ink.muted).multilineTextAlignment(.center)
       }
       Text(volumes == nil ? "REFERENCE ANATOMY" : "LOGGED TRAINING VOLUME").font(
-        .system(size: 8.5, design: .monospaced)
+        .bt(size: 8.5, design: .monospaced)
       ).tracking(1.2).foregroundStyle(Ink.muted)
-      Text("Not a body scan or regional fat map").font(.system(size: 10)).foregroundStyle(Ink.muted)
+      Text("Not a body scan or regional fat map").font(.bt(size: 10)).foregroundStyle(Ink.muted)
     }.frame(width: 230).padding(.vertical, 16).background(
       Ink.accent.opacity(0.035), in: RoundedRectangle(cornerRadius: 18)
     ).overlay(RoundedRectangle(cornerRadius: 18).stroke(Ink.accent.opacity(0.1)))

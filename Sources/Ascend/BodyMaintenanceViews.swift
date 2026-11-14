@@ -20,7 +20,7 @@ struct BodyMaintenanceCard: View {
       HStack {
         VStack(alignment: .leading, spacing: 6) {
           Kicker("YOUR MAINTENANCE")
-          Text(r.headline).font(.system(size: 23, weight: .semibold)).tracking(-0.4)
+          Text(r.headline).font(.bt(size: 23, weight: .semibold)).tracking(-0.4)
         }
         Spacer()
         Picker("Maintenance window", selection: $window) {
@@ -40,36 +40,36 @@ struct BodyMaintenanceCard: View {
       if let deficit = r.deficit, let pace = r.predictedLossPerWeek, let target = r.currentTarget {
         Text(
           "At today’s \(Int(target.rounded()).formatted()) kcal target: about \(Int(abs(deficit).rounded()).formatted()) kcal/day \(deficit>=0 ? "deficit":"surplus") · \(String(format:"%.2f",abs(pace))) kg/week \(pace>=0 ? "loss":"gain"). Based on \(r.measured == nil ? "the formula estimate":"your intake/weight estimate")."
-        ).font(.system(size: 12)).foregroundStyle(Ink.muted)
+        ).font(.bt(size: 12)).foregroundStyle(Ink.muted)
       }
       if let target = r.suggestedTarget, let pace = r.goalPace {
         Text(
           "Planning target to review: about \(Int(target).formatted()) kcal/day for \(String(format:"%.2f",pace)) kg/week loss. Your habit target has not changed."
-        ).font(.system(size: 13)).foregroundStyle(Ink.accent)
+        ).font(.bt(size: 13)).foregroundStyle(Ink.accent)
       }
-      if let note = r.suggestionNote { Text(note).font(.system(size: 12)).foregroundStyle(.orange) }
+      if let note = r.suggestionNote { Text(note).font(.bt(size: 12)).foregroundStyle(.orange) }
       if let lazy = r.lazyDay, let active = r.activeDay {
         HStack(spacing: 24) {
           Label("Quiet-day formula ≈ \(calories(lazy))", systemImage: "chair")
           Label("Active-day formula ≈ \(calories(active))", systemImage: "figure.walk")
-        }.font(.system(size: 11)).foregroundStyle(Ink.muted)
+        }.font(.bt(size: 11)).foregroundStyle(Ink.muted)
       }
       Text(
         "These are estimates. The 7,700 kcal/kg approximation is affected by water shifts and adaptation. Activity multipliers are heuristics. Watch calories never change the suggested target or justify eating back activity calories."
-      ).font(.system(size: 11)).foregroundStyle(Ink.muted).fixedSize(
+      ).font(.bt(size: 11)).foregroundStyle(Ink.muted).fixedSize(
         horizontal: false, vertical: true)
       DisclosureGroup("Review full-day logging · previous \(window) closed days") {
         VStack(alignment: .leading, spacing: 8) {
           Text(
             "A full day has at least two confirmed meals and 1,200 kcal, or your explicit completion mark. Only full days enter the intake average; missing days are not zero. Mark a day complete only after reviewing its whole intake. The logging threshold is not an intake recommendation."
-          ).font(.system(size: 11)).foregroundStyle(Ink.muted)
+          ).font(.bt(size: 11)).foregroundStyle(Ink.muted)
           ForEach(r.days.reversed()) { day in
             HStack {
-              Text(day.key).font(.system(size: 11, design: .monospaced))
+              Text(day.key).font(.bt(size: 11, design: .monospaced))
               Text("\(day.meals) meals · \(Int(day.calories.rounded()).formatted()) kcal").font(
-                .system(size: 11))
+                .bt(size: 11))
               Spacer()
-              if day.complete { Text("Full day").font(.system(size: 10)).foregroundStyle(.mint) }
+              if day.complete { Text("Full day").font(.bt(size: 10)).foregroundStyle(.mint) }
               Toggle(
                 "Mark complete",
                 isOn: Binding(
@@ -81,20 +81,20 @@ struct BodyMaintenanceCard: View {
                       a.completedNutritionDays = set.sorted()
                     }
                   })
-              ).font(.system(size: 11))
+              ).font(.bt(size: 11))
             }
           }
         }.padding(.top, 10)
       }
-      if let error = training.error { Text(error).font(.system(size: 12)).foregroundStyle(.orange) }
+      if let error = training.error { Text(error).font(.bt(size: 12)).foregroundStyle(.orange) }
     }.panel(padding: 22)
   }
   private func tile(_ label: String, _ value: String, _ detail: String) -> some View {
     VStack(alignment: .leading, spacing: 8) {
-      Text(label).font(.system(size: 10, weight: .medium, design: .monospaced)).foregroundStyle(
+      Text(label).font(.bt(size: 10, weight: .medium, design: .monospaced)).foregroundStyle(
         Ink.muted)
-      Text(value).font(.system(size: 25, weight: .semibold)).monospacedDigit()
-      Text(detail).font(.system(size: 11)).foregroundStyle(Ink.muted).fixedSize(
+      Text(value).font(.bt(size: 25, weight: .semibold)).monospacedDigit()
+      Text(detail).font(.bt(size: 11)).foregroundStyle(Ink.muted).fixedSize(
         horizontal: false, vertical: true)
     }.frame(maxWidth: .infinity, alignment: .leading).padding(14).background(
       Ink.background.opacity(0.6), in: RoundedRectangle(cornerRadius: 12))

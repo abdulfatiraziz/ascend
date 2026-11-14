@@ -59,8 +59,8 @@ struct ScreenTimeView: View {
                 HStack {
                     VStack(alignment:.leading,spacing:6) {
                         Kicker("DEVICE USAGE")
-                        Text("Screen time").font(.system(size:28,weight:.semibold))
-                        Text("Phone screen-on time and this Mac’s recorded app usage, kept as separate sources.").font(.system(size:12)).foregroundStyle(Ink.muted)
+                        Text("Screen time").font(.bt(size:28,weight:.semibold))
+                        Text("Phone screen-on time and this Mac’s recorded app usage, kept as separate sources.").font(.bt(size:12)).foregroundStyle(Ink.muted)
                     }
                     Spacer()
                     if !store.archive.devices.isEmpty { Button("Export screen-time backup…") { store.export() } }
@@ -72,50 +72,50 @@ struct ScreenTimeView: View {
                             ForEach(store.archive.devices) { Text($0.name).tag($0.id) }
                         }.fixedSize()
                         Spacer()
-                        Text("Last updated \(Date(timeIntervalSince1970:device.lastSync).formatted(date:.abbreviated,time:.shortened))").font(.system(size:11)).foregroundStyle(Ink.muted)
+                        Text("Last updated \(Date(timeIntervalSince1970:device.lastSync).formatted(date:.abbreviated,time:.shortened))").font(.bt(size:11)).foregroundStyle(Ink.muted)
                     }
-                    if device.status != "allowed" { Text(status(device.status)).font(.system(size:12)).foregroundStyle(.orange).panel(padding:14) }
+                    if device.status != "allowed" { Text(status(device.status)).font(.bt(size:12)).foregroundStyle(.orange).panel(padding:14) }
                     if let day {
                         HStack(alignment:.top,spacing:18) {
                             VStack(alignment:.leading,spacing:10) {
                                 Kicker(isMac ? "RECORDED APP-USE TIME · MAC" : day.complete ? "SCREEN-ON TIME" : "OBSERVED SCREEN-ON TIME · PARTIAL")
-                                Text(duration(day.screenSeconds)).font(.system(size:46,weight:.semibold,design:.rounded)).monospacedDigit()
-                                Text(formatted(day.start)).font(.system(size:14))
-                                Text("\(isMac ? "Queried" : "Observed") through \(formatted(day.end,time:true)) · \(zone.identifier)").font(.system(size:11)).foregroundStyle(Ink.muted)
+                                Text(duration(day.screenSeconds)).font(.bt(size:46,weight:.semibold,design:.rounded)).monospacedDigit()
+                                Text(formatted(day.start)).font(.bt(size:14))
+                                Text("\(isMac ? "Queried" : "Observed") through \(formatted(day.end,time:true)) · \(zone.identifier)").font(.bt(size:11)).foregroundStyle(Ink.muted)
                             }.frame(maxWidth:.infinity,alignment:.leading).panel()
                             VStack(alignment:.leading,spacing:10) {
                                 Kicker("COVERAGE")
-                                Text(isMac ? "Recorded intervals" : day.complete ? "Available" : "Incomplete history").font(.system(size:20,weight:.medium))
+                                Text(isMac ? "Recorded intervals" : day.complete ? "Available" : "Incomplete history").font(.bt(size:20,weight:.medium))
                                 Text(isMac ? "Imported from this Mac’s local activity database. Only retained app-use intervals are counted; missing time stays unknown." : day.complete ? "Usage events covered the observed interval. Today’s total grows as you use your phone." : "Android no longer has all the events for this day. The observed subtotal may be lower than your actual usage.")
-                                    .font(.system(size:12)).foregroundStyle(Ink.muted).fixedSize(horizontal:false,vertical:true)
-                                Text("\(day.apps.count) apps observed").font(.system(size:11)).foregroundStyle(Ink.accent)
+                                    .font(.bt(size:12)).foregroundStyle(Ink.muted).fixedSize(horizontal:false,vertical:true)
+                                Text("\(day.apps.count) apps observed").font(.bt(size:11)).foregroundStyle(Ink.accent)
                             }.frame(maxWidth:.infinity,alignment:.leading).panel()
                         }
                         history(device)
                         HStack {
-                            Text("Selected day").font(.system(size:12)).foregroundStyle(Ink.muted)
+                            Text("Selected day").font(.bt(size:12)).foregroundStyle(Ink.muted)
                             Picker("Screen-time day",selection:Binding(get:{ day.start },set:{ selected=$0 })) {
                                 ForEach(device.days.reversed()) { Text(formatted($0.start)).tag($0.start) }
                             }.labelsHidden().fixedSize()
                         }
                         if !day.hours.isEmpty {
                             VStack(alignment:.leading,spacing:12) {
-                                Text("Across the day").font(.system(size:16,weight:.medium))
+                                Text("Across the day").font(.bt(size:16,weight:.medium))
                                 Chart(day.hours) { hour in
                                     BarMark(x:.value("Hour",Date(timeIntervalSince1970:hour.start),unit:.hour),y:.value("Minutes",hour.seconds/60)).foregroundStyle(Ink.accent)
                                 }.chartXScale(domain:Date(timeIntervalSince1970:day.start)...Date(timeIntervalSince1970:day.end)).chartYScale(domain:0...60).chartYAxisLabel("min / hour").frame(height:130)
                             }.panel()
                         }
                         VStack(alignment:.leading,spacing:14) {
-                            Text(isMac ? "Recorded app usage" : "App foreground time").font(.system(size:17,weight:.medium))
+                            Text(isMac ? "Recorded app usage" : "App foreground time").font(.bt(size:17,weight:.medium))
                             Text(isMac ? "App intervals are deduplicated. Overlapping intervals count once in the Mac total; device totals are never added together." : "Observed while the screen was on. App times may overlap in split-screen; they are not added to calculate device screen time.")
-                                .font(.system(size:11)).foregroundStyle(Ink.muted)
-                            if day.apps.isEmpty { Text("No app sessions are available for this day.").font(.system(size:13)).foregroundStyle(Ink.muted) }
+                                .font(.bt(size:11)).foregroundStyle(Ink.muted)
+                            if day.apps.isEmpty { Text("No app sessions are available for this day.").font(.bt(size:13)).foregroundStyle(Ink.muted) }
                             ForEach(day.apps.sorted { $0.seconds>$1.seconds }) { app in
                                 HStack(spacing:14) {
                                     Image(systemName:"app.fill").foregroundStyle(Ink.accent).frame(width:30,height:30).background(Ink.accent.opacity(0.1),in:RoundedRectangle(cornerRadius:8))
                                     VStack(alignment:.leading,spacing:4) {
-                                        Text(app.label).font(.system(size:13,weight:.medium))
+                                        Text(app.label).font(.bt(size:13,weight:.medium))
                                         GeometryReader { g in
                                             Capsule().fill(Ink.accent.opacity(0.12)).overlay(alignment:.leading) {
                                                 Capsule().fill(Ink.accent.opacity(0.75)).frame(width:g.size.width*min(1,app.seconds/(day.apps.map(\.seconds).max() ?? 1)))
@@ -123,15 +123,15 @@ struct ScreenTimeView: View {
                                         }.frame(height:3)
                                     }
                                     Spacer(minLength:12)
-                                    Text(duration(app.seconds)).font(.system(size:13,design:.monospaced)).monospacedDigit().frame(width:85,alignment:.trailing)
+                                    Text(duration(app.seconds)).font(.bt(size:13,design:.monospaced)).monospacedDigit().frame(width:85,alignment:.trailing)
                                 }.padding(.vertical,5)
                             }
                         }.panel()
                         Text(isMac ? "Mac totals are a union of recorded app-use intervals, not display-on time or a guaranteed match to Apple’s Screen Time report. Historical retention and delayed writes can leave gaps. Missing days remain unknown. History is local and excluded from Ask Ascend and the main tracker backup." : "Screen-on time includes the lock screen. Event retention, restarts and multi-window activity can cause differences from Digital Wellbeing. No screenshots or app content are collected. A rolling 90-day history is kept on this Mac when syncing and is excluded from Ask Ascend and the main tracker backup.")
-                            .font(.system(size:11)).foregroundStyle(Ink.muted).fixedSize(horizontal:false,vertical:true)
+                            .font(.bt(size:11)).foregroundStyle(Ink.muted).fixedSize(horizontal:false,vertical:true)
                     } else { setup }
                 } else { setup }
-                if let error=store.error { Text(error).font(.system(size:12)).foregroundStyle(.orange) }
+                if let error=store.error { Text(error).font(.bt(size:12)).foregroundStyle(.orange) }
             }.padding(.bottom,12)
         }.environment(\.timeZone,zone).environment(\.calendar,phoneCalendar)
     }
@@ -140,16 +140,16 @@ struct ScreenTimeView: View {
     }
     private var setup:some View {
         VStack(alignment:.leading,spacing:14) {
-            Image(systemName:"hourglass").font(.system(size:36)).foregroundStyle(Ink.accent)
-            Text("Bring your phone usage into view.").font(.system(size:22,weight:.medium))
+            Image(systemName:"hourglass").font(.bt(size:36)).foregroundStyle(Ink.accent)
+            Text("Bring your phone usage into view.").font(.bt(size:22,weight:.medium))
             Text("1. Update Ascend Bridge on your phone.\n2. Open Bridge → Settings → Share screen time with Mac.\n3. Allow Usage access in Android Settings, return to Bridge and tap Sync now.\n4. Optionally enable Screen time in background for hourly Wi-Fi sync.")
-                .font(.system(size:13)).lineSpacing(6).foregroundStyle(Ink.muted)
-            Text("Only usage summaries are shared with your paired Mac. This is separate from Health Connect permissions.").font(.system(size:11)).foregroundStyle(Ink.muted)
+                .font(.bt(size:13)).lineSpacing(6).foregroundStyle(Ink.muted)
+            Text("Only usage summaries are shared with your paired Mac. This is separate from Health Connect permissions.").font(.bt(size:11)).foregroundStyle(Ink.muted)
         }.frame(maxWidth:.infinity,alignment:.leading).panel(padding:26)
     }
     private func history(_ device:ScreenTimeDevice)->some View {
         VStack(alignment:.leading,spacing:12) {
-            HStack { Text("Recent days").font(.system(size:16,weight:.medium));Spacer();Text(isMac ? "Recorded intervals only" : "Orange = incomplete").font(.system(size:10)).foregroundStyle(Ink.muted) }
+            HStack { Text("Recent days").font(.bt(size:16,weight:.medium));Spacer();Text(isMac ? "Recorded intervals only" : "Orange = incomplete").font(.bt(size:10)).foregroundStyle(Ink.muted) }
             Chart(Array(device.days.suffix(7))) { d in
                 if let seconds=d.screenSeconds {
                     BarMark(x:.value("Date",Date(timeIntervalSince1970:d.start),unit:.day),y:.value("Hours",seconds/3600))

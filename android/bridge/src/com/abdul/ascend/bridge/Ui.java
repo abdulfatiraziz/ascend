@@ -14,17 +14,34 @@ import android.widget.*;
 
 /** The Ascend look on Android: the Mac app's dark palette, one type scale, rounded cards. Plain views, no libraries. */
 final class Ui {
-    static final int BG = 0xFF0D0C10, PANEL = 0xFF16141B, PANEL2 = 0xFF221F2A, NAV = 0xFF121016, LINE = 0x17FFFFFF;
-    static final int TEXT = 0xFFF2F0F5, SOFT = 0xFFD9D5E0, MUTED = 0xFFA39DAD, FAINT = 0xFF6F6878;
-    static final int ACCENT = 0xFFA18AFF, ACCENT_TEXT = 0xFFC2B4FF, ACCENT_SOFT = 0x2EA18AFF, ON_ACCENT = 0xFF120F1A;
-    static final int ORANGE = 0xFFF0A35E, GREEN = 0xFF7FD6A4, RED = 0xFFF49A90;
+    // Black Tie: green felt, lamplight, champagne gold, ivory type (same tokens as the Mac's Ink).
+    static final int BG = 0xFF0B2A21, PANEL = 0xFF123A2D, PANEL2 = 0xFF174536, NAV = 0xFF04110D, LINE = 0x1AF1E8D4;
+    static final int TEXT = 0xFFF1E8D4, SOFT = 0xFFDCD6C4, MUTED = 0xFF8FAE9F, FAINT = 0xFF5E7F71;
+    static final int ACCENT = 0xFFD9B46E, ACCENT_TEXT = 0xFFF0D49A, ACCENT_SOFT = 0x2ED9B46E, ON_ACCENT = 0xFF0B2A21;
+    static final int LAMP = 0xFFF0D49A, GOLD_DIM = 0xFF9C8152;
+    static final int ORANGE = 0xFFE6B04E, GREEN = 0xFF86D19F, RED = 0xFFE0626C;
     static final int MATCH = ViewGroup.LayoutParams.MATCH_PARENT, WRAP = ViewGroup.LayoutParams.WRAP_CONTENT;
     final Context c;
     final float density;
-    Ui(Context c) { this.c = c; density = c.getResources().getDisplayMetrics().density; }
+    Ui(Context c) { this.c = c; density = c.getResources().getDisplayMetrics().density; if (assets == null) assets = c.getApplicationContext().getAssets(); }
 
     int dp(float v) { return Math.round(v * density); }
-    static Typeface weight(int w) { return Typeface.create(Typeface.DEFAULT, w, false); }
+    // Inter Tight for text, JetBrains Mono for data, Cormorant Garamond for titles and big numbers (fonts are APK assets).
+    private static final java.util.Map<String, Typeface> FACES = new java.util.HashMap<>();
+    private static android.content.res.AssetManager assets;
+    static Typeface face(String file, int w) {
+        String key = file + w;
+        Typeface t = FACES.get(key);
+        if (t == null) {
+            try { t = new Typeface.Builder(assets, "fonts/" + file + ".ttf").setFontVariationSettings("'wght' " + w).build(); } catch (RuntimeException e) { t = null; }
+            if (t == null) t = Typeface.create(Typeface.DEFAULT, w, false);
+            FACES.put(key, t);
+        }
+        return t;
+    }
+    static Typeface weight(int w) { return face("InterTight", w); }
+    static Typeface serif(int w) { return face("CormorantGaramond", Math.max(600, Math.min(700, w))); }
+    static Typeface monoFace(int w) { return face("JetBrainsMono", Math.min(700, w)); }
 
     GradientDrawable round(int fill, float radius, int stroke, float strokeWidth) {
         GradientDrawable d = new GradientDrawable();
@@ -40,19 +57,20 @@ final class Ui {
 
     TextView text(String s, float sp, int color, int weight) {
         TextView t = new TextView(c);
-        t.setText(s); t.setTextSize(sp); t.setTextColor(color); t.setTypeface(weight(weight)); t.setIncludeFontPadding(false);
+        t.setText(s); t.setTextSize(sp); t.setTextColor(color); t.setIncludeFontPadding(false);
+        if (sp >= 20) { t.setTypeface(serif(weight)); t.setFontFeatureSettings("lnum"); t.setTextSize(sp * 1.15f); } else t.setTypeface(weight(weight));
         t.setLineSpacing(0, 1.15f);
         return t;
     }
     TextView body(String s) { return text(s, 14, SOFT, 400); }
     TextView small(String s) { return text(s, 12, MUTED, 400); }
     TextView kicker(String s) {
-        TextView t = text(s.toUpperCase(), 11, MUTED, 600);
+        TextView t = text(s.toUpperCase(), 10.5f, MUTED, 500); t.setTypeface(monoFace(500));
         t.setLetterSpacing(0.12f);
         return t;
     }
     TextView title(String s) { TextView t = text(s, 28, TEXT, 700); t.setLetterSpacing(-0.02f); return t; }
-    TextView mono(String s, float sp, int color) { TextView t = text(s, sp, color, 500); t.setTypeface(Typeface.MONOSPACE); return t; }
+    TextView mono(String s, float sp, int color) { TextView t = text(s, Math.min(sp, 19), color, 500); t.setTypeface(monoFace(500)); t.setTextSize(sp * 0.94f); return t; }
     TextView oneLine(TextView t) { t.setMaxLines(1); t.setEllipsize(TextUtils.TruncateAt.END); return t; }
 
     LinearLayout column(int gap) {
@@ -112,7 +130,7 @@ final class Ui {
     Button outline(String label, View.OnClickListener l) { Button b = base(label, 0, ACCENT_TEXT, ACCENT, 44, 22, 13); b.setOnClickListener(tap(l)); return b; }
     Button danger(String label, View.OnClickListener l) { Button b = base(label, 0, RED, 0x80F0786E, 52, 16, 15); b.setOnClickListener(tap(l)); return b; }
     Button chip(String label, boolean on, View.OnClickListener l) {
-        Button b = base(label, on ? ACCENT_SOFT : PANEL2, on ? 0xFFE0D8FF : TEXT, on ? ACCENT : 0, 36, 18, 13);
+        Button b = base(label, on ? ACCENT_SOFT : PANEL2, on ? LAMP : TEXT, on ? ACCENT : 0, 36, 18, 13);
         b.setPadding(dp(14), 0, dp(14), 0); b.setOnClickListener(tap(l));
         return b;
     }

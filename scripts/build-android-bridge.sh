@@ -13,9 +13,12 @@ javac -source 17 -target 17 -Xlint:-options -classpath "$bridge_android" -d buil
 jar cf build/android/classes.jar -C build/android/classes .
 "$bridge_tools/d8" --min-api 34 --lib "$bridge_android" --output build/android/dex build/android/classes.jar
 # Icons are vector drawables, looked up by name at runtime, so no generated R class is needed.
+# Black Tie fonts (OFL) ship as APK assets, copied from the Mac app's resources.
+rm -rf build/android/assets && mkdir -p build/android/assets/fonts
+cp Sources/Ascend/Resources/Fonts/*.ttf build/android/assets/fonts/
 rm -f build/android/res.zip
 "$bridge_tools/aapt2" compile --dir android/bridge/res -o build/android/res.zip
-"$bridge_tools/aapt2" link -I "$bridge_android" --manifest android/bridge/AndroidManifest.xml -A Sources/Ascend/Resources/ExerciseDemos -o build/android/unsigned.apk build/android/res.zip
+"$bridge_tools/aapt2" link -I "$bridge_android" --manifest android/bridge/AndroidManifest.xml -A Sources/Ascend/Resources/ExerciseDemos -A build/android/assets -o build/android/unsigned.apk build/android/res.zip
 zip -q -j build/android/unsigned.apk build/android/dex/classes.dex
 "$bridge_tools/zipalign" -f -p 4 build/android/unsigned.apk build/android/aligned.apk
 if [[ ! -f build/android/local-signing.p12 ]]; then

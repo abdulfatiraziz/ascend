@@ -107,10 +107,10 @@ struct XiaomiCloudPanel: View {
             HStack(spacing: 12) {
                 Image(systemName: cloud.connected ? "icloud.and.arrow.down" : "icloud.slash").foregroundStyle(cloud.failed ? .orange : cloud.connected ? Ink.accent : Ink.muted)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(cloud.connected ? "Mi Fitness cloud · all-day heart rate, stress, SpO2 and resting heart rate, hourly" : "Mi Fitness cloud: not signed in").font(.system(size: 12))
+                    Text(cloud.connected ? "Mi Fitness cloud · all-day heart rate, stress, SpO2 and resting heart rate, hourly" : "Mi Fitness cloud: not signed in").font(.bt(size: 12))
                     Text(cloud.connected ? "Mi Fitness sends only workout heart rate to Health Connect, so these come straight from your Xiaomi account. Sleep, steps and workouts still come from the phone."
                          : "Sign in with your Xiaomi account to get all-day heart rate, stress and resting heart rate. Mi Fitness doesn’t share them with Health Connect.")
-                        .font(.system(size: 11)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
+                        .font(.bt(size: 11)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer()
                 if cloud.signingIn {
@@ -123,8 +123,8 @@ struct XiaomiCloudPanel: View {
                 } else {
                     Button("Sign in with Xiaomi…") { cloud.beginSignIn() }.disabled(!cloud.enabled)
                 }
-            }.font(.system(size: 11))
-            if let status = cloud.status { Text(status).font(.system(size: 11)).foregroundStyle(cloud.failed ? .orange : Ink.muted).fixedSize(horizontal: false, vertical: true) }
+            }.font(.bt(size: 11))
+            if let status = cloud.status { Text(status).font(.bt(size: 11)).foregroundStyle(cloud.failed ? .orange : Ink.muted).fixedSize(horizontal: false, vertical: true) }
         }.panel(padding: 12)
             .confirmationDialog("Sign out of the Mi Fitness cloud?", isPresented: $confirmSignOut, titleVisibility: .visible) {
                 Button("Sign out", role: .destructive) { cloud.signOut() }

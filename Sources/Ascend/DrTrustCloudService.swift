@@ -173,9 +173,9 @@ struct DrTrustCloudPanel: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Dr Trust automatic sync").font(.system(size: 14, weight: .medium))
+                    Text("Dr Trust automatic sync").font(.bt(size: 14, weight: .medium))
                     Text(cloud.connected ? "Connected · weight and body composition" : "Sign in once with your Dr Trust phone number.")
-                        .font(.system(size: 12)).foregroundStyle(Ink.muted)
+                        .font(.bt(size: 12)).foregroundStyle(Ink.muted)
                 }
                 Spacer()
                 if cloud.busy { ProgressView().controlSize(.small) }
@@ -189,16 +189,16 @@ struct DrTrustCloudPanel: View {
             }
             if cloud.connected {
                 Toggle("Sync automatically every hour while Ascend is open", isOn: Binding(get: { cloud.automatic }, set: { cloud.setAutomatic($0) }))
-                    .font(.system(size: 12))
-                if let date = cloud.lastSync { Text("Last sync \(date.formatted(date: .abbreviated, time: .shortened))").font(.system(size: 11)).foregroundStyle(Ink.muted) }
+                    .font(.bt(size: 12))
+                if let date = cloud.lastSync { Text("Last sync \(date.formatted(date: .abbreviated, time: .shortened))").font(.bt(size: 11)).foregroundStyle(Ink.muted) }
             }
-            if let status = cloud.status { Text(status).font(.system(size: 12)).foregroundStyle(cloud.failed ? .orange : Ink.muted).fixedSize(horizontal: false, vertical: true) }
+            if let status = cloud.status { Text(status).font(.bt(size: 12)).foregroundStyle(cloud.failed ? .orange : Ink.muted).fixedSize(horizontal: false, vertical: true) }
         }.padding(14).background(Ink.panel, in: RoundedRectangle(cornerRadius: 12)).overlay(RoundedRectangle(cornerRadius: 12).stroke(Ink.line))
         .sheet(isPresented: $showLogin, onDismiss: { cloud.cancelLogin(); code = ""; phone = "" }) {
             VStack(alignment: .leading, spacing: 14) {
                 Text("Connect Dr Trust 360").font(.title2)
                 Text("Your sign-in is saved in this Mac’s Keychain. Ascend reads your scale history on connection and checks hourly while open.")
-                    .font(.system(size: 13)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
+                    .font(.bt(size: 13)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
                 if cloud.awaitingCode {
                     SecureField("Code from Dr Trust", text: $code).textFieldStyle(.roundedBorder)
                     Button("Verify and sync") { cloud.verifyCode(code); code = "" }.disabled(cloud.busy || code.isEmpty)
@@ -208,7 +208,7 @@ struct DrTrustCloudPanel: View {
                     Button("Send code") { cloud.requestCode(phone: phone) }.disabled(cloud.busy || phone.isEmpty)
                 }
                 if cloud.busy { ProgressView() }
-                if let status = cloud.status { Text(status).font(.system(size: 12)).foregroundStyle(cloud.failed ? .orange : Ink.muted).fixedSize(horizontal: false, vertical: true) }
+                if let status = cloud.status { Text(status).font(.bt(size: 12)).foregroundStyle(cloud.failed ? .orange : Ink.muted).fixedSize(horizontal: false, vertical: true) }
                 HStack { Spacer(); Button(cloud.connected && !cloud.awaitingCode && !cloud.needsLogin ? "Done" : "Cancel") { showLogin = false } }
             }.padding(24).frame(width: 440).interactiveDismissDisabled(cloud.busy)
         }

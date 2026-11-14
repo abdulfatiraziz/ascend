@@ -9,7 +9,7 @@ let package = Package(
         .executableTarget(name:"AscendDietSetup",dependencies:["AscendCore"],path:"Tools/DietSetup"),
         .target(name: "AscendCore", linkerSettings: [.linkedLibrary("sqlite3")]),
         .executableTarget(name: "Ascend", dependencies: ["AscendCore"], exclude: ["Resources/Avatar"],
-            resources: [.copy("Resources/Portraits"), .copy("Resources/BodyMap"), .copy("Resources/ExerciseDemos")]),
+            resources: [.copy("Resources/Portraits"), .copy("Resources/BodyMap"), .copy("Resources/ExerciseDemos"), .copy("Resources/Fonts")]),
         .executableTarget(name: "AscendBodyImport", dependencies: ["AscendCore"], path: "Tools/BodyImport"),
         .executableTarget(name:"AscendBodySample",dependencies:["AscendCore"],path:"Tools/BodySample"),
         .executableTarget(name: "AscendChecks", dependencies: ["AscendCore"], path: "Tests/AscendCoreTests")

@@ -21,7 +21,7 @@ struct BodyHealthChip: View {
         )
         Spacer()
         Text("Open Body ↗")
-      }.font(.system(size: 12)).padding(14).background(
+      }.font(.bt(size: 12)).padding(14).background(
         Ink.panel, in: RoundedRectangle(cornerRadius: 12))
     }.buttonStyle(.plain)
   }
@@ -65,7 +65,7 @@ struct BodyView: View {
       VStack(alignment: .leading, spacing: 18) {
         if ProcessInfo.processInfo.environment["ASCEND_BODY_SAMPLE"] == "1" {
           Text("GENERATED SAMPLE DATA · NOT YOUR PERSONAL RECORDS").font(
-            .system(size: 11, design: .monospaced)
+            .bt(size: 11, design: .monospaced)
           ).foregroundStyle(.orange)
         }
         if let error = training.error {
@@ -111,15 +111,15 @@ struct BodyView: View {
   private func title(_ kicker: String, _ headline: String) -> some View {
     VStack(alignment: .leading, spacing: 6) {
       Kicker(kicker)
-      Text(headline).font(.system(size: 23, weight: .semibold)).tracking(-0.5)
+      Text(headline).font(.bt(size: 23, weight: .semibold)).tracking(-0.5)
     }
   }
   private func stat(_ label: String, _ value: String, _ note: String = "") -> some View {
     VStack(alignment: .leading, spacing: 6) {
-      Text(label.uppercased()).font(.system(size: 10, design: .monospaced)).foregroundStyle(
+      Text(label.uppercased()).font(.bt(size: 10, design: .monospaced)).foregroundStyle(
         Ink.muted)
-      Text(value).font(.system(size: 23, weight: .semibold)).monospacedDigit()
-      if !note.isEmpty { Text(note).font(.system(size: 11)).foregroundStyle(Ink.muted) }
+      Text(value).font(.bt(size: 23, weight: .semibold)).monospacedDigit()
+      if !note.isEmpty { Text(note).font(.bt(size: 11)).foregroundStyle(Ink.muted) }
     }
   }
   private var goalHeader: some View {
@@ -151,17 +151,17 @@ struct BodyView: View {
       if let projected = report.projectedDate {
         Text(
           "At this pace: \(store.engine.key(projected)) · lean mass estimate \(bodyNumber(report.leanMass,unit:" kg"))."
-        ).font(.system(size: 12)).foregroundStyle(Ink.accent)
+        ).font(.bt(size: 12)).foregroundStyle(Ink.accent)
       }
       if report.aggressive, let early = report.earliestDate, let gentle = report.gentlerDate {
         Text(
           "Planning range at 0.5–0.75% per week: \(store.engine.key(early)) to \(store.engine.key(gentle)). These estimates are not a medical prescription."
-        ).font(.system(size: 12)).foregroundStyle(.orange)
+        ).font(.bt(size: 12)).foregroundStyle(.orange)
       }
       ForEach(a.goal.checkpoints.sorted { $0.date < $1.date }) { p in
         Text(
           "Checkpoint · \(bodyNumber(p.targetFat,unit:"%"))\(p.targetWeight.map{" · \(bodyNumber($0,unit:" kg"))"} ?? "") · \(store.engine.key(p.date))"
-        ).font(.system(size: 12)).foregroundStyle(Ink.muted)
+        ).font(.bt(size: 12)).foregroundStyle(Ink.muted)
       }
     }.panel(padding: 22)
   }
@@ -194,8 +194,8 @@ struct BodyView: View {
           ForEach(store.document.diet?.checkpoints ?? []) { point in
             if let date = store.engine.date(point.day) {
               LineMark(x: .value("Date", date), y: .value("kg", point.weight), series: .value("Series", "Diet checkpoints"))
-                .foregroundStyle(Color.orange).lineStyle(StrokeStyle(lineWidth: 2, dash: [4, 4]))
-              PointMark(x: .value("Date", date), y: .value("kg", point.weight)).foregroundStyle(Color.orange).symbol(.diamond).symbolSize(35)
+                .foregroundStyle(Ink.watch).lineStyle(StrokeStyle(lineWidth: 2, dash: [4, 4]))
+              PointMark(x: .value("Date", date), y: .value("kg", point.weight)).foregroundStyle(Ink.watch).symbol(.diamond).symbolSize(35)
             }
           }
           if let goal = report.goalWeight {
@@ -212,7 +212,7 @@ struct BodyView: View {
             abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date))
           })
         {
-          Text(readingLabel(r)).font(.system(size: 12, design: .monospaced)).foregroundStyle(
+          Text(readingLabel(r)).font(.bt(size: 12, design: .monospaced)).foregroundStyle(
             Ink.accent)
         }
         HStack {
@@ -220,16 +220,16 @@ struct BodyView: View {
           Label("Weekly average", systemImage: "line.diagonal").foregroundStyle(.mint)
           Spacer()
           Text("Week \(BodyGoalReport.weekNumber(now,weekOne:a.weekOne,calendar:cal))")
-        }.font(.system(size: 10))
+        }.font(.bt(size: 10))
         DisclosureGroup("Reading history · edit manual entries only") {
           ForEach(measurements.archive.records.reversed()) { r in
             HStack {
-              Text(readingLabel(r)).font(.system(size: 12)).textSelection(.enabled)
+              Text(readingLabel(r)).font(.bt(size: 12)).textSelection(.enabled)
               Spacer()
               if r.isManual {
                 Button("Edit") { editingWeight = r }
               } else {
-                Text("Dr Trust · read only").font(.caption).foregroundStyle(Ink.muted)
+                Text("Dr Trust · read only").font(.bt(size: 11)).foregroundStyle(Ink.muted)
               }
             }.padding(.vertical, 4)
           }
@@ -253,9 +253,9 @@ struct BodyView: View {
         ForEach([2, 3, 4, 5, 6, 7, 1], id: \.self) { d in
           let p = a.plan.first { $0.weekday == d }
           VStack(spacing: 5) {
-            Text(cal.shortWeekdaySymbols[d - 1]).font(.system(size: 10, design: .monospaced))
-            Text(p?.kind.rawValue.capitalized ?? "—").font(.system(size: 10))
-            Text(p?.name ?? "Unplanned").font(.system(size: 10)).lineLimit(1)
+            Text(cal.shortWeekdaySymbols[d - 1]).font(.bt(size: 10, design: .monospaced))
+            Text(p?.kind.rawValue.capitalized ?? "—").font(.bt(size: 10))
+            Text(p?.name ?? "Unplanned").font(.bt(size: 10)).lineLimit(1)
           }.frame(maxWidth: .infinity).padding(8).background(
             Ink.accent.opacity(d == cal.component(.weekday, from: now) ? 0.16 : 0.035),
             in: RoundedRectangle(cornerRadius: 8))
@@ -265,16 +265,16 @@ struct BodyView: View {
         if session.kind == .cardio {
           Text(
             "\(session.cardioType) · \(Int(session.minutes)) min · incline \(bodyNumber(session.incline)) · speed \(bodyNumber(session.speed))"
-          ).font(.system(size: 13))
+          ).font(.bt(size: 13))
         }
         Text("Rest between sets: \(session.restSeconds) s · \(Int(session.minutes)) min planned")
-          .font(.system(size: 11)).foregroundStyle(Ink.muted)
+          .font(.bt(size: 11)).foregroundStyle(Ink.muted)
         ForEach(session.supersets.indices, id: \.self) { i in
           Text(
             "Superset \(i+1): "
               + session.supersets[i].compactMap { id in a.exercises.first { $0.id == id }?.name }
               .joined(separator: " + ")
-          ).font(.system(size: 12)).foregroundStyle(Ink.accent)
+          ).font(.bt(size: 12)).foregroundStyle(Ink.accent)
         }
         ForEach(session.exercises, id: \.self) { id in
           if let e = a.exercises.first(where: { $0.id == id }) { exerciseRow(e) }
@@ -291,11 +291,11 @@ struct BodyView: View {
           }
         }
       } else {
-        Text("Choose a weekday and add exercises in the plan editor.").font(.system(size: 12))
+        Text("Choose a weekday and add exercises in the plan editor.").font(.bt(size: 12))
           .foregroundStyle(Ink.muted)
       }
       if let done = a.completions.last(where: { cal.isDate($0.date, inSameDayAs: now) }) {
-        Text("Today marked: \(done.outcome.rawValue)").font(.system(size: 12)).foregroundStyle(
+        Text("Today marked: \(done.outcome.rawValue)").font(.bt(size: 12)).foregroundStyle(
           Ink.accent)
       }
       ForEach(
@@ -307,10 +307,10 @@ struct BodyView: View {
           Image(systemName: "lightbulb")
           Text(
             "\(v.muscle.rawValue): \(v.planned) planned / \(v.logged) logged so far · aim for ≥\(v.minimum) hard sets/week"
-          ).font(.system(size: 12))
+          ).font(.bt(size: 12))
           Spacer()
           Button("Review plan") { planEditor = true }
-        }.padding(12).background(Color.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
+        }.padding(12).background(Ink.watch.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
       }
     }.panel(padding: 22)
   }
@@ -318,22 +318,22 @@ struct BodyView: View {
     let last = a.lastLog(e.id, before: cal.startOfDay(for: now))
     return HStack {
       VStack(alignment: .leading, spacing: 5) {
-        Text(e.name).font(.system(size: 15, weight: .medium))
+        Text(e.name).font(.bt(size: 15, weight: .medium))
         Text(
           "\(e.sets) × \(e.minReps)–\(e.maxReps)\(e.timed ? " s":" reps") · \(e.equipment)\(e.assisted ? " · assistance":"")"
-        ).font(.system(size: 11)).foregroundStyle(Ink.muted)
+        ).font(.bt(size: 11)).foregroundStyle(Ink.muted)
         Text(
           last.map {
             "Last: "
               + $0.sets.map { "\(bodyNumber($0.weight)) × \($0.reps)" }.joined(separator: " · ")
           } ?? "No previous sets"
-        ).font(.system(size: 11))
+        ).font(.bt(size: 11))
         if a.rules.progressionEnabled {
           Text(
             a.stalled(e, now: now)
               ? "Stalled for \(a.rules.stallWeeks)+ weeks · review recovery and progression"
               : (e.timed ? "+5 s when comfortable" : TrainingProgression.hint(e, last: last))
-          ).font(.system(size: 11)).foregroundStyle(a.stalled(e, now: now) ? .orange : Ink.accent)
+          ).font(.bt(size: 11)).foregroundStyle(a.stalled(e, now: now) ? .orange : Ink.accent)
         }
       }
       Spacer()
@@ -375,19 +375,19 @@ struct BodyView: View {
           Text(
             item.evidence
               ?? "Plan · ≈ \(item.block.steps.formatted()) steps · \(item.block.minutes) min"
-          ).font(.system(size: 11)).foregroundStyle(Ink.muted)
+          ).font(.bt(size: 11)).foregroundStyle(Ink.muted)
         }
       }
-      Text(report.remaining).font(.system(size: 13)).foregroundStyle(Ink.accent)
+      Text(report.remaining).font(.bt(size: 13)).foregroundStyle(Ink.accent)
       if report.railsHint {
         Label(
           "Holding the rails? The watch doesn't count steps when your wrist is still.",
           systemImage: "hand.raised"
-        ).font(.system(size: 12)).foregroundStyle(.orange)
+        ).font(.bt(size: 12)).foregroundStyle(.orange)
       }
       Text(
         "Plan estimates are not added to watch totals. Watch evidence ticks blocks where the time window supports it; other boxes are manual. Easy evening walks are fine."
-      ).font(.system(size: 11)).foregroundStyle(Ink.muted)
+      ).font(.bt(size: 11)).foregroundStyle(Ink.muted)
     }.panel(padding: 22)
   }
   private var scorecard: some View {
@@ -407,23 +407,23 @@ struct BodyView: View {
         mealTimes: store.document.meals.entries.map { Date(timeIntervalSince1970: $0.takenAt) },
         calendar: cal)
       {
-        Label(nudge, systemImage: "figure.walk").font(.system(size: 13)).foregroundStyle(Ink.accent)
+        Label(nudge, systemImage: "figure.walk").font(.bt(size: 13)).foregroundStyle(Ink.accent)
       }
       Text(
         "Watch + manual completion on the same day count once. Missing step/HR data stays unknown; low-intensity credit needs heart-rate evidence. Intensity is an age-based estimate."
-      ).font(.system(size: 11)).foregroundStyle(Ink.muted)
+      ).font(.bt(size: 11)).foregroundStyle(Ink.muted)
       ForEach(score.workouts) { w in
         VStack(alignment: .leading, spacing: 5) {
           HStack {
-            Text(w.session ?? w.title).font(.system(size: 14, weight: .medium))
+            Text(w.session ?? w.title).font(.bt(size: 14, weight: .medium))
             Spacer()
             Text(
               "\(store.engine.key(w.start)) · \(bodyClock(w.start,calendar:cal))–\(bodyClock(w.end,calendar:cal))"
-            ).font(.system(size: 11)).foregroundStyle(Ink.muted)
+            ).font(.bt(size: 11)).foregroundStyle(Ink.muted)
           }
           Text(
             "\(Int(w.minutes)) min · \(w.intensity) · HR \(w.averageHR.map{String(Int($0))} ?? "—") avg / \(w.maxHR.map{String(Int($0))} ?? "—") max · \(bodyNumber(w.distance.map{$0/1000},unit:" km")) · \(bodyNumber(w.calories,unit:" kcal"))"
-          ).font(.system(size: 11))
+          ).font(.bt(size: 11))
           if w.late {
             Button(
               "Late, may delay sleep · routine bed \(HealthReport.clock(store.document.routine.bedMinute)) ↗"
@@ -434,7 +434,7 @@ struct BodyView: View {
       }
       if a.rules.calorieCaution {
         Text("Watch calories can run high. Shown for reference; never used to suggest eating more.")
-          .font(.system(size: 11)).foregroundStyle(Ink.muted)
+          .font(.bt(size: 11)).foregroundStyle(Ink.muted)
       }
     }.panel(padding: 22)
   }
@@ -447,17 +447,17 @@ struct BodyView: View {
           volumes: Dictionary(uniqueKeysWithValues: volumes.map { ($0.key.rawValue, $0.value) }),
           exerciseNames: muscleExercises)
         VStack(alignment: .leading, spacing: 12) {
-          Text("Hard sets logged this week").font(.system(size: 17, weight: .medium))
+          Text("Hard sets logged this week").font(.bt(size: 17, weight: .medium))
           Text(
             "Neutral 0 · dim 1–9 · accent 10–20 · warning 21+\nA tagged hard set counts once for each region. Warm-up sets are excluded. Targets are a general reference; edit your plan to suit recovery."
-          ).font(.system(size: 12)).foregroundStyle(Ink.muted).fixedSize(
+          ).font(.bt(size: 12)).foregroundStyle(Ink.muted).fixedSize(
             horizontal: false, vertical: true)
           ForEach(volumes.keys.sorted { $0.rawValue < $1.rawValue }, id: \.self) { m in
             HStack {
               Text(m.title)
               Spacer()
               Text("\(volumes[m]!) sets").monospacedDigit()
-            }.font(.system(size: 12))
+            }.font(.bt(size: 12))
           }
           if volumes.isEmpty {
             Text("Log hard sets to light up your training map.").foregroundStyle(Ink.muted)
@@ -487,12 +487,12 @@ struct BodyView: View {
             {
               Image(nsImage: image).resizable().scaledToFit().frame(height: 120)
             } else {
-              Image(systemName: "person.crop.rectangle").font(.system(size: 32)).foregroundStyle(
+              Image(systemName: "person.crop.rectangle").font(.bt(size: 32)).foregroundStyle(
                 Ink.muted
               ).frame(height: 90)
             }
-            Text(angle.label).font(.system(size: 12, weight: .medium))
-            Text(latest?.day ?? "No photo yet").font(.system(size: 11)).foregroundStyle(Ink.muted)
+            Text(angle.label).font(.bt(size: 12, weight: .medium))
+            Text(latest?.day ?? "No photo yet").font(.bt(size: 11)).foregroundStyle(Ink.muted)
             Button("Compare with first") {
               photoAngle = angle
               photos = true

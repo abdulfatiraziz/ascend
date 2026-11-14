@@ -44,10 +44,10 @@ struct MainView: View {
                 header
                 if let error = store.saveError {
                     HStack { Image(systemName: "exclamationmark.triangle"); Text(error); Spacer(); Button("Settings") { editor = .settings } }
-                        .font(.system(size: 12)).padding(12).background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
+                        .font(.bt(size: 12)).padding(12).background(Ink.watch.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
                 }
                 if let label = store.undoLabel {
-                    HStack { Label("Completed: \(label).", systemImage: "checkmark.circle"); Spacer(); if label == "urge log", let id = store.lastUrgeID { Button("Add details") { editor = .urge(id) } }; Button("Undo") { store.undoProgressAction() }; Text("Until next edit · this session").foregroundStyle(Ink.muted) }.font(.system(size: 12)).padding(10).background(Ink.accent.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
+                    HStack { Label("Completed: \(label).", systemImage: "checkmark.circle"); Spacer(); if label == "urge log", let id = store.lastUrgeID { Button("Add details") { editor = .urge(id) } }; Button("Undo") { store.undoProgressAction() }; Text("Until next edit · this session").foregroundStyle(Ink.muted) }.font(.bt(size: 12)).padding(10).background(Ink.accent.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
                 }
                 Group {
                     switch screen {
@@ -72,7 +72,7 @@ struct MainView: View {
             }.padding(.horizontal, 28).padding(.top, 24).padding(.bottom, 20)
             }
         }
-        .frame(minWidth: 980, minHeight: 720).background(Ink.background).foregroundStyle(.white)
+        .frame(minWidth: 980, minHeight: 720).background(Ink.background).foregroundStyle(Ink.ivory)
         .tint(Ink.accent)
         .sheet(item: $editor,onDismiss:editorDismissed) { item in
             Group {
@@ -144,18 +144,18 @@ struct MainView: View {
     }
     private var sidebar: some View {
         VStack(spacing: 12) {
-            Text("A↗").font(.system(size: 26, weight: .bold)).tracking(-3).foregroundStyle(.white)
+            Text("A↗").font(.bt(size: 26, weight: .bold)).tracking(-3).foregroundStyle(.white)
             // Thirteen screens don't fit a short window; the list scrolls instead of clipping.
             ScrollView(.vertical, showsIndicators: false) { VStack(spacing: 2) {
                 ForEach(Screen.allCases, id: \.self) { item in
                     Button { screen = item; if item == .today { selectedDay = store.today } } label: {
-                        VStack(spacing: 3) { Image(systemName: item.symbol).font(.system(size: 16)); Text(item.rawValue).font(.system(size: 10)) }
+                        VStack(spacing: 3) { Image(systemName: item.symbol).font(.bt(size: 16)); Text(item.rawValue).font(.bt(size: 10)) }
                             .frame(width: 58, height: 43).background(screen == item ? Ink.accent.opacity(0.12) : .clear, in: RoundedRectangle(cornerRadius: 9))
                     }.buttonStyle(.plain).foregroundStyle(screen == item ? Ink.accent : Ink.muted).accessibilityLabel(item.rawValue)
                 }
             } }.scrollBounceBehavior(.basedOnSize)
             Spacer(minLength: 0)
-            Button { editor = .settings } label: { Image(systemName: "slider.horizontal.3").font(.system(size: 18)).frame(width: 44, height: 44) }.buttonStyle(.plain).foregroundStyle(Ink.muted).help("Settings, avatar finish and backups")
+            Button { editor = .settings } label: { Image(systemName: "slider.horizontal.3").font(.bt(size: 18)).frame(width: 44, height: 44) }.buttonStyle(.plain).foregroundStyle(Ink.muted).help("Settings, avatar finish and backups")
             VStack(spacing: 8) { Circle().fill(Ink.muted).frame(width: 4, height: 4); Kicker("Local") }
         }.padding(.top, 26).padding(.bottom, 18).frame(width: 78).frame(maxHeight: .infinity).overlay(alignment: .trailing) { Rectangle().fill(Ink.line).frame(width: 1) }
     }
@@ -164,17 +164,17 @@ struct MainView: View {
             VStack(alignment: .leading, spacing: 7) {
                 Kicker("Your next version starts here")
                 Text(screen == .today ? "Build yourself." : screen == .goals ? "The blueprint." : screen == .calendar ? "Every day counts." : screen == .routine ? "Find your rhythm." : screen == .patterns ? "Connect the dots." : screen == .meals ? "Eat with intent." : screen == .meds ? "Take it as prescribed." : screen == .notes ? "Remember what matters." : screen == .photos ? "See the change." : screen == .screenTime ? "Own your attention." : screen == .body ? "Build strength. See change." : screen == .health ? "Know your rhythm." : screen == .urges ? "Notice the pattern." : "The long game.")
-                    .font(.system(size: 36, weight: .semibold)).tracking(-1.5).lineLimit(1).minimumScaleFactor(0.8)
+                    .font(.bt(size: 36, weight: .semibold)).tracking(-1.5).lineLimit(1).minimumScaleFactor(0.8)
             }
             Spacer()
-            Button { editor = .quick } label: { Label("Quick check-in", systemImage: "menubar.rectangle").font(.system(size: 11)).padding(8) }
+            Button { editor = .quick } label: { Label("Quick check-in", systemImage: "menubar.rectangle").font(.bt(size: 11)).padding(8) }
                 .buttonStyle(.plain).background(Ink.panel, in: RoundedRectangle(cornerRadius: 7)).keyboardShortcut("k", modifiers: [.command, .shift])
-            Button { store.recordUrge() } label: { Label("Urge", systemImage: "circle.dotted").font(.system(size: 11)).padding(8) }.buttonStyle(.plain).background(Ink.panel, in: RoundedRectangle(cornerRadius: 7)).accessibilityLabel("Log an urge").keyboardShortcut("u", modifiers: [.command, .shift]).help("Log an urge · ⌘⇧U · time saved immediately")
-            Button { screen = .chat } label: { Label("Ask Ascend", systemImage: "sparkles").font(.system(size: 11)).padding(8) }.buttonStyle(.plain).background(Ink.panel, in: RoundedRectangle(cornerRadius: 7)).help("Open the Ascend chat · ⌘J").keyboardShortcut("j", modifiers: [.command])
+            Button { store.recordUrge() } label: { Label("Urge", systemImage: "circle.dotted").font(.bt(size: 11)).padding(8) }.buttonStyle(.plain).background(Ink.panel, in: RoundedRectangle(cornerRadius: 7)).accessibilityLabel("Log an urge").keyboardShortcut("u", modifiers: [.command, .shift]).help("Log an urge · ⌘⇧U · time saved immediately")
+            Button { screen = .chat } label: { Label("Ask Ascend", systemImage: "sparkles").font(.bt(size: 11)).padding(8) }.buttonStyle(.plain).background(Ink.panel, in: RoundedRectangle(cornerRadius: 7)).help("Open the Ascend chat · ⌘J").keyboardShortcut("j", modifiers: [.command])
             VStack(alignment: .trailing, spacing: 6) {
                 Kicker(store.document.cycle.title).lineLimit(1).help(store.document.cycle.title)
-                Text("Day \(store.engine.dayNumber(store.today)) / \(store.engine.days(from: store.document.cycle.start, through: store.document.cycle.end).count)").font(.system(size: 18, weight: .medium))
-                Text("\(dateText(store.document.cycle.start, engine: store.engine, pattern: "d MMM")) — \(dateText(store.document.cycle.end, engine: store.engine))").font(.system(size: 11, design: .monospaced)).foregroundStyle(Ink.muted)
+                Text("Day \(store.engine.dayNumber(store.today)) / \(store.engine.days(from: store.document.cycle.start, through: store.document.cycle.end).count)").font(.bt(size: 18, weight: .medium))
+                Text("\(dateText(store.document.cycle.start, engine: store.engine, pattern: "d MMM")) — \(dateText(store.document.cycle.end, engine: store.engine))").font(.bt(size: 11, design: .monospaced)).foregroundStyle(Ink.muted)
             }
         }
     }
@@ -182,13 +182,13 @@ struct MainView: View {
         VStack(spacing: 17) {
             Line()
             HStack(spacing: 20) {
-                VStack(alignment: .leading, spacing: 5) { Kicker("Your goals"); Text("One version of you.").font(.system(size: 11)).foregroundStyle(Ink.muted) }.frame(width: 140, alignment: .leading)
+                VStack(alignment: .leading, spacing: 5) { Kicker("Your goals"); Text("One version of you.").font(.bt(size: 11)).foregroundStyle(Ink.muted) }.frame(width: 140, alignment: .leading)
                 ForEach(store.document.goals.prefix(4)) { goal in
                     let score = store.engine.score(on: store.today, goalID: goal.id)
                     Button { editor = .goal(goal) } label: {
                         VStack(alignment: .leading, spacing: 6) {
-                            Text("\(score.completed) OF \(score.scheduled) TODAY").font(.system(size: 10, design: .monospaced)).foregroundStyle(Ink.muted)
-                            HStack { Text(goal.title).font(.system(size: 12)).lineLimit(1); Text("↗").foregroundStyle(Ink.accent) }
+                            Text("\(score.completed) OF \(score.scheduled) TODAY").font(.bt(size: 10, design: .monospaced)).foregroundStyle(Ink.muted)
+                            HStack { Text(goal.title).font(.bt(size: 12)).lineLimit(1); Text("↗").foregroundStyle(Ink.accent) }
                         }.frame(maxWidth: .infinity, alignment: .leading)
                     }.buttonStyle(.plain)
                 }
@@ -216,17 +216,17 @@ struct TodayView: View {
             VStack(alignment: .leading, spacing: 15) {
                 datePicker
                 HStack {
-                    Text(day == store.today ? "Today’s protocol" : "Day’s protocol").font(.system(size: 22, weight: .medium)).tracking(-0.6)
+                    Text(day == store.today ? "Today’s protocol" : "Day’s protocol").font(.bt(size: 22, weight: .medium)).tracking(-0.6)
                     Spacer()
-                    Text("\(score.completed) / \(score.scheduled)").font(.system(size: 12, design: .monospaced)).foregroundStyle(Ink.accent)
+                    Text("\(score.completed) / \(score.scheduled)").font(.bt(size: 12, design: .monospaced)).foregroundStyle(Ink.accent)
                 }
                 if store.document.restDays.contains(day) {
-                    Label("Rest day · check-ins preserved, excluded from score", systemImage: "moon.stars").font(.system(size: 12)).foregroundStyle(Ink.accent)
+                    Label("Rest day · check-ins preserved, excluded from score", systemImage: "moon.stars").font(.bt(size: 12)).foregroundStyle(Ink.accent)
                 }
-                Text(targetText).font(.system(size: 12)).foregroundStyle(Ink.muted)
+                Text(targetText).font(.bt(size: 12)).foregroundStyle(Ink.muted)
                 HStack(spacing: 11) {
                     ForEach(filters, id: \.self) { label in
-                        Button { filter = label } label: { Text(label).font(.system(size: 11)).padding(.bottom, 8).overlay(alignment: .bottom) { if filter == label { Rectangle().fill(Ink.accent).frame(height: 2) } } }
+                        Button { filter = label } label: { Text(label).font(.bt(size: 11)).padding(.bottom, 8).overlay(alignment: .bottom) { if filter == label { Rectangle().fill(Ink.accent).frame(height: 2) } } }
                             .buttonStyle(.plain).foregroundStyle(filter == label ? .white : Ink.muted)
                     }
                 }.padding(.top, 5)
@@ -240,9 +240,9 @@ struct TodayView: View {
                     }
                 }.frame(maxHeight: .infinity)
                 HStack {
-                    Label("Private. Offline. Yours.", systemImage: "lock.shield").font(.system(size: 11)).foregroundStyle(Ink.muted)
+                    Label("Private. Offline. Yours.", systemImage: "lock.shield").font(.bt(size: 11)).foregroundStyle(Ink.muted)
                     Spacer()
-                    Button { editor = .habit(nil, nil) } label: { Label("Habit", systemImage: "plus") }.buttonStyle(.borderless).font(.system(size: 11))
+                    Button { editor = .habit(nil, nil) } label: { Label("Habit", systemImage: "plus") }.buttonStyle(.borderless).font(.bt(size: 11))
                 }
             }.frame(maxWidth: .infinity).padding(.top, 3)
         }
@@ -260,14 +260,14 @@ struct TodayView: View {
             Button { day = store.engine.adding(1, to: day) } label: { Image(systemName: "chevron.right") }.buttonStyle(.plain).disabled(day >= store.today).help("Next day")
             Spacer()
             DayActions(store: store, day: day)
-            if day != store.today { Button("Today") { day = store.today }.font(.system(size: 11)).buttonStyle(.borderless) }
+            if day != store.today { Button("Today") { day = store.today }.font(.bt(size: 11)).buttonStyle(.borderless) }
         }.foregroundStyle(Ink.muted)
     }
     private var emptyState: some View {
         VStack(spacing: 10) {
-            Image(systemName: score.scheduled > 0 && score.completed == score.scheduled ? "checkmark.seal" : "moon.stars").font(.system(size: 28)).foregroundStyle(Ink.accent)
-            Text(score.scheduled > 0 && score.completed == score.scheduled ? "Protocol complete." : "Nothing here for this view.").font(.system(size: 14, weight: .medium))
-            Text(filter == "Remaining" ? "Choose All to review your check-ins." : "Your other habits are in the time-of-day tabs.").font(.system(size: 12)).foregroundStyle(Ink.muted)
+            Image(systemName: score.scheduled > 0 && score.completed == score.scheduled ? "checkmark.seal" : "moon.stars").font(.bt(size: 28)).foregroundStyle(Ink.accent)
+            Text(score.scheduled > 0 && score.completed == score.scheduled ? "Protocol complete." : "Nothing here for this view.").font(.bt(size: 14, weight: .medium))
+            Text(filter == "Remaining" ? "Choose All to review your check-ins." : "Your other habits are in the time-of-day tabs.").font(.bt(size: 12)).foregroundStyle(Ink.muted)
         }.frame(maxWidth: .infinity)
     }
 }
@@ -281,18 +281,18 @@ struct AvatarHero: View {
     private var stage: AvatarStage { .resolve(evolution: evolution, appearance: store.document.avatarFinish, preview: stagePreview) }
     var body: some View {
         VStack(spacing: 0) {
-            HStack { Label("YOUR AVATAR", systemImage: "circle.fill").font(.system(size: 10, design: .monospaced)).foregroundStyle(Ink.accent); Spacer(); Kicker(stage.rawValue) }.padding(.horizontal, 20).padding(.top, 18)
+            HStack { Label("YOUR AVATAR", systemImage: "circle.fill").font(.bt(size: 10, design: .monospaced)).foregroundStyle(Ink.accent); Spacer(); Kicker(stage.rawValue) }.padding(.horizontal, 20).padding(.top, 18)
             ZStack(alignment: .bottom) {
                 AvatarView(progress: score.ratio ?? 0, evolution: evolution, finish: store.document.avatarFinish, previewStage: stagePreview, error: $avatarError).id(reloadID)
                 if let avatarError {
-                    HStack { Text(avatarError).font(.system(size: 11)).lineLimit(2); Button("Retry") { self.avatarError = nil; reloadID = UUID() } }.padding(10).background(Ink.panel).padding(10)
+                    HStack { Text(avatarError).font(.bt(size: 11)).lineLimit(2); Button("Retry") { self.avatarError = nil; reloadID = UUID() } }.padding(10).background(Ink.panel).padding(10)
                 }
             }.frame(minHeight: 220, maxHeight: .infinity)
             HStack(spacing: 5) {
                 ForEach(AvatarStage.allCases) { item in
                     Button { stagePreview = stagePreview == item ? nil : item } label: {
                         HStack(spacing: 5) { Text(String(format: "%02d", item.ordinal)).opacity(0.55); Text(item.rawValue) }
-                            .font(.system(size: 10, weight: stage == item ? .semibold : .regular))
+                            .font(.bt(size: 10, weight: stage == item ? .semibold : .regular))
                             .padding(.vertical, 7).frame(maxWidth: .infinity)
                             .background(stage == item ? Ink.accent.opacity(0.13) : .clear, in: RoundedRectangle(cornerRadius: 7))
                             .foregroundStyle(stage == item ? Ink.accent : Ink.muted)
@@ -304,12 +304,12 @@ struct AvatarHero: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Kicker("Day’s progress")
                         HStack(alignment: .firstTextBaseline, spacing: 10) {
-                            Text(score.percentLabel).font(.system(size: 36, weight: .medium)).tracking(-1.5)
-                            Text("\(score.completed) of \(score.scheduled)").font(.system(size: 11)).foregroundStyle(Ink.muted)
+                            Text(score.percentLabel).font(.bt(size: 36, weight: .medium)).tracking(-1.5)
+                            Text("\(score.completed) of \(score.scheduled)").font(.bt(size: 11)).foregroundStyle(Ink.muted)
                         }
                     }
                     Spacer()
-                    Button { stagePreview = stagePreview == nil ? .ascendant : nil } label: { Label(stagePreview != nil ? "Live form" : "Final form", systemImage: "sparkles").font(.system(size: 11)).padding(9) }
+                    Button { stagePreview = stagePreview == nil ? .ascendant : nil } label: { Label(stagePreview != nil ? "Live form" : "Final form", systemImage: "sparkles").font(.bt(size: 11)).padding(9) }
                         .buttonStyle(.plain).background(stagePreview != nil ? Ink.accent.opacity(0.2) : Ink.panel, in: RoundedRectangle(cornerRadius: 7)).overlay(RoundedRectangle(cornerRadius: 7).stroke(Ink.line)).foregroundStyle(Ink.accent)
                 }
                 ProgressTrack(ratio: score.ratio ?? 0, target: store.document.cycle.target)
@@ -333,17 +333,17 @@ struct HabitRow: View {
             HStack(spacing: 11) {
                 Button {
                     if habit.kind == .metric { onLog() } else { store.toggle(habit, day: day) }
-                } label: { Image(systemName: done ? "checkmark.circle.fill" : "circle").font(.system(size: 19)).foregroundStyle(done ? Ink.accent : Ink.muted) }
+                } label: { Image(systemName: done ? "checkmark.circle.fill" : "circle").font(.bt(size: 19)).foregroundStyle(done ? Ink.accent : Ink.muted) }
                     .buttonStyle(.plain).accessibilityLabel("\(done ? "Reopen" : "Complete") \(revision.title)")
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(revision.title).font(.system(size: 12)).foregroundStyle(done ? Ink.muted : .white)
-                    Text(subtitle).font(.system(size: 10)).foregroundStyle(Ink.muted).lineLimit(2)
+                    Text(revision.title).font(.bt(size: 12)).foregroundStyle(done ? Ink.muted : .white)
+                    Text(subtitle).font(.bt(size: 10)).foregroundStyle(Ink.muted).lineLimit(2)
                 }.frame(maxWidth: .infinity, alignment: .leading)
                 if habit.kind == .metric {
                     let entry = store.engine.entry(for: habit, day: day)
-                    Button { onLog() } label: { Text(entry?.value.map { "\($0.pretty) \(revision.target?.unit ?? "")" } ?? "Log").lineLimit(1).truncationMode(.middle).frame(maxWidth: entry?.value == nil ? nil : 120).font(.system(size: 11, design: .monospaced)).padding(.horizontal, 8).padding(.vertical, 6).background(Ink.panel, in: RoundedRectangle(cornerRadius: 5)) }.buttonStyle(.plain).accessibilityLabel("Log \(revision.title)")
+                    Button { onLog() } label: { Text(entry?.value.map { "\($0.pretty) \(revision.target?.unit ?? "")" } ?? "Log").lineLimit(1).truncationMode(.middle).frame(maxWidth: entry?.value == nil ? nil : 120).font(.bt(size: 11, design: .monospaced)).padding(.horizontal, 8).padding(.vertical, 6).background(Ink.panel, in: RoundedRectangle(cornerRadius: 5)) }.buttonStyle(.plain).accessibilityLabel("Log \(revision.title)")
                 }
-                if let onEdit { Button(action: onEdit) { Image(systemName: "ellipsis").font(.system(size: 12)).frame(width: 18, height: 25) }.buttonStyle(.plain).foregroundStyle(Ink.muted).help("Edit \(revision.title)") }
+                if let onEdit { Button(action: onEdit) { Image(systemName: "ellipsis").font(.bt(size: 12)).frame(width: 18, height: 25) }.buttonStyle(.plain).foregroundStyle(Ink.muted).help("Edit \(revision.title)") }
             }.padding(.vertical, 13)
                 .disabled(day > store.today || (store.document.restDays.contains(day) && habit.kind != .milestone))
             Line()

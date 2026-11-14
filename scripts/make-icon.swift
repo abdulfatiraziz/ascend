@@ -11,11 +11,11 @@ for (pixels,name) in sizes {
         let scale = CGFloat(pixels)/1024
         NSGraphicsContext.current?.cgContext.scaleBy(x: scale,y: scale)
         let background = NSBezierPath(roundedRect: NSRect(x: 30,y:30,width:964,height:964),xRadius:210,yRadius:210)
-        NSColor(red:0.055,green:0.047,blue:0.075,alpha:1).setFill(); background.fill()
-        NSColor(red:0.2,green:0.16,blue:0.3,alpha:1).setStroke(); background.lineWidth=6;background.stroke()
-        let a: [NSAttributedString.Key:Any] = [.font:NSFont.systemFont(ofSize:640,weight:.bold),.foregroundColor:NSColor(white:0.95,alpha:1)]
+        NSColor(red:0.043,green:0.165,blue:0.129,alpha:1).setFill(); background.fill()
+        NSColor(red:0.61,green:0.51,blue:0.32,alpha:1).setStroke(); background.lineWidth=6;background.stroke()
+        let a: [NSAttributedString.Key:Any] = [.font:NSFont.systemFont(ofSize:640,weight:.bold),.foregroundColor:NSColor(red:0.945,green:0.91,blue:0.83,alpha:1)]
         ("A" as NSString).draw(at:NSPoint(x:210,y:110),withAttributes:a)
-        let arrow: [NSAttributedString.Key:Any] = [.font:NSFont.systemFont(ofSize:300,weight:.medium),.foregroundColor:NSColor(red:0.64,green:0.54,blue:1,alpha:1)]
+        let arrow: [NSAttributedString.Key:Any] = [.font:NSFont.systemFont(ofSize:300,weight:.medium),.foregroundColor:NSColor(red:0.85,green:0.71,blue:0.43,alpha:1)]
         ("↗" as NSString).draw(at:NSPoint(x:610,y:480),withAttributes:arrow)
         return true
     }

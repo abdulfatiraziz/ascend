@@ -65,7 +65,7 @@ struct ExerciseDemoSheet: View {
       HStack {
         VStack(alignment: .leading, spacing: 4) {
           Text("Workout artwork").font(.title2)
-          Text("Generated illustrations · transparent backgrounds").font(.system(size: 11))
+          Text("Generated illustrations · transparent backgrounds").font(.bt(size: 11))
             .foregroundStyle(Ink.muted)
         }
         Spacer()
@@ -83,7 +83,7 @@ struct ExerciseDemoSheet: View {
               Button {
                 selected = e.id
               } label: {
-                Text(e.name).font(.system(size: 12)).frame(maxWidth: .infinity, alignment: .leading)
+                Text(e.name).font(.bt(size: 12)).frame(maxWidth: .infinity, alignment: .leading)
                   .padding(9).background(
                     selected == e.id ? Ink.accent.opacity(0.15) : .clear,
                     in: RoundedRectangle(cornerRadius: 7))
@@ -96,7 +96,7 @@ struct ExerciseDemoSheet: View {
             ExerciseArtworkPlayer(source: image).frame(height: 350)
             Text(ExerciseDemoLibrary.entries.first { $0.id == selected }?.name ?? "").font(
               .headline)
-            Toggle("Subtle GIF motion", isOn: $moving).font(.system(size: 12))
+            Toggle("Subtle GIF motion", isOn: $moving).font(.bt(size: 12))
             if let choose {
               Button("Use this illustration") {
                 choose(selected)
@@ -110,10 +110,10 @@ struct ExerciseDemoSheet: View {
       }
       Text(
         "Illustrative artwork, not a form demonstration. GIF motion gently moves the illustration; it does not show a repetition."
-      ).font(.system(size: 11)).foregroundStyle(Ink.muted)
+      ).font(.bt(size: 11)).foregroundStyle(Ink.muted)
       Text(
         "AI-generated for Ascend. No personal photos or measurements used. Motion is off by default and stays off when Reduce Motion is enabled."
-      ).font(.system(size: 10)).foregroundStyle(Ink.muted)
+      ).font(.bt(size: 10)).foregroundStyle(Ink.muted)
     }.padding(24).frame(width: 800, height: 620).onAppear {
       moving = false
       selected =

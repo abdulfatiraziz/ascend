@@ -24,30 +24,30 @@ struct ClaudeSettingsEditor: View {
     init(store: TrackerStore) { controller = store.assistant }
     var body: some View {
         EditorShell(title: "Claude settings") {
-            Text("Ask Ascend runs on your own Claude Code install and account, the same as `claude --personal` in Terminal. There is no API key to manage.").font(.system(size: 12)).foregroundStyle(Ink.muted)
+            Text("Ask Ascend runs on your own Claude Code install and account, the same as `claude --personal` in Terminal. There is no API key to manage.").font(.bt(size: 12)).foregroundStyle(Ink.muted)
             FieldGroup(label: "Claude Code") {
-                Text(controller.executable?.path ?? "Not found. Install Claude Code or enter its path below.").font(.system(size: 11, design: .monospaced)).foregroundStyle(controller.executable == nil ? .orange : Ink.muted).textSelection(.enabled)
+                Text(controller.executable?.path ?? "Not found. Install Claude Code or enter its path below.").font(.bt(size: 11, design: .monospaced)).foregroundStyle(controller.executable == nil ? .orange : Ink.muted).textSelection(.enabled)
             }
             FieldGroup(label: "Custom path (optional)") { TextField("Detected automatically", text: $controller.executableOverride).labelsHidden() }
             FieldGroup(label: "Claude profile folder") { TextField(ClaudeAssistant.defaultConfigDirectory, text: $controller.configDirectory).labelsHidden() }
-            Text("~/.claude-personal is your personal account. If Claude says you aren’t signed in, run `claude --personal` in Terminal once and sign in.").font(.system(size: 11)).foregroundStyle(Ink.muted)
+            Text("~/.claude-personal is your personal account. If Claude says you aren’t signed in, run `claude --personal` in Terminal once and sign in.").font(.bt(size: 11)).foregroundStyle(Ink.muted)
             FieldGroup(label: "Model for new chats") {
                 Picker("Model for new chats", selection: $controller.defaultModel) { ForEach(ClaudeModel.allCases, id: \.self) { Text("\($0.label) · \($0.detail)").tag($0) } }.labelsHidden()
             }
             FieldGroup(label: "Effort for new chats") {
                 Picker("Effort for new chats", selection: $controller.defaultEffort) { ForEach(ClaudeEffort.allCases, id: \.self) { Text($0.label).tag($0) } }.labelsHidden()
             }
-            Text("Applies to every model. Medium suits most chats; higher effort thinks longer and uses more of your plan. Each chat’s effort can be changed from its menu.").font(.system(size: 11)).foregroundStyle(Ink.muted)
-            Toggle("Share recent check-ins, progress and habit notes", isOn: $controller.shareHistory).font(.system(size: 12))
-            Text("Lets Claude discuss how your cycle is actually going. Your plan is always shared. Urge logs, health data and journal or caffeine entries are never sent.").font(.system(size: 11)).foregroundStyle(Ink.muted)
+            Text("Applies to every model. Medium suits most chats; higher effort thinks longer and uses more of your plan. Each chat’s effort can be changed from its menu.").font(.bt(size: 11)).foregroundStyle(Ink.muted)
+            Toggle("Share recent check-ins, progress and habit notes", isOn: $controller.shareHistory).font(.bt(size: 12))
+            Text("Lets Claude discuss how your cycle is actually going. Your plan is always shared. Urge logs, health data and journal or caffeine entries are never sent.").font(.bt(size: 11)).foregroundStyle(Ink.muted)
             HStack {
                 Button(controller.working ? "Testing…" : "Send test message") { controller.testConnection() }.disabled(controller.working || controller.executable == nil)
                 if controller.working { Button("Cancel") { controller.cancel() } }
             }
-            Text(controller.connectionStatus).font(.system(size: 11)).foregroundStyle(Ink.muted)
-            if let error = controller.error { Text(error).font(.system(size: 12)).foregroundStyle(.orange).textSelection(.enabled) }
+            Text(controller.connectionStatus).font(.bt(size: 11)).foregroundStyle(Ink.muted)
+            if let error = controller.error { Text(error).font(.bt(size: 12)).foregroundStyle(.orange).textSelection(.enabled) }
             Line()
-            Text("Chats are saved on this Mac in \(controller.workspace.path)/chats.json, outside tracker backups. Each chat is also a Claude Code session; use Copy Terminal command in a chat’s menu to continue it in Terminal. Usage counts toward your Claude plan.").font(.system(size: 11)).foregroundStyle(Ink.muted).textSelection(.enabled)
+            Text("Chats are saved on this Mac in \(controller.workspace.path)/chats.json, outside tracker backups. Each chat is also a Claude Code session; use Copy Terminal command in a chat’s menu to continue it in Terminal. Usage counts toward your Claude plan.").font(.bt(size: 11)).foregroundStyle(Ink.muted).textSelection(.enabled)
         } actions: { HStack { Spacer(); PrimaryButton(label: "Done") { dismiss() } } }
     }
 }

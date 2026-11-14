@@ -15,9 +15,9 @@ struct AvatarView: View {
     private var stage: AvatarStage { .resolve(evolution: evolution, appearance: finish, preview: previewStage) }
     private var accent: Color {
         switch stage {
-        case .obsidian: Color(red: 0.64, green: 0.48, blue: 0.96)
-        case .titanium: Color(red: 0.63, green: 0.84, blue: 0.91)
-        case .ascendant: Color(red: 0.72, green: 0.58, blue: 1)
+        case .obsidian: Ink.goldDim
+        case .titanium: Color(hex: 0xC9CCD0)
+        case .ascendant: Ink.lamp
         }
     }
     private static let images: [AvatarStage: NSImage] = Dictionary(uniqueKeysWithValues: AvatarStage.allCases.compactMap { stage -> (AvatarStage, NSImage)? in

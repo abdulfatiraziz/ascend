@@ -43,7 +43,7 @@ public final class BridgeActivity extends Activity {
     enum Screen { LOG, TODAY, MEALS, MEDS, URGES, SETTINGS, ADD_MEDS, SETS }
     static final String LOCAL_NETWORK = "android.permission.ACCESS_LOCAL_NETWORK";
     static final int REQ_HEALTH = 7, REQ_NETWORK = 8, REQ_CAMERA = 11, REQ_PICK = 12, REQ_NOTIFY = 13, REQ_BACKGROUND = 14, REQ_LOCATION = 15, REQ_BACKGROUND_LOCATION = 16, REQ_SPOT_FINE = 17;
-    static final String VERSION = "0.9.3";
+    static final String VERSION = "0.9.4";
 
     SyncEngine engine;
     Ui ui;
@@ -213,7 +213,7 @@ public final class BridgeActivity extends Activity {
             boolean on = screen == targets[i];
             LinearLayout tab = ui.column(4); tab.setGravity(Gravity.CENTER_HORIZONTAL);
             FrameLayout pill = new FrameLayout(this);
-            if (on) pill.setBackground(ui.round(0x2EA18AFF, 15, 0, 0));
+            if (on) pill.setBackground(ui.round(0x2ED9B46E, 15, 0, 0));
             pill.addView(ui.iconView(tabs[i][1], on ? Ui.ACCENT : Ui.MUTED, 22), new FrameLayout.LayoutParams(ui.dp(22), ui.dp(22), Gravity.CENTER));
             tab.addView(pill, new LinearLayout.LayoutParams(ui.dp(56), ui.dp(30)));
             // Column children are full width, so the label itself must be centred under the icon.
@@ -318,7 +318,7 @@ public final class BridgeActivity extends Activity {
     }
     View setupCard() {
         LinearLayout card = ui.card(10);
-        card.setBackground(ui.round(Ui.PANEL, 18, 0x59A18AFF, 1));
+        card.setBackground(ui.round(Ui.PANEL, 18, 0x59D9B46E, 1));
         card.addView(ui.text("Connect to your Mac", 17, Ui.TEXT, 600));
         card.addView(ui.body("1. On the Mac, open Ascend → Health → Pair phone.\n2. Tap Pair with Mac and check the 6-digit code matches.\n3. Choose which health data to share."));
         card.addView(ui.primary("Pair with Mac", v -> withNetwork(this::pair, null)), Ui.wide());
@@ -516,7 +516,7 @@ public final class BridgeActivity extends Activity {
     }
     View nextDoseCard(JSONObject dose) {
         LinearLayout card = ui.card(0);
-        card.setBackground(ui.round(Ui.PANEL, 18, 0x59A18AFF, 1));
+        card.setBackground(ui.round(Ui.PANEL, 18, 0x59D9B46E, 1));
         LinearLayout row = ui.row(14);
         LinearLayout text = ui.column(4);
         int minute = dose.optInt("minute");
@@ -665,7 +665,7 @@ public final class BridgeActivity extends Activity {
                 stat("Last 7 days", t.optInt("medsWeekTaken") + " taken", t.optInt("medsWeekMissed") + " missed", t.optInt("medsWeekMissed") > 0 ? Ui.ORANGE : Ui.MUTED),
                 stat("Today", takenCount + " of " + doses.size(), "Habit ticks when all taken", Ui.MUTED)));
         }
-        col.addView(ui.iconButton("Add medicines with photos", "ic_plus", ui.dashed(Ui.PANEL, 16, 0x8CA18AFF), Ui.ACCENT_TEXT, 52, v -> show(Screen.ADD_MEDS)), Ui.wide());
+        col.addView(ui.iconButton("Add medicines with photos", "ic_plus", ui.dashed(Ui.PANEL, 16, 0x8CD9B46E), Ui.ACCENT_TEXT, 52, v -> show(Screen.ADD_MEDS)), Ui.wide());
         int open = SyncEngine.json(engine.openMedBatch()).length, ready = engine.readyMedPhotos();
         TextView note = ui.small(ready > 0 ? ready + " medicine photo" + (ready == 1 ? "" : "s") + " waiting to send"
             : open > 0 ? open + " photo" + (open == 1 ? "" : "s") + " in an unfinished batch · tap Add medicines to finish"
@@ -741,7 +741,7 @@ public final class BridgeActivity extends Activity {
     }
     View squareTile(String icon, String label, boolean accent, View.OnClickListener l) {
         LinearLayout tile = ui.column(6); tile.setGravity(Gravity.CENTER);
-        tile.setBackground(accent ? ui.round(Ui.ACCENT_SOFT, 16, 0x99A18AFF, 1.5f) : ui.round(Ui.PANEL, 16, 0x1FFFFFFF, 1));
+        tile.setBackground(accent ? ui.round(Ui.ACCENT_SOFT, 16, 0x99D9B46E, 1.5f) : ui.round(Ui.PANEL, 16, 0x1FFFFFFF, 1));
         tile.addView(ui.iconView(icon, accent ? Ui.ACCENT_TEXT : Ui.TEXT, 26));
         TextView text = ui.text(label, 13, accent ? Ui.ACCENT_TEXT : Ui.TEXT, accent ? 600 : 500); text.setGravity(Gravity.CENTER);
         tile.addView(text);
@@ -810,7 +810,7 @@ public final class BridgeActivity extends Activity {
     }
     View urgeTile(String outcome, boolean pass) {
         LinearLayout tile = ui.column(0);
-        tile.setBackground(pass ? ui.round(Ui.ACCENT_SOFT, 20, 0x99A18AFF, 1.5f) : ui.round(Ui.PANEL, 20, 0x1FFFFFFF, 1));
+        tile.setBackground(pass ? ui.round(Ui.ACCENT_SOFT, 20, 0x99D9B46E, 1.5f) : ui.round(Ui.PANEL, 20, 0x1FFFFFFF, 1));
         ui.pad(tile, 16, 16, 16, 16);
         tile.addView(pass ? ui.badge("ic_check", Ui.ACCENT, Ui.ON_ACCENT, 36, 20) : ui.badge("ic_urge", Ui.PANEL2, Ui.ORANGE, 36, 20));
         View gap = new View(this); tile.addView(gap, new LinearLayout.LayoutParams(1, 0, 1));
@@ -823,7 +823,7 @@ public final class BridgeActivity extends Activity {
     JSONArray urgeHistory() { try { return new JSONArray(prefs.getString("urgeHistory", "[]")); } catch (JSONException e) { return new JSONArray(); } }
     void styleChip(Button b, boolean on) {
         b.setBackground(on ? ui.round(Ui.ACCENT_SOFT, 18, Ui.ACCENT, 1) : ui.round(Ui.PANEL2, 18, 0, 0));
-        b.setTextColor(on ? 0xFFE0D8FF : Ui.TEXT);
+        b.setTextColor(on ? Ui.LAMP : Ui.TEXT);
     }
 
     // MARK: Log (home)
@@ -876,7 +876,7 @@ public final class BridgeActivity extends Activity {
     }
     View nowCard(JSONObject now) {
         LinearLayout card = ui.card(6);
-        card.setBackground(ui.round(0xFF1D1830, 18, 0x59A18AFF, 1));
+        card.setBackground(ui.round(Ui.PANEL2, 18, 0x59D9B46E, 1));
         TextView k = ui.kicker(now.optString("kicker")); k.setTextColor(Ui.ACCENT); card.addView(ui.oneLine(k));
         card.addView(ui.text(now.optString("title"), 16, Ui.TEXT, 600));
         String d = now.optString("detail");
@@ -890,7 +890,7 @@ public final class BridgeActivity extends Activity {
     }
     View logTile(String icon, String label, boolean hot, View.OnClickListener l) {
         LinearLayout tile = ui.column(6); tile.setGravity(Gravity.CENTER);
-        tile.setBackground(hot ? ui.round(0x14F0A35E, 16, 0x73F0A35E, 1) : ui.round(Ui.PANEL, 16, Ui.LINE, 1));
+        tile.setBackground(hot ? ui.round(0x14E6B04E, 16, 0x73E6B04E, 1) : ui.round(Ui.PANEL, 16, Ui.LINE, 1));
         tile.addView(ui.iconView(icon, hot ? Ui.ORANGE : Ui.ACCENT_TEXT, 22));
         TextView text = ui.oneLine(ui.text(label, 12, Ui.TEXT, 500)); text.setGravity(Gravity.CENTER);
         tile.addView(text);
@@ -1192,7 +1192,7 @@ public final class BridgeActivity extends Activity {
             JSONObject done = i < today.length() ? today.optJSONObject(i) : null;
             boolean next = i == today.length(), extra = i >= e.optInt("sets");
             LinearLayout cell = ui.column(2); cell.setGravity(Gravity.CENTER); ui.pad(cell, 6, 8, 6, 8);
-            cell.setBackground(done != null ? ui.round(Ui.ACCENT_SOFT, 12, 0, 0) : next ? ui.dashed(Ui.PANEL, 12, 0x8CA18AFF) : ui.round(Ui.PANEL2, 12, 0, 0));
+            cell.setBackground(done != null ? ui.round(Ui.ACCENT_SOFT, 12, 0, 0) : next ? ui.dashed(Ui.PANEL, 12, 0x8CD9B46E) : ui.round(Ui.PANEL2, 12, 0, 0));
             cell.addView(ui.kicker(extra && done == null ? "+ set" : "set " + (i + 1)));
             cell.addView(ui.oneLine(ui.text(done != null ? setLabel(done, timed) : next ? "tap" : "—", 13, done != null ? Ui.TEXT : next ? Ui.ACCENT_TEXT : Ui.FAINT, 600)));
             if (done != null || next) {
@@ -1332,7 +1332,7 @@ public final class BridgeActivity extends Activity {
         row.addView(t, new LinearLayout.LayoutParams(0, Ui.WRAP, 1));
         Switch s = new Switch(this);
         s.setChecked(on);
-        s.setThumbTintList(Ui.tint(Ui.TEXT, Ui.MUTED)); s.setTrackTintList(Ui.tint(Ui.ACCENT, 0xFF3A3642));
+        s.setThumbTintList(Ui.tint(Ui.TEXT, Ui.MUTED)); s.setTrackTintList(Ui.tint(Ui.ACCENT, 0xFF2F5C4C));
         s.setOnCheckedChangeListener((b, value) -> changed.accept(value));
         s.setContentDescription(title);
         row.addView(s);

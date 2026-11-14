@@ -71,19 +71,19 @@ struct PhotosView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 6) {
                     Kicker("Same angle, same light → see the change")
-                    Text("Keep dated photos of your hair, hairline, face and body, compare any two from the same angle, and ask Claude what changed.").font(.system(size: 12)).foregroundStyle(Ink.muted)
+                    Text("Keep dated photos of your hair, hairline, face and body, compare any two from the same angle, and ask Claude what changed.").font(.bt(size: 12)).foregroundStyle(Ink.muted)
                 }
                 Spacer()
                 PrimaryButton(label: "Add photos…") { choose() }
             }
             areaTabs
-            Label(area.tip, systemImage: "lightbulb").font(.system(size: 11)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
+            Label(area.tip, systemImage: "lightbulb").font(.bt(size: 11)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
             if album.photos(area).isEmpty { empty } else {
                 angleChips
                 if let currentAngle { compare(currentAngle) }
                 timeline
             }
-            Text("Photos stay on this Mac in Ascend’s Progress folder with their location data removed. Ask Ascend sees only which areas, angles and dates you have; an image reaches Claude only when you compare it or attach it to a chat, through your personal Claude profile.").font(.system(size: 11)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
+            Text("Photos stay on this Mac in Ascend’s Progress folder with their location data removed. Ask Ascend sees only which areas, angles and dates you have; an image reaches Claude only when you compare it or attach it to a chat, through your personal Claude profile.").font(.bt(size: 11)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
         }.padding(.bottom, 10)
     }
     private var areaTabs: some View {
@@ -94,8 +94,8 @@ struct PhotosView: View {
                     HStack(spacing: 7) {
                         Image(systemName: item.symbol)
                         Text(item.label)
-                        if count > 0 { Text("\(count)").font(.system(size: 10, design: .monospaced)).foregroundStyle(Ink.muted) }
-                    }.font(.system(size: 12, weight: item == area ? .semibold : .regular)).padding(.horizontal, 12).padding(.vertical, 8)
+                        if count > 0 { Text("\(count)").font(.bt(size: 10, design: .monospaced)).foregroundStyle(Ink.muted) }
+                    }.font(.bt(size: 12, weight: item == area ? .semibold : .regular)).padding(.horizontal, 12).padding(.vertical, 8)
                         .background(item == area ? Ink.accent.opacity(0.14) : Ink.panel, in: RoundedRectangle(cornerRadius: 8))
                         .overlay(RoundedRectangle(cornerRadius: 8).stroke(item == area ? Ink.accent.opacity(0.5) : Ink.line))
                 }.buttonStyle(.plain).foregroundStyle(item == area ? Ink.accent : .white)
@@ -104,8 +104,8 @@ struct PhotosView: View {
     }
     private var empty: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("No \(area.label.lowercased()) photos yet.").font(.system(size: 18, weight: .semibold))
-            Text("Choose Add photos… or drag photos onto this window. Ascend reads the date each photo was taken, and you pick the area and angle (\(area.angles.map { $0.label.lowercased() }.joined(separator: ", "))). Take the same angles every week or two to see real change.").font(.system(size: 12)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
+            Text("No \(area.label.lowercased()) photos yet.").font(.bt(size: 18, weight: .semibold))
+            Text("Choose Add photos… or drag photos onto this window. Ascend reads the date each photo was taken, and you pick the area and angle (\(area.angles.map { $0.label.lowercased() }.joined(separator: ", "))). Take the same angles every week or two to see real change.").font(.bt(size: 12)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
         }.frame(maxWidth: .infinity, alignment: .leading).panel()
     }
     private var angleChips: some View {
@@ -113,7 +113,7 @@ struct PhotosView: View {
             Kicker("Angle")
             ForEach(album.angles(area), id: \.self) { item in
                 Button { angle = item; beforeID = nil; afterID = nil } label: {
-                    Text("\(item.label) · \(album.photos(area, angle: item).count)").font(.system(size: 11)).padding(.horizontal, 10).padding(.vertical, 5)
+                    Text("\(item.label) · \(album.photos(area, angle: item).count)").font(.bt(size: 11)).padding(.horizontal, 10).padding(.vertical, 5)
                         .background(item == currentAngle ? Ink.accent.opacity(0.14) : .clear, in: Capsule())
                         .overlay(Capsule().stroke(item == currentAngle ? Ink.accent.opacity(0.5) : Ink.line))
                 }.buttonStyle(.plain).foregroundStyle(item == currentAngle ? Ink.accent : Ink.muted)
@@ -131,9 +131,9 @@ struct PhotosView: View {
             HStack(alignment: .top, spacing: 16) {
                 AlbumImage(url: store.progressPhotoURL(only), maxPixel: 900).frame(width: 220, height: 280).clipShape(RoundedRectangle(cornerRadius: 9))
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(label(only)).font(.system(size: 15, weight: .semibold))
-                    Text("Your first \(angle.label.lowercased()) photo of your \(area.label.lowercased()). Add another from the same angle in a week or two to compare.").font(.system(size: 12)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
-                    Button { store.askAscend(about: [only]) } label: { Label("Ask Ascend about it", systemImage: "sparkles").font(.system(size: 11)) }
+                    Text(label(only)).font(.bt(size: 15, weight: .semibold))
+                    Text("Your first \(angle.label.lowercased()) photo of your \(area.label.lowercased()). Add another from the same angle in a week or two to compare.").font(.bt(size: 12)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
+                    Button { store.askAscend(about: [only]) } label: { Label("Ask Ascend about it", systemImage: "sparkles").font(.bt(size: 11)) }
                 }
             }.frame(maxWidth: .infinity, alignment: .leading).panel(padding: 16)
         } else if let first = list.first, let last = list.last {
@@ -145,9 +145,9 @@ struct PhotosView: View {
                     picker("Before", list: list, selection: before) { beforeID = $0 }
                     Image(systemName: "arrow.right").foregroundStyle(Ink.muted)
                     picker("After", list: list, selection: after) { afterID = $0 }
-                    Text(days == 0 ? "Same day" : "\(abs(days)) day\(abs(days) == 1 ? "" : "s") \(days > 0 ? "apart" : "earlier")").font(.system(size: 11)).foregroundStyle(Ink.muted)
+                    Text(days == 0 ? "Same day" : "\(abs(days)) day\(abs(days) == 1 ? "" : "s") \(days > 0 ? "apart" : "earlier")").font(.bt(size: 11)).foregroundStyle(Ink.muted)
                     Spacer()
-                    Button { store.askAscend(about: before.id == after.id ? [after] : [before, after]) } label: { Label("Ask Ascend", systemImage: "sparkles").font(.system(size: 11)) }
+                    Button { store.askAscend(about: before.id == after.id ? [after] : [before, after]) } label: { Label("Ask Ascend", systemImage: "sparkles").font(.bt(size: 11)) }
                         .help("Attach these photos to a chat message so you can discuss them with Claude")
                     Picker("View", selection: $overlay) { Text("Side by side").tag(false); Text("Overlay").tag(true) }.pickerStyle(.segmented).labelsHidden().fixedSize()
                 }
@@ -156,7 +156,7 @@ struct PhotosView: View {
                         AlbumImage(url: store.progressPhotoURL(before))
                         AlbumImage(url: store.progressPhotoURL(after)).opacity(blend)
                     }.frame(maxWidth: .infinity).frame(height: 480).clipShape(RoundedRectangle(cornerRadius: 9))
-                    HStack { Text("Before").font(.system(size: 11)); Slider(value: $blend, in: 0...1).accessibilityLabel("Blend before and after"); Text("After").font(.system(size: 11)) }.foregroundStyle(Ink.muted)
+                    HStack { Text("Before").font(.bt(size: 11)); Slider(value: $blend, in: 0...1).accessibilityLabel("Blend before and after"); Text("After").font(.bt(size: 11)) }.foregroundStyle(Ink.muted)
                 } else {
                     HStack(alignment: .top, spacing: 12) {
                         side("Before", before)
@@ -177,8 +177,8 @@ struct PhotosView: View {
         VStack(alignment: .leading, spacing: 6) {
             AlbumImage(url: store.progressPhotoURL(photo)).frame(maxWidth: .infinity).frame(height: 420).background(Color.black.opacity(0.25)).clipShape(RoundedRectangle(cornerRadius: 9))
                 .onTapGesture(count: 2) { NSWorkspace.shared.open(store.progressPhotoURL(photo)) }.help("Double-click to open full size")
-            HStack { Kicker(title); Text(label(photo)).font(.system(size: 11)).foregroundStyle(Ink.muted) }
-            if !photo.note.isEmpty { Text(photo.note).font(.system(size: 11)).foregroundStyle(Ink.muted).lineLimit(2) }
+            HStack { Kicker(title); Text(label(photo)).font(.bt(size: 11)).foregroundStyle(Ink.muted) }
+            if !photo.note.isEmpty { Text(photo.note).font(.bt(size: 11)).foregroundStyle(Ink.muted).lineLimit(2) }
         }.frame(maxWidth: .infinity)
     }
     @ViewBuilder private func review(_ pair: PhotoReviewController.Pair, same: Bool) -> some View {
@@ -188,27 +188,27 @@ struct PhotosView: View {
             if let existing {
                 let c = existing.comparison
                 HStack(spacing: 8) {
-                    Text(c.trend.capitalized).font(.system(size: 11, weight: .semibold)).padding(.horizontal, 8).padding(.vertical, 3)
+                    Text(c.trend.capitalized).font(.bt(size: 11, weight: .semibold)).padding(.horizontal, 8).padding(.vertical, 3)
                         .background(trendColor(c.trend).opacity(0.18), in: Capsule()).foregroundStyle(trendColor(c.trend))
-                    Text("Claude · \(c.confidence) confidence").font(.system(size: 11)).foregroundStyle(Ink.muted)
+                    Text("Claude · \(c.confidence) confidence").font(.bt(size: 11)).foregroundStyle(Ink.muted)
                     Spacer()
-                    if savedNotes.contains(existing.id) { Label("Saved to Notes", systemImage: "checkmark").font(.system(size: 11)).foregroundStyle(Ink.accent) }
-                    else { Button("Save as note") { if store.saveReviewAsNote(existing) { savedNotes.insert(existing.id) } }.font(.system(size: 11)) }
-                    Button("Compare again") { reviews.compare(pair) }.font(.system(size: 11)).disabled(reviews.working != nil)
+                    if savedNotes.contains(existing.id) { Label("Saved to Notes", systemImage: "checkmark").font(.bt(size: 11)).foregroundStyle(Ink.accent) }
+                    else { Button("Save as note") { if store.saveReviewAsNote(existing) { savedNotes.insert(existing.id) } }.font(.bt(size: 11)) }
+                    Button("Compare again") { reviews.compare(pair) }.font(.bt(size: 11)).disabled(reviews.working != nil)
                 }
-                Text(c.summary).font(.system(size: 13)).fixedSize(horizontal: false, vertical: true)
-                ForEach(c.changes, id: \.self) { Text("•  \($0)").font(.system(size: 12)).foregroundStyle(.white.opacity(0.9)).fixedSize(horizontal: false, vertical: true) }
-                if !c.conditions.isEmpty { Label(c.conditions, systemImage: "camera").font(.system(size: 11)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true) }
+                Text(c.summary).font(.bt(size: 13)).fixedSize(horizontal: false, vertical: true)
+                ForEach(c.changes, id: \.self) { Text("•  \($0)").font(.bt(size: 12)).foregroundStyle(.white.opacity(0.9)).fixedSize(horizontal: false, vertical: true) }
+                if !c.conditions.isEmpty { Label(c.conditions, systemImage: "camera").font(.bt(size: 11)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true) }
             } else if busy {
-                HStack(spacing: 8) { ProgressView().controlSize(.small); Text("Claude is comparing the two photos…").font(.system(size: 12)).foregroundStyle(Ink.muted) }
+                HStack(spacing: 8) { ProgressView().controlSize(.small); Text("Claude is comparing the two photos…").font(.bt(size: 12)).foregroundStyle(Ink.muted) }
             } else {
                 HStack {
-                    Text(same ? "Pick two different photos to compare." : "Claude can describe what changed: hairline, density, leanness, skin or shape, and whether the light or angle differs.").font(.system(size: 12)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
+                    Text(same ? "Pick two different photos to compare." : "Claude can describe what changed: hairline, density, leanness, skin or shape, and whether the light or angle differs.").font(.bt(size: 12)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
                     Spacer()
                     PrimaryButton(label: "Ask Claude to compare") { reviews.compare(pair) }.disabled(same || reviews.working != nil)
                 }
             }
-            if let error = reviews.errors[pair] { Text(error).font(.system(size: 11)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true) }
+            if let error = reviews.errors[pair] { Text(error).font(.bt(size: 11)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true) }
         }
     }
     private func trendColor(_ trend: String) -> Color { trend == "better" ? .green : trend == "worse" ? .orange : Ink.muted }
@@ -223,8 +223,8 @@ struct PhotosView: View {
                         VStack(alignment: .leading, spacing: 5) {
                             AlbumImage(url: store.progressPhotoURL(photo), maxPixel: 400, fill: true).frame(width: 132, height: 164).clipped().clipShape(RoundedRectangle(cornerRadius: 8))
                                 .overlay(RoundedRectangle(cornerRadius: 8).stroke(photo.angle == currentAngle ? Ink.accent.opacity(0.45) : Ink.line))
-                            Text(dateText(photo.day, engine: store.engine, pattern: "d MMM yyyy")).font(.system(size: 11, weight: .medium))
-                            Text(photo.angle.label + (store.document.cycleDay(photo.day).map { " · Day \($0)" } ?? "")).font(.system(size: 10)).foregroundStyle(Ink.muted)
+                            Text(dateText(photo.day, engine: store.engine, pattern: "d MMM yyyy")).font(.bt(size: 11, weight: .medium))
+                            Text(photo.angle.label + (store.document.cycleDay(photo.day).map { " · Day \($0)" } ?? "")).font(.bt(size: 10)).foregroundStyle(Ink.muted)
                         }.frame(width: 132, alignment: .leading)
                     }.buttonStyle(.plain).help("Edit, or use in the comparison")
                         .contextMenu {
@@ -265,8 +265,8 @@ private struct ImportSheet: View {
     @Environment(\.dismiss) private var dismiss
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Add \(items.count) photo\(items.count == 1 ? "" : "s")").font(.system(size: 20, weight: .semibold))
-            Text("Dates come from when each photo was taken; fix any that are wrong. Pick what each photo shows.").font(.system(size: 12)).foregroundStyle(Ink.muted)
+            Text("Add \(items.count) photo\(items.count == 1 ? "" : "s")").font(.bt(size: 20, weight: .semibold))
+            Text("Dates come from when each photo was taken; fix any that are wrong. Pick what each photo shows.").font(.bt(size: 12)).foregroundStyle(Ink.muted)
             if items.count > 1 {
                 HStack(spacing: 10) {
                     Kicker("Set all")
@@ -289,8 +289,8 @@ private struct ImportSheet: View {
                                     Spacer()
                                     Button { items.removeAll { $0.id == item.id } } label: { Image(systemName: "xmark") }.buttonStyle(.plain).foregroundStyle(Ink.muted).accessibilityLabel("Skip this photo")
                                 }
-                                TextField("Note (optional, for example: hair still damp, new lighting)", text: $item.note).textFieldStyle(.roundedBorder).font(.system(size: 12))
-                                Text(item.url.lastPathComponent).font(.system(size: 10)).foregroundStyle(Ink.muted).lineLimit(1)
+                                TextField("Note (optional, for example: hair still damp, new lighting)", text: $item.note).textFieldStyle(.roundedBorder).font(.bt(size: 12))
+                                Text(item.url.lastPathComponent).font(.bt(size: 10)).foregroundStyle(Ink.muted).lineLimit(1)
                             }
                         }.padding(10).background(Ink.panel, in: RoundedRectangle(cornerRadius: 9))
                     }
@@ -333,7 +333,7 @@ private struct PhotoEditor: View {
         HStack(alignment: .top, spacing: 20) {
             AlbumImage(url: store.progressPhotoURL(photo), maxPixel: 1400).frame(width: 380, height: 500).background(Color.black.opacity(0.25)).clipShape(RoundedRectangle(cornerRadius: 10))
             VStack(alignment: .leading, spacing: 14) {
-                Text("Progress photo").font(.system(size: 20, weight: .semibold))
+                Text("Progress photo").font(.bt(size: 20, weight: .semibold))
                 VStack(alignment: .leading, spacing: 5) { Kicker("Taken"); DatePicker("Taken", selection: $date, in: ...Date(), displayedComponents: [.date, .hourAndMinute]).labelsHidden() }
                 VStack(alignment: .leading, spacing: 5) {
                     Kicker("Shows")
@@ -342,14 +342,14 @@ private struct PhotoEditor: View {
                         Picker("Angle", selection: $angle) { ForEach(PhotoAngle.allCases, id: \.self) { Text($0.label).tag($0) } }.labelsHidden().fixedSize()
                     }
                 }
-                VStack(alignment: .leading, spacing: 5) { Kicker("Note"); TextField("Note", text: $note, axis: .vertical).lineLimit(2...4).textFieldStyle(.roundedBorder).font(.system(size: 12)) }
+                VStack(alignment: .leading, spacing: 5) { Kicker("Note"); TextField("Note", text: $note, axis: .vertical).lineLimit(2...4).textFieldStyle(.roundedBorder).font(.bt(size: 12)) }
                 HStack {
                     Button("Use as before") { save(); use(.before, area, angle); dismiss() }
                     Button("Use as after") { save(); use(.after, area, angle); dismiss() }
-                }.font(.system(size: 12))
+                }.font(.bt(size: 12))
                 Spacer()
                 HStack {
-                    Button("Delete…") { confirmDelete = true }.font(.system(size: 12))
+                    Button("Delete…") { confirmDelete = true }.font(.bt(size: 12))
                     Spacer()
                     Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
                     PrimaryButton(label: "Save") { save(); dismiss() }.keyboardShortcut(.defaultAction)
@@ -378,12 +378,12 @@ struct ProgressPhotoPicker: View {
     var body: some View {
         let album = store.document.photos
         VStack(alignment: .leading, spacing: 14) {
-            Text("Attach progress photos").font(.system(size: 20, weight: .semibold))
-            Text("Pick up to \(limit). Each one is labelled with its area, angle and date so Claude knows what it's looking at.").font(.system(size: 12)).foregroundStyle(Ink.muted)
+            Text("Attach progress photos").font(.bt(size: 20, weight: .semibold))
+            Text("Pick up to \(limit). Each one is labelled with its area, angle and date so Claude knows what it's looking at.").font(.bt(size: 12)).foregroundStyle(Ink.muted)
             Picker("Area", selection: $area) { ForEach(PhotoArea.allCases, id: \.self) { Text("\($0.label) · \(album.photos($0).count)").tag($0) } }.pickerStyle(.segmented).labelsHidden()
             ScrollView {
                 let list = album.photos(area).reversed().map { $0 }
-                if list.isEmpty { Text("No \(area.label.lowercased()) photos yet. Add them on the Photos screen.").font(.system(size: 12)).foregroundStyle(Ink.muted).frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 20) }
+                if list.isEmpty { Text("No \(area.label.lowercased()) photos yet. Add them on the Photos screen.").font(.bt(size: 12)).foregroundStyle(Ink.muted).frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 20) }
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 108), spacing: 10)], alignment: .leading, spacing: 10) {
                     ForEach(list) { photo in
                         let index = picked.firstIndex(of: photo.id)
@@ -392,17 +392,17 @@ struct ProgressPhotoPicker: View {
                                 AlbumImage(url: store.progressPhotoURL(photo), maxPixel: 400, fill: true).frame(width: 108, height: 134).clipped().clipShape(RoundedRectangle(cornerRadius: 8))
                                     .overlay(RoundedRectangle(cornerRadius: 8).stroke(index == nil ? Ink.line : Ink.accent, lineWidth: index == nil ? 1 : 2))
                                     .overlay(alignment: .topTrailing) {
-                                        if let index { Text("\(index + 1)").font(.system(size: 11, weight: .bold)).frame(width: 20, height: 20).background(Ink.accent, in: Circle()).foregroundStyle(Ink.background).padding(5) }
+                                        if let index { Text("\(index + 1)").font(.bt(size: 11, weight: .bold)).frame(width: 20, height: 20).background(Ink.accent, in: Circle()).foregroundStyle(Ink.background).padding(5) }
                                     }
-                                Text(dateText(photo.day, engine: store.engine, pattern: "d MMM yyyy")).font(.system(size: 11, weight: .medium))
-                                Text(photo.angle.label).font(.system(size: 10)).foregroundStyle(Ink.muted)
+                                Text(dateText(photo.day, engine: store.engine, pattern: "d MMM yyyy")).font(.bt(size: 11, weight: .medium))
+                                Text(photo.angle.label).font(.bt(size: 10)).foregroundStyle(Ink.muted)
                             }.frame(width: 108, alignment: .leading)
                         }.buttonStyle(.plain).disabled(index == nil && picked.count >= limit)
                     }
                 }
             }.frame(height: 380)
             HStack {
-                Text(picked.isEmpty ? "Tip: pick the oldest and newest of the same angle." : "\(picked.count) of \(limit) picked").font(.system(size: 11)).foregroundStyle(Ink.muted)
+                Text(picked.isEmpty ? "Tip: pick the oldest and newest of the same angle." : "\(picked.count) of \(limit) picked").font(.bt(size: 11)).foregroundStyle(Ink.muted)
                 Spacer()
                 Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
                 PrimaryButton(label: picked.count == 1 ? "Attach 1 photo" : "Attach \(picked.count) photos") {

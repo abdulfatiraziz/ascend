@@ -12,7 +12,7 @@ struct EditorShell<Content: View, Actions: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             HStack {
-                Text(title).font(.system(size: 23, weight: .medium)).tracking(-0.7).lineLimit(2); Spacer()
+                Text(title).font(.bt(size: 23, weight: .medium)).tracking(-0.7).lineLimit(2); Spacer()
                 Button { if dirty { discard = true } else { dismiss() } } label: { Image(systemName: "xmark").frame(width: 28, height: 28) }
                     .buttonStyle(.plain).foregroundStyle(Ink.muted).keyboardShortcut(.cancelAction).accessibilityLabel("Close editor")
             }
@@ -31,7 +31,7 @@ struct FieldGroup<Content: View>: View {
     var label: String
     @ViewBuilder var content: Content
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) { Text(label).font(.system(size: 12, weight: .medium)).foregroundStyle(Ink.muted); content }
+        VStack(alignment: .leading, spacing: 8) { Text(label).font(.bt(size: 12, weight: .medium)).foregroundStyle(Ink.muted); content }
             .textFieldStyle(.roundedBorder).frame(maxWidth: .infinity, alignment: .leading)
     }
 }
@@ -43,7 +43,7 @@ func numericInput(_ text: String) -> Double? {
 }
 struct SaveError: View {
     @ObservedObject var store: TrackerStore
-    var body: some View { if let error = store.saveError ?? store.notice { Text(error).font(.system(size: 11)).foregroundStyle(.orange); Button("Retry saving") { store.save() } } }
+    var body: some View { if let error = store.saveError ?? store.notice { Text(error).font(.bt(size: 11)).foregroundStyle(.orange); Button("Retry saving") { store.save() } } }
 }
 struct GoalEditor: View {
     @ObservedObject var store: TrackerStore
@@ -66,8 +66,8 @@ struct GoalEditor: View {
                 FieldGroup(label: "Start date") { DatePicker("Start", selection: $start, displayedComponents: .date).labelsHidden() }
                 FieldGroup(label: "End date") { DatePicker("End", selection: $end, displayedComponents: .date).labelsHidden() }
             }
-            Text("Date edits apply from today. Earlier check-ins keep their original goal window.").font(.system(size: 12)).foregroundStyle(Ink.muted)
-            if end < start { Text("End date must be on or after the start date.").font(.system(size: 12)).foregroundStyle(.orange) }
+            Text("Date edits apply from today. Earlier check-ins keep their original goal window.").font(.bt(size: 12)).foregroundStyle(Ink.muted)
+            if end < start { Text("End date must be on or after the start date.").font(.bt(size: 12)).foregroundStyle(.orange) }
             SaveError(store: store)
         } actions: {
             HStack { Spacer(); PrimaryButton(label: "Save goal") {
@@ -131,24 +131,24 @@ struct HabitEditor: View {
                 FieldGroup(label: "Goal") { Picker("Goal", selection: $goalID) { ForEach(store.document.goals) { Text($0.title).tag($0.id) } }.labelsHidden().disabled(habit != nil) }
                 FieldGroup(label: "Type") { Picker("Type", selection: $kind) { ForEach(HabitKind.allCases, id: \.self) { Text($0.rawValue).tag($0) } }.labelsHidden().disabled(habit != nil) }
             }
-            if habit != nil { Text("Goal and type are fixed to keep historical records consistent.").font(.system(size: 11)).foregroundStyle(Ink.muted) }
+            if habit != nil { Text("Goal and type are fixed to keep historical records consistent.").font(.bt(size: 11)).foregroundStyle(Ink.muted) }
             FieldGroup(label: "Time of day") { Picker("When", selection: $period) { ForEach(Period.allCases, id: \.self) { Text($0.rawValue).tag($0) } }.pickerStyle(.segmented).labelsHidden() }
-            Toggle("Set an exact time on the routine clock", isOn: $hasExactTime).font(.system(size: 12))
+            Toggle("Set an exact time on the routine clock", isOn: $hasExactTime).font(.bt(size: 12))
             if hasExactTime { FieldGroup(label: "Local time · \(store.document.timeZoneID)") { DatePicker("Habit time", selection: $exactTime, displayedComponents: .hourAndMinute).labelsHidden() } }
             FieldGroup(label: "Note (optional)") { TextField("A reminder or context", text: $note).labelsHidden() }
             if kind == .milestone {
                 FieldGroup(label: "Due date") { DatePicker("Due date", selection: $dueDate, displayedComponents: .date).labelsHidden() }
             } else { repeatDays }
             if kind == .metric {
-                if habit?.latest.weekdayTargets != nil { Text("Weekday overrides are managed in Meals → Edit plan.").font(.caption).foregroundStyle(Ink.muted) }
+                if habit?.latest.weekdayTargets != nil { Text("Weekday overrides are managed in Meals → Edit plan.").font(.bt(size: 11)).foregroundStyle(Ink.muted) }
                 FieldGroup(label: "Unit") { TextField("hours / steps / g", text: $unit).labelsHidden() }
                 HStack(spacing: 16) {
                     FieldGroup(label: "Minimum (optional)") { TextField("No minimum", text: $minimum).labelsHidden().accessibilityLabel("Minimum") }
                     FieldGroup(label: "Maximum (optional)") { TextField("No maximum", text: $maximum).labelsHidden().accessibilityLabel("Maximum") }
                 }
             }
-            if let message = validation { Text(message).foregroundStyle(.orange).font(.system(size: 12)) }
-            Text("Schedule and target edits apply from today. Past dates keep their original rules.").font(.system(size: 11)).foregroundStyle(Ink.muted)
+            if let message = validation { Text(message).foregroundStyle(.orange).font(.bt(size: 12)) }
+            Text("Schedule and target edits apply from today. Past dates keep their original rules.").font(.bt(size: 11)).foregroundStyle(Ink.muted)
             SaveError(store: store)
         } actions: {
             HStack {
@@ -165,11 +165,11 @@ struct HabitEditor: View {
             HStack(spacing: 8) {
                 ForEach([2,3,4,5,6,7,1], id: \.self) { d in
                     Button { if days.contains(d) { days.remove(d) } else { days.insert(d) } } label: {
-                        Text(["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"][d-1]).font(.system(size: 11, weight: .medium)).frame(width: 39, height: 34).background(days.contains(d) ? Ink.accent : Ink.panel, in: RoundedRectangle(cornerRadius: 7)).foregroundStyle(days.contains(d) ? Ink.background : .white)
+                        Text(["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"][d-1]).font(.bt(size: 11, weight: .medium)).frame(width: 39, height: 34).background(days.contains(d) ? Ink.accent : Ink.panel, in: RoundedRectangle(cornerRadius: 7)).foregroundStyle(days.contains(d) ? Ink.background : .white)
                     }.buttonStyle(.plain).accessibilityLabel(["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][d-1]).accessibilityAddTraits(days.contains(d) ? .isSelected : [])
                 }
             }
-            HStack { Button("Every day") { days = Set(1...7) }; Button("Mon · Wed · Fri · Sat") { days = [2,4,6,7] } }.font(.system(size: 11)).buttonStyle(.borderless)
+            HStack { Button("Every day") { days = Set(1...7) }; Button("Mon · Wed · Fri · Sat") { days = [2,4,6,7] } }.font(.bt(size: 11)).buttonStyle(.borderless)
         }
     }
     private func save() {
@@ -193,10 +193,10 @@ struct MetricEditor: View {
     }
     var body: some View {
         EditorShell(title: revision.title, dirty: value != original) {
-            Text("\(dateText(day, engine: store.engine)) · Target: \(store.engine.target(for: habit, on: day)?.label ?? "")").font(.system(size: 13)).foregroundStyle(Ink.muted)
-            FieldGroup(label: revision.target?.unit ?? "Value") { TextField("Enter value", text: $value).font(.system(size: 24)).labelsHidden().onSubmit { save() } }
-            if let n = numericInput(value) { Text(store.engine.target(for: habit, on: day)?.accepts(n) == true ? "Target reached." : "This value will be saved; it is outside your target.").font(.system(size: 12)).foregroundStyle(Ink.muted) }
-            else if !value.isEmpty { Text("Enter a finite number of zero or more.").font(.system(size: 12)).foregroundStyle(.orange) }
+            Text("\(dateText(day, engine: store.engine)) · Target: \(store.engine.target(for: habit, on: day)?.label ?? "")").font(.bt(size: 13)).foregroundStyle(Ink.muted)
+            FieldGroup(label: revision.target?.unit ?? "Value") { TextField("Enter value", text: $value).font(.bt(size: 24)).labelsHidden().onSubmit { save() } }
+            if let n = numericInput(value) { Text(store.engine.target(for: habit, on: day)?.accepts(n) == true ? "Target reached." : "This value will be saved; it is outside your target.").font(.bt(size: 12)).foregroundStyle(Ink.muted) }
+            else if !value.isEmpty { Text("Enter a finite number of zero or more.").font(.bt(size: 12)).foregroundStyle(.orange) }
             SaveError(store: store)
         } actions: {
             HStack {
@@ -233,7 +233,7 @@ struct SettingsEditor: View {
                     Text("Follow progress").tag("Progress")
                     ForEach(["Obsidian", "Titanium", "Ascendant"], id: \.self) { Text($0).tag($0) }
                 }.labelsHidden()
-                Text("Follow progress starts at Obsidian, reaches Titanium halfway to your cycle goal, and Ascendant when the goal is earned. Fixed appearances are cosmetic.").font(.system(size: 11)).foregroundStyle(Ink.muted)
+                Text("Follow progress starts at Obsidian, reaches Titanium halfway to your cycle goal, and Ascendant when the goal is earned. Fixed appearances are cosmetic.").font(.bt(size: 11)).foregroundStyle(Ink.muted)
             }
             Line(); Kicker("Cycle")
             FieldGroup(label: "Cycle name") { TextField("Cycle name", text: $title).labelsHidden() }
@@ -241,30 +241,30 @@ struct SettingsEditor: View {
                 FieldGroup(label: "Start") { DatePicker("Start", selection: $start, displayedComponents: .date).labelsHidden() }
                 FieldGroup(label: "End") { DatePicker("End", selection: $end, displayedComponents: .date).labelsHidden() }
             }
-            HStack { Button("12 weeks / 84 days") { setLength(83) }; Button("90 days") { setLength(89) } }.font(.system(size: 11))
+            HStack { Button("12 weeks / 84 days") { setLength(83) }; Button("90 days") { setLength(89) } }.font(.bt(size: 11))
             FieldGroup(label: "Consistency target · \(Int((target * 100).rounded()))%") { Slider(value: $target, in: 0.5...1, step: 0.05) }
-            if end < start { Text("End date must be on or after start date.").font(.system(size: 12)).foregroundStyle(.orange) }
-            Text("Goals using the cycle’s dates move with it. Custom goal windows keep their dates. Rest days are excluded from consistency.").font(.system(size: 11)).foregroundStyle(Ink.muted)
+            if end < start { Text("End date must be on or after start date.").font(.bt(size: 12)).foregroundStyle(.orange) }
+            Text("Goals using the cycle’s dates move with it. Custom goal windows keep their dates. Rest days are excluded from consistency.").font(.bt(size: 11)).foregroundStyle(Ink.muted)
             Line(); Kicker("Routine & assistant")
-            HStack { Button("Set routine clock…") { store.pendingScreen = "RoutineSettings" }; Button("Claude settings…") { store.pendingScreen = "AISettings" } }.font(.system(size: 12))
-            Text("Routine and urge tracking stay local. Ask Ascend is optional and uses your personal Claude Code account.").font(.system(size: 11)).foregroundStyle(Ink.muted)
+            HStack { Button("Set routine clock…") { store.pendingScreen = "RoutineSettings" }; Button("Claude settings…") { store.pendingScreen = "AISettings" } }.font(.bt(size: 12))
+            Text("Routine and urge tracking stay local. Ask Ascend is optional and uses your personal Claude Code account.").font(.bt(size: 11)).foregroundStyle(Ink.muted)
             Line(); ReminderSettings(store: store, service: store.notifications)
             Line(); Kicker("Start fresh")
-            Text("Start a new cycle today using your active habits. Earlier records stay in Calendar. Today’s values are cleared; all goals get the new dates and one-off due dates move relative to the new start. Archived habits stay archived.").font(.system(size: 12)).foregroundStyle(Ink.muted)
+            Text("Start a new cycle today using your active habits. Earlier records stay in Calendar. Today’s values are cleared; all goals get the new dates and one-off due dates move relative to the new start. Archived habits stay archived.").font(.bt(size: 12)).foregroundStyle(Ink.muted)
             Picker("New cycle length", selection: $restartLength) { Text("84 days").tag(84); Text("90 days").tag(90) }.pickerStyle(.segmented)
             Button("Start a new cycle…") { confirmRestart = true }.disabled(dirty)
-            if dirty { Text("Save your cycle edits before starting over.").font(.system(size: 11)).foregroundStyle(Ink.muted) }
+            if dirty { Text("Save your cycle edits before starting over.").font(.bt(size: 11)).foregroundStyle(Ink.muted) }
             Button("Reset all check-in history…", role: .destructive) { confirmReset = true }.disabled(store.document.checkIns.isEmpty && store.document.restDays.isEmpty)
-            Text("Both actions create a dated backup and offer Undo until your next edit.").font(.system(size: 11)).foregroundStyle(Ink.muted)
+            Text("Both actions create a dated backup and offer Undo until your next edit.").font(.bt(size: 11)).foregroundStyle(Ink.muted)
             Line(); Kicker("Local data")
-            Text("Saved on this Mac. No account or cloud sync. Calendar time zone: \(store.document.timeZoneID).").font(.system(size: 12)).foregroundStyle(Ink.muted)
-            HStack { Button("Export backup…") { store.exportBackup() }; Button("Restore backup…") { store.importBackup() }; Button("Show data") { store.revealData() } }.font(.system(size: 11))
+            Text("Saved on this Mac. No account or cloud sync. Calendar time zone: \(store.document.timeZoneID).").font(.bt(size: 12)).foregroundStyle(Ink.muted)
+            HStack { Button("Export backup…") { store.exportBackup() }; Button("Restore backup…") { store.importBackup() }; Button("Show data") { store.revealData() } }.font(.bt(size: 11))
             SaveError(store: store)
             if !archived.isEmpty {
                 Line(); Kicker("Archived habits")
-                ForEach(archived) { habit in HStack { Text(habit.latest.title).font(.system(size: 12)); Spacer(); Button("Restore as new") { store.restore(habit) }.font(.system(size: 11)) } }
+                ForEach(archived) { habit in HStack { Text(habit.latest.title).font(.bt(size: 12)); Spacer(); Button("Restore as new") { store.restore(habit) }.font(.bt(size: 11)) } }
             }
-            Text("The avatar reflects check-ins, not body measurements. Health imports and manual sleep windows are available in Health and Patterns.").font(.system(size: 11)).foregroundStyle(Ink.muted)
+            Text("The avatar reflects check-ins, not body measurements. Health imports and manual sleep windows are available in Health and Patterns.").font(.bt(size: 11)).foregroundStyle(Ink.muted)
         } actions: {
             HStack { Spacer(); PrimaryButton(label: "Save cycle") {
                 if store.updateCycle(title: title.trimmingCharacters(in: .whitespacesAndNewlines), start: store.engine.key(start), end: store.engine.key(end), target: target) { dismiss() }
@@ -311,19 +311,19 @@ struct ReminderSettings: View {
                     }
                 } else { var r = store.document.reminders; r.enabled = false; store.saveReminders(r) }
             })).disabled(enabling)
-            Text(enabling ? "Waiting for macOS permission…" : service.status).font(.system(size: 11)).foregroundStyle(Ink.muted)
+            Text(enabling ? "Waiting for macOS permission…" : service.status).font(.bt(size: 11)).foregroundStyle(Ink.muted)
             HStack {
                 DatePicker("Morning", selection: $morning, displayedComponents: .hourAndMinute)
                 DatePicker("Evening", selection: $evening, displayedComponents: .hourAndMinute)
-            }.font(.system(size: 12))
-            if minute(morning) >= minute(evening) { Text("Evening must follow morning.").font(.system(size: 11)).foregroundStyle(.orange) }
-            Text("Times save automatically when evening follows morning.").font(.system(size: 11)).foregroundStyle(Ink.muted)
-            Toggle("Play a sound", isOn: Binding(get: { store.document.reminders.sound }, set: { value in var r = store.document.reminders; r.sound = value; store.saveReminders(r) })).font(.system(size: 12))
+            }.font(.bt(size: 12))
+            if minute(morning) >= minute(evening) { Text("Evening must follow morning.").font(.bt(size: 11)).foregroundStyle(.orange) }
+            Text("Times save automatically when evening follows morning.").font(.bt(size: 11)).foregroundStyle(Ink.muted)
+            Toggle("Play a sound", isOn: Binding(get: { store.document.reminders.sound }, set: { value in var r = store.document.reminders; r.sound = value; store.saveReminders(r) })).font(.bt(size: 12))
             HStack {
                 Button("Send test notification") { Task { await service.test(sound: store.document.reminders.sound) } }.disabled(!service.authorized)
                 Button("macOS settings ↗") { if let url = URL(string: "x-apple.systempreferences:com.apple.preference.notifications") { NSWorkspace.shared.open(url) } }
-            }.font(.system(size: 11))
-            Text("Morning nudges for morning habits; evening nudges for unfinished recurring tasks. Rest days and completed days are skipped. Scheduled locally for the next 30 days, refreshed when you open Ascend. Times use \(store.document.timeZoneID). macOS Focus and notification settings control delivery.").font(.system(size: 11)).foregroundStyle(Ink.muted)
+            }.font(.bt(size: 11))
+            Text("Morning nudges for morning habits; evening nudges for unfinished recurring tasks. Rest days and completed days are skipped. Scheduled locally for the next 30 days, refreshed when you open Ascend. Times use \(store.document.timeZoneID). macOS Focus and notification settings control delivery.").font(.bt(size: 11)).foregroundStyle(Ink.muted)
         }
         .onChange(of: morning) { _, _ in saveTimes() }
         .onChange(of: evening) { _, _ in saveTimes() }

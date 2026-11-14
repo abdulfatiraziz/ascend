@@ -15,25 +15,25 @@ struct MealsView: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 6) {
                         Kicker("Photo → Claude estimate → your review")
-                        Text("Snap meals in Ascend Bridge or drop photos here. Confirmed meals set your Calorie and Protein check-ins for that day.").font(.system(size: 12)).foregroundStyle(Ink.muted)
+                        Text("Snap meals in Ascend Bridge or drop photos here. Confirmed meals set your Calorie and Protein check-ins for that day.").font(.bt(size: 12)).foregroundStyle(Ink.muted)
                     }
                     Spacer()
                     Button { day = store.engine.adding(-1, to: day) } label: { Image(systemName: "chevron.left") }.buttonStyle(.plain).accessibilityLabel("Previous day")
                     DatePicker("Meal date", selection: Binding(get: { store.engine.date(day) ?? Date() }, set: { day = store.engine.key($0) }), in: ...Date(), displayedComponents: .date).labelsHidden().fixedSize()
                     Button { day = store.engine.adding(1, to: day) } label: { Image(systemName: "chevron.right") }.buttonStyle(.plain).disabled(day >= store.today).accessibilityLabel("Next day")
-                    Button("Today") { day = store.today }.buttonStyle(.plain).font(.system(size: 12))
+                    Button("Today") { day = store.today }.buttonStyle(.plain).font(.bt(size: 12))
                     PrimaryButton(label: "Add photo…") { choose() }
                 }
                 totals
                 DietDashboard(store: store, day: day)
                 if entries.isEmpty {
                     VStack(alignment: .leading, spacing: 10) {
-                        Text("No meals for this day.").font(.system(size: 18, weight: .semibold))
-                        Text("On your phone: open Ascend Bridge → Take meal photo, add a short note like “2 rotis, dal”, then Sync to Mac on the same Wi-Fi. Or drag a food photo onto this window.").font(.system(size: 12)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
+                        Text("No meals for this day.").font(.bt(size: 18, weight: .semibold))
+                        Text("On your phone: open Ascend Bridge → Take meal photo, add a short note like “2 rotis, dal”, then Sync to Mac on the same Wi-Fi. Or drag a food photo onto this window.").font(.bt(size: 12)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
                     }.frame(maxWidth: .infinity, alignment: .leading).panel()
                 }
                 ForEach(entries) { MealCard(store: store, meals: meals, meal: $0) }
-                Text("Photo estimates are rough, often 20–30% off, mostly from oil and portion size. Adjust the numbers before confirming. Photos stay on this Mac; each estimate sends that photo and its note to Claude through your personal Claude profile.").font(.system(size: 11)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
+                Text("Photo estimates are rough, often 20–30% off, mostly from oil and portion size. Adjust the numbers before confirming. Photos stay on this Mac; each estimate sends that photo and its note to Claude through your personal Claude profile.").font(.bt(size: 11)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
             }.padding(.bottom, 10)
         }
         .dropDestination(for: URL.self) { urls, _ in add(urls.filter(ChatPhotos.isImage)); return true }
@@ -49,8 +49,8 @@ struct MealsView: View {
             stat("Fat", t.fat, unit: "g", target: nil, good: nil)
             Spacer()
             VStack(alignment: .trailing, spacing: 4) {
-                Text("\(t.confirmed) confirmed").font(.system(size: 12))
-                if t.pending > 0 { Text("\(t.pending) to review").font(.system(size: 11)).foregroundStyle(Ink.accent) }
+                Text("\(t.confirmed) confirmed").font(.bt(size: 12))
+                if t.pending > 0 { Text("\(t.pending) to review").font(.bt(size: 11)).foregroundStyle(Ink.accent) }
             }
         }.panel(padding: 16)
     }
@@ -58,10 +58,10 @@ struct MealsView: View {
         VStack(alignment: .leading, spacing: 5) {
             Kicker(title)
             HStack(alignment: .firstTextBaseline, spacing: 4) {
-                Text("\(Int(value.rounded()))").font(.system(size: 24, weight: .semibold)).foregroundStyle(good == false ? Color.orange : Color.white)
-                Text(unit).font(.system(size: 10)).foregroundStyle(Ink.muted)
+                Text("\(Int(value.rounded()))").font(.bt(size: 24, weight: .semibold)).foregroundStyle(good == false ? Ink.watch : Color.white)
+                Text(unit).font(.bt(size: 10)).foregroundStyle(Ink.muted)
             }
-            if let target { Text("Target \(target)").font(.system(size: 10)).foregroundStyle(Ink.muted) }
+            if let target { Text("Target \(target)").font(.bt(size: 10)).foregroundStyle(Ink.muted) }
         }
     }
     private func choose() {
@@ -110,35 +110,35 @@ private struct MealCard: View {
             photos
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Text(title).font(.system(size: 15, weight: .semibold))
-                    if meal.confirmed { Label("Logged", systemImage: "checkmark.circle.fill").font(.system(size: 11)).foregroundStyle(Ink.accent) }
+                    Text(title).font(.bt(size: 15, weight: .semibold))
+                    if meal.confirmed { Label("Logged", systemImage: "checkmark.circle.fill").font(.bt(size: 11)).foregroundStyle(Ink.accent) }
                     Spacer()
-                    Text("\(Date(timeIntervalSince1970: meal.takenAt).formatted(date: .omitted, time: .shortened)) · \(meal.source == "phone" ? "Phone" : "Mac")").font(.system(size: 11)).foregroundStyle(Ink.muted)
+                    Text("\(Date(timeIntervalSince1970: meal.takenAt).formatted(date: .omitted, time: .shortened)) · \(meal.source == "phone" ? "Phone" : "Mac")").font(.bt(size: 11)).foregroundStyle(Ink.muted)
                 }
                 if let estimate = meal.estimate {
-                    Text("≈ \(Int(estimate.kcal)) kcal (\(Int(estimate.kcalLow))–\(Int(estimate.kcalHigh))) · \(estimate.confidence) confidence" + (estimate.items.isEmpty ? "" : " · " + estimate.items.joined(separator: ", "))).font(.system(size: 11)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
-                    if !estimate.notes.isEmpty { Text(estimate.notes).font(.system(size: 11)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true) }
+                    Text("≈ \(Int(estimate.kcal)) kcal (\(Int(estimate.kcalLow))–\(Int(estimate.kcalHigh))) · \(estimate.confidence) confidence" + (estimate.items.isEmpty ? "" : " · " + estimate.items.joined(separator: ", "))).font(.bt(size: 11)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
+                    if !estimate.notes.isEmpty { Text(estimate.notes).font(.bt(size: 11)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true) }
                 }
                 if meals.estimating.contains(meal.id) { ProgressView().controlSize(.small) }
                 if meal.missingPhotos > 0 && meal.estimate == nil && !meals.estimating.contains(meal.id) {
                     HStack {
-                        Text("\(meal.photos.count) of \(meal.expectedPhotos ?? 0) photos here. The rest arrive on the phone's next sync.").font(.system(size: 11)).foregroundStyle(Ink.muted)
-                        Button("Estimate now") { store.estimateMealNow(meal.id) }.font(.system(size: 11))
+                        Text("\(meal.photos.count) of \(meal.expectedPhotos ?? 0) photos here. The rest arrive on the phone's next sync.").font(.bt(size: 11)).foregroundStyle(Ink.muted)
+                        Button("Estimate now") { store.estimateMealNow(meal.id) }.font(.bt(size: 11))
                     }
                 }
                 if let error = meal.error {
-                    HStack { Text(error).font(.system(size: 11)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true); Button("Retry") { meals.retry(meal.id) }.font(.system(size: 11)) }
+                    HStack { Text(error).font(.bt(size: 11)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true); Button("Retry") { meals.retry(meal.id) }.font(.bt(size: 11)) }
                 }
                 Picker("Meal type", selection: Binding(get: { meal.dietKind ?? .standard }, set: { store.setMealDietKind(meal.id, kind: $0) })) { ForEach(MealDietKind.allCases, id: \.self) { Text($0.label).tag($0) } }.pickerStyle(.segmented).frame(maxWidth: 360)
-                TextField("Note (for example: 2 rotis, dal, cooked in ghee)", text: $note).textFieldStyle(.roundedBorder).font(.system(size: 12)).disabled(meal.confirmed)
+                TextField("Note (for example: 2 rotis, dal, cooked in ghee)", text: $note).textFieldStyle(.roundedBorder).font(.bt(size: 12)).disabled(meal.confirmed)
                 HStack(spacing: 10) {
                     field("kcal", $kcal); field("Protein g", $protein); field("Carbs g", $carbs); field("Fat g", $fat)
                 }.disabled(meal.confirmed)
                 HStack {
-                    Button("Delete…") { confirmDelete = true }.font(.system(size: 11))
-                    if meal.estimate != nil && !meal.confirmed { Button("Re-estimate") { saveNote(); meals.retry(meal.id) }.font(.system(size: 11)).disabled(meals.estimating.contains(meal.id)) }
+                    Button("Delete…") { confirmDelete = true }.font(.bt(size: 11))
+                    if meal.estimate != nil && !meal.confirmed { Button("Re-estimate") { saveNote(); meals.retry(meal.id) }.font(.bt(size: 11)).disabled(meals.estimating.contains(meal.id)) }
                     Spacer()
-                    if meal.confirmed { Button("Edit") { store.reopenMeal(meal.id) }.font(.system(size: 12)) }
+                    if meal.confirmed { Button("Edit") { store.reopenMeal(meal.id) }.font(.bt(size: 12)) }
                     else { PrimaryButton(label: "Confirm meal") { store.confirmMeal(meal.id, kcal: kcal, protein: protein, carbs: carbs, fat: fat, note: note) }.disabled(meal.estimate == nil && kcal == 0) }
                 }
             }
@@ -160,19 +160,19 @@ private struct MealCard: View {
     private var photos: some View {
         let urls = store.mealPhotoURLs(meal)
         return VStack(alignment: .leading, spacing: 6) {
-            if let first = urls.first { PhotoThumbnail(url: first, size: 120) } else { Image(systemName: "scalemass").font(.system(size: 32)).foregroundStyle(Ink.accent).frame(width: 120, height: 90) }
+            if let first = urls.first { PhotoThumbnail(url: first, size: 120) } else { Image(systemName: "scalemass").font(.bt(size: 32)).foregroundStyle(Ink.accent).frame(width: 120, height: 90) }
             if urls.count > 1 {
                 LazyVGrid(columns: Array(repeating: GridItem(.fixed(36), spacing: 6), count: 3), alignment: .leading, spacing: 6) {
                     ForEach(urls.dropFirst(), id: \.self) { PhotoThumbnail(url: $0, size: 36) }
                 }
-                Text("\(urls.count) photos · one meal").font(.system(size: 10)).foregroundStyle(Ink.muted)
+                Text("\(urls.count) photos · one meal").font(.bt(size: 10)).foregroundStyle(Ink.muted)
             }
         }.frame(width: 120, alignment: .leading)
     }
     private func field(_ label: String, _ value: Binding<Double>) -> some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text(label).font(.system(size: 10)).foregroundStyle(Ink.muted)
-            TextField(label, value: value, format: .number.precision(.fractionLength(0))).textFieldStyle(.roundedBorder).frame(width: 82).font(.system(size: 12))
+            Text(label).font(.bt(size: 10)).foregroundStyle(Ink.muted)
+            TextField(label, value: value, format: .number.precision(.fractionLength(0))).textFieldStyle(.roundedBorder).frame(width: 82).font(.bt(size: 12))
         }
     }
     private func load() {
