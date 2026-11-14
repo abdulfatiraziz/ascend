@@ -318,7 +318,8 @@ struct TrackerEngineChecks {
         let diet=runDietChecks();failures+=diet.failures
         let phoneLog=runPhoneLogChecks();failures+=phoneLog.failures
         let clearance=runClearanceChecks();failures+=clearance.failures
-        print("\(cases.count + features.count + patterns.count + link.count + meds.count + notes.count + photos.count + storage.count + xiaomi.count + report.count + body.count + drTrust.count + screenTime.count + macScreenTime.count + training.count + maintenance.count + diet.count + phoneLog.count + clearance.count) checks, \(failures) failures")
+        let condition=runConditionChecks();failures+=condition.failures
+        print("\(cases.count + features.count + patterns.count + link.count + meds.count + notes.count + photos.count + storage.count + xiaomi.count + report.count + body.count + drTrust.count + screenTime.count + macScreenTime.count + training.count + maintenance.count + diet.count + phoneLog.count + clearance.count + condition.count) checks, \(failures) failures")
         if failures > 0 { exit(1) }
     }
 }

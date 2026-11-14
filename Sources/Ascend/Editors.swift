@@ -248,6 +248,17 @@ struct SettingsEditor: View {
             Line(); Kicker("Routine & assistant")
             HStack { Button("Set routine clock…") { store.pendingScreen = "RoutineSettings" }; Button("Claude settings…") { store.pendingScreen = "AISettings" } }.font(.bt(size: 12))
             Text("Routine and urge tracking stay local. Ask Ascend is optional and uses your personal Claude Code account.").font(.bt(size: 11)).foregroundStyle(Ink.muted)
+            Line(); Kicker("Health sources & devices")
+            Text("Moved here from Health and Screen time. Your readings and history stay where they were.").font(.bt(size: 11)).foregroundStyle(Ink.muted)
+            PhoneLinkPanel(link: store.phoneLink)
+            XiaomiCloudPanel(cloud: store.xiaomi)
+            if !store.document.health.errors.isEmpty {
+                VStack(alignment: .leading, spacing: 7) { Kicker("Some types could not refresh"); ForEach(store.document.health.errors.keys.sorted(), id: \.self) { key in Text("\(HealthMetric(rawValue: key)?.title ?? key): \(store.document.health.errors[key] ?? "")").font(.bt(size: 12)).foregroundStyle(Ink.watch) } }
+            }
+            Text("Heart rate, SpO2, stress and resting heart rate come from the Mi Fitness cloud; sleep, steps, calories and workouts from Health Connect via Ascend Bridge. Stored on this Mac and left out of Ask Ascend. Sleep and step habits fill from these readings; a value you type yourself is kept.")
+                .font(.bt(size: 11)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
+            MacScreenTimePanel(service: store.macScreenTime)
+            if !store.screenTime.archive.devices.isEmpty { Button("Export screen-time backup…") { store.screenTime.export() }.font(.bt(size: 12)) }
             Line(); ReminderSettings(store: store, service: store.notifications)
             Line(); Kicker("Start fresh")
             Text("Start a new cycle today using your active habits. Earlier records are kept. Today’s values are cleared; all goals get the new dates and one-off due dates move relative to the new start. Archived habits stay archived.").font(.bt(size: 12)).foregroundStyle(Ink.muted)
@@ -264,7 +275,7 @@ struct SettingsEditor: View {
                 Line(); Kicker("Archived habits")
                 ForEach(archived) { habit in HStack { Text(habit.latest.title).font(.bt(size: 12)); Spacer(); Button("Restore as new") { store.restore(habit) }.font(.bt(size: 11)) } }
             }
-            Text("The avatar reflects check-ins, not body measurements. Health imports and manual sleep windows are available in Health and Patterns.").font(.bt(size: 11)).foregroundStyle(Ink.muted)
+            Text("The avatar reflects check-ins, not body measurements. Health readings show under Condition; their sources are set up above.").font(.bt(size: 11)).foregroundStyle(Ink.muted)
         } actions: {
             HStack { Spacer(); PrimaryButton(label: "Save cycle") {
                 if store.updateCycle(title: title.trimmingCharacters(in: .whitespacesAndNewlines), start: store.engine.key(start), end: store.engine.key(end), target: target) { dismiss() }

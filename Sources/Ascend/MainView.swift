@@ -12,7 +12,7 @@ enum Tab: String, CaseIterable {
     var screens: [Screen] {
         switch self {
         case .brief: [.goals, .today, .routine]
-        case .condition: [.health, .body, .photos, .screenTime, .patterns]
+        case .condition: [.health, .body, .screenTime]
         case .fieldLog: [.meals, .meds, .urges, .notes]
         case .dossier: [.dossier]
         }
@@ -90,7 +90,7 @@ struct MainView: View {
                     case .meds: MedsView(store: store)
                     case .notes: NotesView(store: store)
                     case .photos: PhotosView(store: store)
-                    case .screenTime: ScreenTimeView(store:store.screenTime,mac:store.macScreenTime)
+                    case .screenTime: ConditionScreenTimeView(store: store)
                     case .health: HealthView(store: store)
                     case .body: BodyView(store:store)
                     case .patterns: PatternsView(store: store, editor: $editor)
@@ -153,7 +153,7 @@ struct MainView: View {
     private func navigate(_ value:String){
             if value == "Routine" { screen = .routine }
             if value == "Goals" { screen = .goals }
-            if value == "Patterns" { screen = .patterns }
+            if value == "Patterns" { screen = .health }
             if value == "DailyCheckIn" { editor = .observation(store.today) }
             if value == "Caffeine" { editor = .caffeine(nil, store.today) }
             if value == "Urges" { screen = .urges }
@@ -164,7 +164,7 @@ struct MainView: View {
             if value == "ScreenTime" { screen = .screenTime }
             if value == "QuickCheckIn" { editor = .quick }
             if value == "Body" { screen = .body }
-            if value == "Photos" { screen = .photos }
+            if value == "Photos" { screen = .body }
             if value == "Dossier" { screen = .dossier }
             if value == "Assistant" { screen = .chat }
             if value == "AISettings" { editor = .aiSettings }
@@ -217,10 +217,23 @@ struct MainView: View {
             .onChange(of: screen, initial: true) { _, new in if let t = Tab.of(new) { lastScreen[t] = new } }
         }
     }
+    /// The line above the title: what this page is.
+    private var kicker: String {
+        switch screen {
+        case .health:
+            let f = DateFormatter(); f.dateFormat = "EEEE d MMM · h:mm a"
+            return "Condition report · " + f.string(from: Date())
+        case .body:
+            let a = store.missions.missions.first { $0.id == "A" }
+            return a.map { "Mission A · \($0.codename)" } ?? "Mission A"
+        case .screenTime: return "Your attention"
+        default: return "Your next version starts here"
+        }
+    }
     private var header: some View {
         HStack(alignment: .center) {
             VStack(alignment: .leading, spacing: 7) {
-                Kicker("Your next version starts here")
+                Kicker(kicker)
                 Text(screen == .today ? "The Brief." : screen == .goals ? "The blueprint." : screen == .routine ? "Find your rhythm." : screen == .patterns ? "Connect the dots." : screen == .meals ? "Eat with intent." : screen == .meds ? "Take it as prescribed." : screen == .notes ? "Remember what matters." : screen == .photos ? "See the change." : screen == .screenTime ? "Own your attention." : screen == .body ? "Build strength. See change." : screen == .health ? "Know your rhythm." : screen == .urges ? "Notice the pattern." : screen == .dossier ? "The Dossier." : "The long game.")
                     .font(.bt(size: 36, weight: .semibold)).tracking(-1.5).lineLimit(1).minimumScaleFactor(0.8)
             }

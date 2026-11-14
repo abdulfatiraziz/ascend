@@ -41,6 +41,7 @@ struct BodyView: View {
   @State private var chartDate: Date?
   @State private var photos = false
   @State private var photoAngle = PhotoAngle.front
+  @State private var showMaintenance = false
   init(store: TrackerStore) {
     self.store = store
     training = store.training
@@ -71,17 +72,25 @@ struct BodyView: View {
         if let error = training.error {
           Text(error).foregroundStyle(.orange).textSelection(.enabled)
         }
-        goalHeader
-        BodyMaintenanceCard(store:store,training:training,measurements:measurements)
-        weightTrend
-        DietCheckpointStatus(store: store, measurements: measurements)
+        ConditionLede(text: lede) { planLine }
+        HStack(alignment: .top, spacing: 16) {
+          VStack(spacing: 16) {
+            longLine
+            PhotoVaultCard(store: store) { photos = true }
+          }
+          numbersCard.frame(width: 400)
+        }
+        if showMaintenance { BodyMaintenanceCard(store:store,training:training,measurements:measurements) }
+        Kicker("Training").padding(.top, 8)
         todayCard
-        stepsToday
         scorecard
         muscleCard
-        photoCard
-        DisclosureGroup("Scale readings & Dr Trust connection") {
-          BodyMeasurementPanel(store: measurements, cloud: store.drTrust).padding(.top, 8)
+        DietCheckpointStatus(store: store, measurements: measurements)
+        DisclosureGroup("Scale readings, history & Dr Trust connection") {
+          VStack(alignment: .leading, spacing: 12) {
+            readingHistory
+            BodyMeasurementPanel(store: measurements, cloud: store.drTrust)
+          }.padding(.top, 8)
         }
       }.padding(.bottom, 12)
     }
@@ -108,6 +117,151 @@ struct BodyView: View {
       }.padding(24).frame(minWidth: 850, minHeight: 650)
     }
   }
+  // MARK: Condition → Body (Mission A numbers; body fat is your 21% estimate, never the scale's)
+  private var targets: [MissionTarget] { store.missions.missions.flatMap(\.targets) }
+  private var weightTarget: MissionTarget? { targets.first { $0.id == "a.weight" } }
+  private var fatTarget: MissionTarget? { targets.first { $0.id == "a.bodyfat" } }
+  private var bodyFat: Double? { fatTarget.flatMap { $0.current ?? $0.start } }
+  private var latest: BodyMeasurement? { measurements.archive.records.max { $0.date < $1.date } }
+  private var planToday: Double? { weightTarget?.planned(on: store.today) }
+  private var dueDate: Date? { weightTarget?.due.flatMap { store.engine.date($0) } }
+  private func kg(_ x: Double, _ digits: Int = 2) -> String { String(format: "%.\(digits)f", x) }
+  private func short(_ x: Double) -> String { String(format: abs(x - x.rounded()) < 0.05 ? "%.0f" : "%.1f", x) }
+  private var lede: String {
+    guard let latest else { return "No weigh-in yet." }
+    return "\(kg(latest.kilograms)) kg" + (bodyFat.map { " at \(short($0))% body fat." } ?? ".")
+  }
+  @ViewBuilder private var planLine: some View {
+    if let latest, let plan = planToday, let t = weightTarget {
+      let gap = latest.kilograms - plan
+      HStack(spacing: 0) {
+        Text("Plan says ").foregroundStyle(Ink.muted)
+        Text("\(short(plan)) kg").foregroundStyle(Ink.ivory).fontWeight(.semibold)
+        Text(" today · ").foregroundStyle(Ink.muted)
+        Text(abs(gap) < 0.05 ? "on plan" : "\(kg(abs(gap))) kg \(gap > 0 ? "behind" : "ahead")").foregroundStyle(abs(gap) < 0.05 ? Ink.ivory : gap > 0 ? Ink.offTrack : Ink.onTrack)
+        Text(" · \(short(t.target)) kg by \(t.due.map { dateText($0, engine: store.engine, pattern: "d MMM") } ?? "the due date")").foregroundStyle(Ink.muted)
+      }.font(.bt(size: 12.5)).lineLimit(1)
+    }
+  }
+
+  private var longLine: some View {
+    let t = weightTarget
+    let planStart = t?.planStart.flatMap { store.engine.date($0) }
+    // The long line opens three months before the plan (Aug for a 3 Nov plan), not at the first-ever reading.
+    let cal = store.engine.calendar
+    let from = cal.date(byAdding: .month, value: -3, to: planStart ?? now).flatMap { cal.dateInterval(of: .month, for: $0)?.start } ?? .distantPast
+    let records = measurements.archive.records.filter { $0.date >= from }.sorted { $0.date < $1.date }
+    let weekly = report.weekly.filter { $0.date >= from }
+    let start = max(from, min(records.first?.date ?? now, planStart ?? now))
+    let end = (dueDate ?? now).addingTimeInterval(4 * 86_400)
+    let values = records.map(\.kilograms) + [t?.target, t?.start].compactMap { $0 }
+    let lo = ((values.min() ?? 70) - 1).rounded(.down), hi = ((values.max() ?? 80) + 1).rounded(.up)
+    return VStack(alignment: .leading, spacing: 14) {
+      HStack {
+        CardTitle("Weight · the long line")
+        Spacer()
+        HStack(spacing: 12) {
+          HStack(spacing: 5) { Circle().fill(Ink.ivory).frame(width: 7, height: 7); Text("weigh-ins") }
+          HStack(spacing: 5) { RoundedRectangle(cornerRadius: 1).fill(Ink.accent).frame(width: 13, height: 2); Text("trend") }
+          if let t { HStack(spacing: 5) { Text("┅").foregroundStyle(Ink.lamp); Text("plan to \(short(t.target)) kg") } }
+          Button("Log weight") { weightEditor = true }.buttonStyle(.plain).foregroundStyle(Ink.accent)
+        }.font(.bt(size: 11)).foregroundStyle(Ink.muted)
+      }
+      if records.isEmpty {
+        Text("Log your first weight or connect Dr Trust under Scale readings below.").font(.bt(size: 12)).foregroundStyle(Ink.muted).frame(maxWidth: .infinity, minHeight: 200)
+      } else {
+        Chart {
+          ForEach(weekly) { w in
+            LineMark(x: .value("Date", w.date), y: .value("kg", w.kilograms), series: .value("Series", "trend"))
+              .foregroundStyle(Ink.accent).lineStyle(StrokeStyle(lineWidth: 2.4, lineJoin: .round))
+          }
+          ForEach(records) { r in
+            PointMark(x: .value("Date", r.date), y: .value("kg", r.kilograms)).foregroundStyle(Ink.ivory.opacity(0.85)).symbolSize(18)
+          }
+          if let t, let a = planStart, let b = dueDate, let s0 = t.start {
+            LineMark(x: .value("Date", a), y: .value("kg", s0), series: .value("Series", "plan")).foregroundStyle(Ink.lamp).lineStyle(StrokeStyle(lineWidth: 1.6, dash: [6, 5]))
+            LineMark(x: .value("Date", b), y: .value("kg", t.target), series: .value("Series", "plan")).foregroundStyle(Ink.lamp).lineStyle(StrokeStyle(lineWidth: 1.6, dash: [6, 5]))
+            PointMark(x: .value("Date", b), y: .value("kg", t.target)).symbol { Circle().strokeBorder(Ink.lamp, lineWidth: 1.6).frame(width: 10, height: 10) }
+              .annotation(position: .bottomLeading, spacing: 4) { Text("\(short(t.target)) KG" + (fatTarget.map { " · \(short($0.target))%" } ?? "")).font(.bt(size: 9.5, design: .monospaced)).foregroundStyle(Ink.lamp) }
+          }
+          RuleMark(x: .value("Today", now)).foregroundStyle(Ink.accent.opacity(0.35)).lineStyle(StrokeStyle(lineWidth: 1, dash: [2, 4]))
+            .annotation(position: .bottom, alignment: .leading, spacing: 2) { Text("TODAY").font(.bt(size: 9.5, design: .monospaced)).foregroundStyle(Ink.accent) }
+          if let plan = planToday {
+            PointMark(x: .value("Date", now), y: .value("kg", plan)).foregroundStyle(Ink.lamp).symbolSize(36)
+              .annotation(position: .bottomTrailing, spacing: 3) { Text("plan \(short(plan))").font(.bt(size: 9.5, design: .monospaced)).foregroundStyle(Ink.lamp) }
+          }
+          if let last = records.last {
+            PointMark(x: .value("Date", last.date), y: .value("kg", last.kilograms)).foregroundStyle(Ink.ivory).symbolSize(26)
+              .annotation(position: .topLeading, spacing: 3) { Text(kg(last.kilograms)).font(.bt(size: 10.5, design: .monospaced)).foregroundStyle(Ink.ivory) }
+          }
+        }
+        .chartXScale(domain: start...end).chartYScale(domain: lo...hi).chartPlotStyle { $0.clipped() }
+        .chartXAxis { AxisMarks(values: .stride(by: .month)) { v in
+          AxisValueLabel(anchor: .topLeading) { if let d = v.as(Date.self) { Text(d.formatted(.dateTime.month(.abbreviated)).uppercased()).font(.bt(size: 9.5, design: .monospaced)).foregroundStyle(Ink.muted) } }
+        } }
+        .chartYAxis { AxisMarks(position: .leading, values: .stride(by: 2)) { _ in AxisGridLine().foregroundStyle(Ink.ivory.opacity(0.06)); AxisValueLabel().font(.bt(size: 9.5, design: .monospaced)).foregroundStyle(Ink.muted) } }
+        .chartXSelection(value: $chartDate)
+        .frame(height: 290)
+        if let date = chartDate, let r = records.min(by: { abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date)) }) {
+          Text(readingLabel(r)).font(.bt(size: 11, design: .monospaced)).foregroundStyle(Ink.accent)
+        }
+      }
+    }.conditionCard()
+  }
+
+  private var numbersCard: some View {
+    let maintenance = BodyMaintenanceReport.build(training: a, records: measurements.archive.records, document: store.document, now: now, window: 14)
+    let needDays = max(0, maintenance.requiredFullDays - maintenance.fullDays)
+    return VStack(alignment: .leading, spacing: 0) {
+      HStack {
+        CardTitle("The numbers"); Spacer()
+        Button("Goal & coach settings") { settings = true }.buttonStyle(.plain).font(.bt(size: 11)).foregroundStyle(Ink.muted)
+      }.padding(.bottom, 10)
+      if let latest {
+        let change = report.actualLossPerWeek
+        number("Weight", "\(kg(latest.kilograms)) kg",
+               "\(latest.isManual ? "Manual" : "Dr Trust") · \(dateText(store.engine.key(latest.date), engine: store.engine, pattern: "d MMM"))" + (change.map { " · \($0 >= 0 ? "down" : "up") \(kg(abs($0))) kg a week (last 4 weeks)" } ?? ""))
+        if let fat = bodyFat {
+          number("Body fat", "\(short(fat))%", "Your estimate · the scale's reading is not used")
+          number("Lean mass", "\(short(Condition.leanMass(kg: latest.kilograms, bodyFat: fat))) kg", "From \(short(fat))% · keep it while you cut")
+        }
+        if let t = weightTarget, let due = dueDate, let need = Condition.neededPerWeek(current: latest.kilograms, target: t.target, today: now, due: due) {
+          let behind = need.perWeek > (change ?? 0) + 0.05
+          number("Needed", "\(kg(max(0, need.perWeek))) kg / week",
+                 "To reach \(short(t.target)) kg" + (fatTarget.map { " (\(short($0.target))%)" } ?? "") + " by \(dateText(t.due!, engine: store.engine, pattern: "d MMM")) · \(short(need.weeks)) weeks left",
+                 color: behind ? Ink.offTrack : Ink.ivory)
+        }
+      } else {
+        Text("No weigh-in yet. Log one from the chart.").font(.bt(size: 12)).foregroundStyle(Ink.muted).padding(.vertical, 12)
+      }
+      Button { withAnimation(.easeInOut(duration: 0.2)) { showMaintenance.toggle() } } label: {
+        HStack {
+          Text("\(showMaintenance ? "⌄" : "›") Maintenance estimate").foregroundStyle(Ink.ivory.opacity(0.85))
+          Spacer()
+          Text(needDays > 0 ? "needs \(needDays) more full day\(needDays == 1 ? "" : "s")" : showMaintenance ? "shown below" : "ready").foregroundStyle(Ink.muted)
+        }.font(.bt(size: 12)).contentShape(Rectangle())
+      }.buttonStyle(.plain).padding(.top, 14).overlay(alignment: .top) { Line() }
+    }.conditionCard()
+  }
+  private func number(_ label: String, _ value: String, _ note: String, color: Color = Ink.ivory) -> some View {
+    VStack(alignment: .leading, spacing: 5) {
+      Text(label.uppercased()).font(.bt(size: 9.5, weight: .medium, design: .monospaced)).tracking(2.2).foregroundStyle(Ink.muted)
+      Text(value).font(.bt(size: 24, design: .serif)).foregroundStyle(color).monospacedDigit()
+      Text(note).font(.bt(size: 11)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
+    }.padding(.vertical, 12).frame(maxWidth: .infinity, alignment: .leading).overlay(alignment: .top) { Line() }
+  }
+  private var readingHistory: some View {
+    DisclosureGroup("Reading history · edit manual entries only") {
+      ForEach(measurements.archive.records.reversed()) { r in
+        HStack {
+          Text(readingLabel(r)).font(.bt(size: 12)).textSelection(.enabled)
+          Spacer()
+          if r.isManual { Button("Edit") { editingWeight = r } } else { Text("Dr Trust · read only").font(.bt(size: 11)).foregroundStyle(Ink.muted) }
+        }.padding(.vertical, 4)
+      }
+    }
+  }
+
   private func title(_ kicker: String, _ headline: String) -> some View {
     VStack(alignment: .leading, spacing: 6) {
       Kicker(kicker)
