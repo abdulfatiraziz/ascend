@@ -155,7 +155,24 @@ func runClearanceChecks() -> (count: Int, failures: Int) {
         try expect(a.filter { $0.kind == .calculated }.map(\.id) == ["a.ffmi"])
         try expect(a.filter { $0.kind == .synced }.allSatisfy { !$0.source.isEmpty })
         try expect(a.first { $0.id == "a.bodyfat" }?.kind == .manual && a.first { $0.id == "a.bodyfat" }?.cadence == "Monthly")
-        try expect(a.first { $0.id == "a.bench" }?.unit == "kg")
+        try expect(!a.contains { ["a.bench", "a.squat", "a.deadlift", "a.pullups", "a.run", "a.mind", "a.hair"].contains($0.id) })
+    }
+    check("Visits: next visit is last + interval unless a later date is booked; overdue once it passes") {
+        var skin = Missions.defaults[0].targets.first { $0.id == "a.skin" }!
+        try expect(skin.cadence == "Every month" && skin.state(nil, today: "2026-11-14") == .notLogged)
+        skin.lastVisit = "2026-10-31"
+        try expect(skin.nextVisitDay == "2026-11-30" && skin.state(nil, today: "2026-11-14") == .scheduled)
+        try expect(skin.state(nil, today: "2026-12-01") == .overdue && skin.visitValue(today: "2026-12-01") == 0)
+        skin.nextVisit = "2026-12-10"
+        try expect(skin.nextVisitDay == "2026-12-10")
+        skin.lastVisit = "2026-12-10"
+        try expect(skin.nextVisitDay == "2027-01-10", "a new visit moves past the old booking")
+        var teeth = Missions.defaults[0].targets.first { $0.id == "a.teeth" }!
+        teeth.lastVisit = "2026-11-14"
+        try expect(teeth.nextVisitDay == "2027-05-14" && teeth.cadence == "Every 6 months")
+        var saved = Missions.defaults; saved[0].targets[saved[0].targets.firstIndex { $0.id == "a.teeth" }!].lastVisit = "2026-11-14"
+        try expect(Missions.merged(saved)[0].targets.first { $0.id == "a.teeth" }?.lastVisit == "2026-11-14")
+        try expect(!Missions.orders(Missions.defaults, value: { _ in nil }, today: "2026-11-14", limit: 99).contains { $0.target.everyMonths != nil })
     }
     check("Target state: not logged, behind, on plan, done, and 'not yet' for an unticked box") {
         let w = Missions.defaults[0].targets.first { $0.id == "a.weight" }!

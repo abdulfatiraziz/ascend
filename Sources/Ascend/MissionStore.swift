@@ -30,6 +30,17 @@ final class MissionStore: ObservableObject {
         save()
     }
 
+    /// Sets a visit's last day or booked next day (yyyy-MM-dd, nil clears it).
+    func setVisit(_ targetID: String, last: String?? = .none, next: String?? = .none) {
+        for m in missions.indices {
+            if let t = missions[m].targets.firstIndex(where: { $0.id == targetID }) {
+                if case .some(let v) = last { missions[m].targets[t].lastVisit = v }
+                if case .some(let v) = next { missions[m].targets[t].nextVisit = v }
+            }
+        }
+        save()
+    }
+
     private func save() {
         do {
             let enc = JSONEncoder(); enc.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -48,7 +59,13 @@ struct MissionFacts {
 
     var latestKg: Double? { store.bodyMeasurements.archive.records.max { $0.date < $1.date }?.kilograms }
 
-    func value(_ t: MissionTarget) -> Double? { auto(t) ?? t.current }
+    func value(_ t: MissionTarget) -> Double? {
+        if t.everyMonths != nil { return t.visitValue(today: Self.todayKey) }
+        return auto(t) ?? t.current
+    }
+    static var todayKey: String {
+        let f = DateFormatter(); f.calendar = Calendar(identifier: .gregorian); f.dateFormat = "yyyy-MM-dd"; return f.string(from: Date())
+    }
 
     /// Whether the shown value comes from the app's data rather than a typed number.
     func isLive(_ t: MissionTarget) -> Bool { auto(t) != nil }

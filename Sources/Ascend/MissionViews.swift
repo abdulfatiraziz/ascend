@@ -290,7 +290,10 @@ struct MissionSheet: View {
                 Text(t.kind == .manual ? t.cadence : t.source).font(.bt(size: 10)).foregroundStyle(Ink.muted)
             }
             Spacer(minLength: 8)
-            if t.kind == .manual {
+            if t.everyMonths != nil {
+                VisitDate(label: "Last", day: t.lastVisit, suggested: nil) { missions.setVisit(t.id, last: .some($0)) }
+                VisitDate(label: "Next", day: t.nextVisitDay, suggested: t.nextVisit == nil ? t.nextVisitDay : nil) { missions.setVisit(t.id, next: .some($0)) }
+            } else if t.kind == .manual {
                 if t.checklist {
                     Toggle("", isOn: Binding(get: { (t.current ?? 0) >= 1 }, set: { missions.setCurrent(t.id, $0 ? 1 : 0) }))
                         .toggleStyle(.checkbox).labelsHidden()
@@ -308,10 +311,10 @@ struct MissionSheet: View {
             } else {
                 Text(t.format(v)).font(.bt(size: 13, design: .monospaced)).foregroundStyle(Ink.ivory)
             }
-            Text(t.checklist ? "" : "→ \(t.format(t.target))").font(.bt(size: 11, design: .monospaced)).foregroundStyle(Ink.goldDim).frame(width: 92, alignment: .leading)
+            if t.everyMonths == nil { Text(t.checklist ? "" : "→ \(t.format(t.target))").font(.bt(size: 11, design: .monospaced)).foregroundStyle(Ink.goldDim).frame(width: 92, alignment: .leading) }
             Text(state.rawValue.uppercased())
                 .font(.bt(size: 9, design: .monospaced)).tracking(1.2)
-                .foregroundStyle(state == .done || state == .onPlan ? Ink.onTrack : state == .behind ? Ink.watch : Ink.muted)
+                .foregroundStyle(state == .done || state == .onPlan || state == .scheduled ? Ink.onTrack : state == .behind || state == .overdue ? Ink.watch : Ink.muted)
                 .frame(width: 82, alignment: .trailing)
         }
         .padding(.vertical, 11)
@@ -364,5 +367,34 @@ struct MissionSheet: View {
         drafts[t.id] = nil
         let trimmed = text.trimmingCharacters(in: .whitespaces)
         missions.setCurrent(t.id, trimmed.isEmpty ? nil : Double(trimmed.replacingOccurrences(of: ",", with: "")))
+    }
+}
+
+/// A day picker for a visit. Empty shows "Pick date"; a suggested day (worked out, not booked) shows dimmed until you change it.
+struct VisitDate: View {
+    let label: String
+    let day: String?
+    let suggested: String?
+    let set: (String?) -> Void
+    private static let utc = TimeZone(identifier: "UTC")!
+    private static let f: DateFormatter = {
+        let f = DateFormatter(); f.calendar = Calendar(identifier: .gregorian); f.timeZone = utc; f.dateFormat = "yyyy-MM-dd"; return f
+    }()
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label.uppercased() + (suggested != nil ? " · AUTO" : "")).font(.bt(size: 8, design: .monospaced)).tracking(1.2).foregroundStyle(Ink.muted)
+            if let d = day, let date = Self.f.date(from: d) {
+                DatePicker("", selection: Binding(get: { date }, set: { set(Self.f.string(from: $0)) }), displayedComponents: .date)
+                    .labelsHidden().datePickerStyle(.field)
+                    .environment(\.timeZone, Self.utc)
+                    .opacity(suggested != nil ? 0.6 : 1)
+                    .contextMenu { Button("Clear") { set(nil) } }
+            } else {
+                Button("Pick date") { set(Self.f.string(from: Date())) }
+                    .buttonStyle(.borderless).font(.bt(size: 11)).foregroundStyle(Ink.lamp)
+                    .frame(height: 22)
+            }
+        }.frame(width: 104, alignment: .leading)
     }
 }

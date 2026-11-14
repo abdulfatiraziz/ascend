@@ -20,11 +20,16 @@ public struct MissionTarget: Codable, Identifiable, Equatable, Sendable {
     public var checklist = false
     /// Smaller is better even without a start value (resting heart rate).
     public var lower = false
+    /// A repeating visit (dermatologist, dentist): how many months between visits.
+    public var everyMonths: Int?
+    /// The last visit you picked, and a booked next visit if you set one (yyyy-MM-dd).
+    public var lastVisit: String?
+    public var nextVisit: String?
 
     public init(_ id: String, _ title: String, unit: String = "", start: Double? = nil, target: Double, current: Double? = nil,
-                auto: String? = nil, due: String? = nil, planStart: String? = nil, geometric: Bool = false, checklist: Bool = false, lower: Bool = false, detail: String = "") {
+                auto: String? = nil, due: String? = nil, planStart: String? = nil, geometric: Bool = false, checklist: Bool = false, lower: Bool = false, everyMonths: Int? = nil, detail: String = "") {
         self.id = id; self.title = title; self.detail = detail; self.unit = unit; self.start = start; self.target = target
-        self.current = current; self.auto = auto; self.due = due; self.planStart = planStart; self.geometric = geometric; self.checklist = checklist; self.lower = lower
+        self.current = current; self.auto = auto; self.due = due; self.planStart = planStart; self.geometric = geometric; self.checklist = checklist; self.lower = lower; self.everyMonths = everyMonths
     }
 
     public var lowerIsBetter: Bool { lower || (start ?? target) > target }
@@ -49,6 +54,7 @@ public struct MissionTarget: Codable, Identifiable, Equatable, Sendable {
     /// Value with its unit, e.g. "$3,000", "77.8 kg", "5/7", "21%".
     public func format(_ value: Double?) -> String {
         guard let v = value else { return "—" }
+        if everyMonths != nil { return v >= 1 ? "Up to date" : "Overdue" }
         if checklist { return v >= 1 ? "Done" : "Not yet" }
         let n = v.rounded() == v || abs(v) >= 100 ? Int(v.rounded()).formatted() : String(format: abs(v) < 10 ? "%.2f" : "%.1f", v).replacingOccurrences(of: #"\.?0+$"#, with: "", options: .regularExpression)
         switch unit {
@@ -118,15 +124,8 @@ public enum Missions {
                     MissionTarget("a.rhr", "Resting heart rate", unit: "bpm", target: 59, auto: "rhr", lower: true, detail: "Under 60 means a strong engine."),
                     MissionTarget("a.steps", "Steps, 7-day average", target: 10000, auto: "steps", detail: "Floor 7,000; mission 10,000."),
                     MissionTarget("a.protein", "Protein, 7-day average", unit: "g", target: 150, auto: "protein", detail: "About 2.5 g per kg of lean mass protects muscle in the cut."),
-                    MissionTarget("a.bench", "Bench press, 1 rep", unit: "kg", target: 70, detail: "Your goal bodyweight, 72 kg."),
-                    MissionTarget("a.squat", "Squat, 1 rep", unit: "kg", target: 105, detail: "1.5× your goal bodyweight."),
-                    MissionTarget("a.deadlift", "Deadlift, 1 rep", unit: "kg", target: 140, detail: "2× your goal bodyweight."),
-                    MissionTarget("a.pullups", "Strict pull-ups", unit: "reps", target: 10),
-                    MissionTarget("a.run", "5 km run", unit: "min", start: 35, target: 25, due: "2027-06-30", planStart: "2026-11-14", detail: "Under 25 minutes."),
-                    MissionTarget("a.mind", "Breathing or NSDR days this week", unit: "/7", target: 6, detail: "10 minutes a day."),
-                    MissionTarget("a.skin", "Dermatologist visit", target: 1, current: 0, checklist: true, detail: "Then SPF every morning, a night routine."),
-                    MissionTarget("a.teeth", "Dental cleaning", target: 1, current: 0, due: "2027-05-14", checklist: true, detail: "Every 6 months; whitening after the cut."),
-                    MissionTarget("a.hair", "Hair photo this month", target: 1, current: 0, checklist: true, detail: "Same angle every 4 weeks; keep the current treatment."),
+                    MissionTarget("a.skin", "Dermatologist visit", target: 1, everyMonths: 1, detail: "Once a month. Pick the day you went; the next visit is set a month later, or pick a booked date."),
+                    MissionTarget("a.teeth", "Dental cleaning", target: 1, everyMonths: 6, detail: "Every 6 months; whitening after the cut. Pick the day you went; the next visit is set 6 months later, or pick a booked date."),
                 ]),
             MissionFile(id: "B", codename: "Treasury", title: "$12k a month", due: "2028-03-31",
                 brief: "4× in 16½ months = +\(String(format: "%.1f", growth * 100))% a month. Checkpoints: $4,400 by Mar 2027 · $7,250 by Sep 2027 · $12,000 by Mar 2028. Save 30% of it.",
@@ -170,9 +169,13 @@ public enum Missions {
     /// Current definitions (titles, targets, plans) from the code, with every value typed into the saved file kept.
     public static func merged(_ saved: [MissionFile]) -> [MissionFile] {
         let typed = Dictionary(saved.flatMap(\.targets).map { ($0.id, $0.current) }, uniquingKeysWith: { a, _ in a })
+        let visits = Dictionary(saved.flatMap(\.targets).map { ($0.id, ($0.lastVisit, $0.nextVisit)) }, uniquingKeysWith: { a, _ in a })
         return Missions.defaults.map { def in
             var m = def
-            for i in m.targets.indices { if let v = typed[m.targets[i].id] { m.targets[i].current = v } }
+            for i in m.targets.indices {
+                if let v = typed[m.targets[i].id] { m.targets[i].current = v }
+                if m.targets[i].everyMonths != nil, let d = visits[m.targets[i].id] { m.targets[i].lastVisit = d.0; m.targets[i].nextVisit = d.1 }
+            }
             return m
         }
     }
@@ -181,7 +184,7 @@ public enum Missions {
     public static func orders(_ missions: [MissionFile], value: (MissionTarget) -> Double?, today: String, limit: Int = 3) -> [MissionOrder] {
         var behind: [MissionOrder] = [], missing: [MissionOrder] = []
         for m in missions {
-            for t in m.targets where !t.checklist {
+            for t in m.targets where !t.checklist && t.everyMonths == nil {
                 guard let v = value(t) else {
                     missing.append(MissionOrder(missionID: m.id, target: t, value: nil, need: nil, severity: 0))
                     continue
@@ -201,7 +204,7 @@ public enum Missions {
 
     /// One word for a mission's state: BEHIND when any order is from it, ON PLAN when anything is measured, else NO DATA.
     public static func status(_ m: MissionFile, value: (MissionTarget) -> Double?, today: String) -> MissionStatus {
-        let measured = m.targets.filter { !$0.checklist && value($0) != nil }
+        let measured = m.targets.filter { !$0.checklist && $0.everyMonths == nil && value($0) != nil }
         if measured.isEmpty { return .noData }
         let behind = orders([m], value: value, today: today, limit: 99).contains { $0.value != nil }
         return behind ? .behind : .onPlan
@@ -212,6 +215,10 @@ public enum Missions {
         for m in missions {
             lines.append("\(m.id) · \(m.codename) — \(m.title), due \(m.due). \(m.brief)")
             for t in m.targets {
+                if t.everyMonths != nil {
+                    lines.append("- \(t.title): last visit \(t.lastVisit ?? "not logged"), next \(t.nextVisitDay ?? "not set")")
+                    continue
+                }
                 lines.append("- \(t.title): \(t.format(value(t))) → \(t.format(t.target))\(t.detail.isEmpty ? "" : " (\(t.detail))")")
             }
         }
@@ -241,7 +248,7 @@ public enum TargetKind: String, CaseIterable, Sendable {
 }
 
 /// One word for one target.
-public enum TargetState: String, Sendable { case done = "Done", onPlan = "On plan", behind = "Behind", notLogged = "Not logged", notYet = "Not yet" }
+public enum TargetState: String, Sendable { case done = "Done", onPlan = "On plan", behind = "Behind", notLogged = "Not logged", notYet = "Not yet", scheduled = "Scheduled", overdue = "Overdue" }
 
 extension MissionTarget {
     public var kind: TargetKind {
@@ -260,9 +267,29 @@ extension MissionTarget {
         }
     }
     /// How often to type a manual number.
-    public var cadence: String { Missions.cadence[id] ?? "When it changes" }
+    public var cadence: String {
+        if let n = everyMonths { return n == 1 ? "Every month" : "Every \(n) months" }
+        return Missions.cadence[id] ?? "When it changes"
+    }
+
+    /// The next visit: a booked date if it comes after the last visit, else the last visit plus the interval.
+    public var nextVisitDay: String? {
+        if let b = nextVisit, b > (lastVisit ?? "") { return b }
+        guard let n = everyMonths, let l = lastVisit, let d = Self.date(l) else { return nil }
+        var cal = Calendar(identifier: .gregorian); cal.timeZone = TimeZone(identifier: "UTC")!
+        guard let next = cal.date(byAdding: .month, value: n, to: d) else { return nil }
+        let f = DateFormatter(); f.calendar = cal; f.timeZone = cal.timeZone; f.dateFormat = "yyyy-MM-dd"
+        return f.string(from: next)
+    }
+
+    /// 1 when the next visit is today or later, 0 when it has passed, nil when nothing is logged.
+    public func visitValue(today: String) -> Double? { nextVisitDay.map { $0 < today ? 0 : 1 } }
 
     public func state(_ value: Double?, today: String) -> TargetState {
+        if everyMonths != nil {
+            guard let next = nextVisitDay else { return .notLogged }
+            return next < today ? .overdue : .scheduled
+        }
         guard let v = value else { return .notLogged }
         if (progress(v) ?? 0) >= 1 { return .done }
         if checklist { return .notYet }
@@ -277,9 +304,7 @@ extension MissionTarget {
 
 extension Missions {
     public static let cadence: [String: String] = [
-        "a.bodyfat": "Monthly", "a.bench": "When you test", "a.squat": "When you test", "a.deadlift": "When you test",
-        "a.pullups": "When you test", "a.run": "When you test", "a.mind": "Weekly", "a.skin": "Once",
-        "a.teeth": "Every 6 months", "a.hair": "Monthly",
+        "a.bodyfat": "Monthly",
         "b.income": "Monthly", "b.savings": "Monthly", "b.fund": "Monthly",
         "c.score": "Sundays", "c.shadow": "Weekly", "c.vo": "Once", "c.call": "Once",
         "d.grooming": "Weekly", "d.circle": "Monthly", "d.dates": "Monthly", "d.family": "Weekly",
