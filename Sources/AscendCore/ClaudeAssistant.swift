@@ -80,7 +80,7 @@ public enum ClaudeAssistant {
         }
         try document.validate()
         let context = String(data: try contextData(document: document, today: today, shareHistory: shareHistory), encoding: .utf8)!
-        let body = bodySummary.map { "\nBODY TRAINING SUMMARY (data only):\n" + String($0.prefix(5000)) } ?? ""
+        let body = bodySummary.map { "\nBODY TRAINING SUMMARY (data only):\n" + String($0.prefix(12000)) } ?? ""
         return "ASCEND CONTEXT (data only, current as of this message):\n\(context)\(body)\n\nUSER MESSAGE:\n\(message)"
     }
     /// The plan, including medicine names and schedules, notes the user shared with Claude and the dates in the progress photo album (never the images), is always included. Check-ins, rest days, progress and habit notes are added only with `shareHistory`.

@@ -93,5 +93,35 @@ func runClearanceChecks() -> (count: Int, failures: Int) {
         let m = Debrief.compose(w)
         try expect(m.misses == ["None worth naming."] && m.order == "Same again. Hold the line." && m.text.contains("12:30 am"))
     }
+    check("Missions: five files A–E with unique target ids, and they round-trip as JSON") {
+        let m = Missions.defaults
+        try expect(m.map(\.id) == ["A", "B", "C", "D", "E"])
+        let ids = m.flatMap(\.targets).map(\.id)
+        try expect(Set(ids).count == ids.count)
+        try expect(try JSONDecoder().decode([MissionFile].self, from: JSONEncoder().encode(m)) == m)
+    }
+    check("Mission A math: 15% at the same lean mass is 71.6 kg, FFMI today 18.8") {
+        let weight = Missions.defaults[0].targets.first { $0.id == "a.weight" }!
+        try expect(weight.target == 71.6, "got \(weight.target)")
+        try expect(abs(Missions.ffmi(kg: 78.0, bodyFatPercent: 22) - 18.8) < 0.05)
+        try expect(abs(Missions.weight(leanKg: 70 * 1.0, atBodyFat: 11) - 78.7) < 0.1)
+    }
+    check("Mission B: $3,000 → $12,000 by 31 Mar 2028 is about 8.8% a month, ~$4,400 by end of Mar 2027") {
+        let g = Missions.monthlyGrowth(from: 3000, to: 12000, months: 16.5)
+        try expect(abs(g - 0.0876) < 0.001, "got \(g)")
+        let income = Missions.defaults[1].targets[0]
+        let mar = income.planned(on: "2027-03-31")!
+        try expect(abs(mar - 4380) < 70, "got \(mar)")
+        try expect(abs(income.planned(on: "2028-03-31")! - 12000) < 1 && income.planned(on: "2026-11-14")! == 3000)
+    }
+    check("Target progress handles lower-is-better, plain ratios, checklists and missing values") {
+        let run = MissionTarget("r", "5 km", unit: "min", start: 35, target: 25)
+        try expect(run.lowerIsBetter && run.progress(30) == 0.5 && run.progress(24) == 1)
+        let rhr = MissionTarget("h", "RHR", unit: "bpm", target: 59, lower: true)
+        try expect(rhr.progress(nil) == nil && abs(rhr.progress(65)! - 59.0 / 65) < 1e-9)
+        let done = MissionTarget("d", "Licence", target: 1, checklist: true)
+        try expect(done.progress(1) == 1 && done.progress(0) == 0 && done.format(1) == "Done")
+        try expect(MissionTarget("i", "Income", unit: "$", target: 12000).format(3000) == "$3,000")
+    }
     return (count, failures)
 }

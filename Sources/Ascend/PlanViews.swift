@@ -7,8 +7,10 @@ struct GoalsView: View {
     @Binding var editor: Editor?
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            HStack { Kicker("Goals / recurring habits / milestones"); Spacer(); Button("+ Goal") { editor = .goal(nil) }; Button("+ Habit or task") { editor = .habit(nil, nil) } }.font(.bt(size: 12))
+            HStack { Kicker("Goals / missions / habits / milestones"); Spacer(); Button("+ Goal") { editor = .goal(nil) }; Button("+ Habit or task") { editor = .habit(nil, nil) } }.font(.bt(size: 12))
             ScrollView {
+                MissionBoard(store: store, missions: store.missions).padding(.bottom, 26)
+                HStack { Kicker("Habit goals / the daily work behind mission A"); Spacer() }.padding(.bottom, 8)
                 LazyVGrid(columns: [GridItem(.flexible(), alignment: .top), GridItem(.flexible(), alignment: .top)], alignment: .leading, spacing: 16) {
                     ForEach(store.document.goals) { goal in
                         VStack(alignment: .leading, spacing: 14) {
