@@ -42,6 +42,25 @@ func runDietChecks() -> (count:Int,failures:Int) {
         if let c=d.mealHabits.calories { try expect(auto.contains(c.id)) }
         try expect(d.accentHabit.map { !auto.contains($0.id) } ?? true)
     }
+    check("Routine: the night plan runs in time order, past midnight last") {
+        var d=fixture();d.diet=plan(d)
+        d.routine.configured=true;d.routine.bedMinute=60;d.routine.wakeMinute=540;d.routine.windDownMinutes=120
+        let e=TrackerEngine(document:d),p=d.dayPlan(on:"2026-06-08",engine:e)
+        try expect(p.map(\.minute)==p.map(\.minute).sorted())
+        try expect(p.last?.kind == .bed && p.last?.minute==1500)
+        try expect(p.first(where:{$0.kind == .windDown})?.minute==1380 && p.first(where:{$0.kind == .windDown})?.title=="Black tie hours")
+        let ahead=d.planAhead(on:"2026-06-08",now:1390,engine:e)
+        try expect(ahead.allSatisfy{$0.minute>=1390 || ($0.kind == .meal && ($0.endMinute ?? 0)>1390)} && ahead.contains{$0.kind == .bed})
+    }
+    check("Routine: falling asleep before midnight counts as early, after as late") {
+        var d=fixture();let e=TrackerEngine(document:d),c=e.calendar
+        let day=c.date(from:DateComponents(year:2026,month:6,day:8,hour:0,minute:0))!.timeIntervalSince1970
+        d.health.records=[HealthRecord(id:"s1",metric:.sleep,start:day-30*60,end:day+7*3600,value:450),
+                          HealthRecord(id:"s2",metric:.sleep,start:day+86400+3*3600+17*60,end:day+86400+11*3600,value:463)]
+        try expect(d.onset(endingOn:"2026-06-08",engine:e)?.minute == -30)
+        try expect(d.onset(endingOn:"2026-06-09",engine:e)?.minute==197)
+        try expect(TrackerDocument.eveningMinute(60,wake:540)==1500 && TrackerDocument.eveningMinute(1380,wake:540)==1380)
+    }
     check("legacy tracker and habit revisions decode without diet fields") {
         let d=fixture(),data=try JSONEncoder().encode(d)
         let copy=try JSONDecoder().decode(TrackerDocument.self,from:data)

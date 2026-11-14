@@ -59,67 +59,6 @@ struct RoutineDial: View {
             .accessibilityValue("\(timeText(now, engine: store.engine)), \(routine.configured ? routine.phase(at: store.engine.minute(now)).rawValue : "example schedule; configure your times")")
     }
 }
-struct RoutineView: View {
-    @ObservedObject var store: TrackerStore
-    @Binding var editor: Editor?
-    private var timed: [RoutineEvent] { store.engine.routineEvents(on: store.today) }
-    private var anytime: [Habit] { store.engine.due(on: store.today, includeMilestones: true).filter { !store.document.routine.configured || $0.latest.scheduledMinute == nil } }
-    var body: some View {
-        ScrollViewReader { proxy in
-            HStack(alignment: .top, spacing: 24) {
-              GeometryReader { layout in
-               ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack { Kicker("Your 24-hour rhythm"); Spacer(); Button("Edit times") { editor = .routine }.font(.bt(size: 11)).buttonStyle(.borderless) }
-                    TimelineView(.periodic(from: .now, by: 30)) { timeline in RoutineDial(store: store, now: timeline.date) }.frame(width: min(300, max(200, layout.size.height - 225))).frame(maxWidth: .infinity)
-                    HStack(spacing: 12) { ForEach(RoutinePhase.allCases, id: \.self) { phase in Text(phase.rawValue).font(.bt(size: 10)).foregroundStyle(Ink.muted) } }.frame(maxWidth: .infinity)
-                    Line().padding(.vertical, 8)
-                    if store.document.routine.configured {
-                        Text("Wind-down begins at \(clockTime(store.document.routine.windDownMinute)).").font(.bt(size: 14, weight: .medium))
-                        Text("Sleep window: \(clockTime(store.document.routine.bedMinute)) → \(clockTime(store.document.routine.wakeMinute)) · \(Double(1440 - store.document.routine.awakeMinutes) / 60, specifier: "%.1f") hours").font(.bt(size: 12)).foregroundStyle(Ink.muted)
-                    } else {
-                        Text("Make the clock yours.").font(.bt(size: 18, weight: .medium))
-                        Text("The dial shows example windows until you set your wake and bed times. It never logs sleep or completes a habit automatically.").font(.bt(size: 12)).foregroundStyle(Ink.muted)
-                        PrimaryButton(label: "Set my routine", fullWidth: true) { editor = .routine }
-                    }
-                    Text("Exact habit times appear as dots. Add them in a habit’s editor. Untimed habits stay in Anytime.").font(.bt(size: 11)).foregroundStyle(Ink.muted).padding(.top, 8)
-                }.panel().id("routine-top")
-               }
-              }.frame(maxWidth: 380)
-              ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    TimelineView(.periodic(from: .now, by: 30)) { timeline in
-                        VStack(alignment: .leading, spacing: 7) {
-                            Kicker("Up next")
-                            if let next = store.engine.nextRoutineEvent(after: timeline.date) {
-                                Text(next.title).font(.bt(size: 24, weight: .medium)).tracking(-0.7)
-                                Text("\(timeText(next.date, engine: store.engine))\(store.engine.key(next.date) == store.today ? "" : " tomorrow") · \(store.document.timeZoneID)").font(.bt(size: 12)).foregroundStyle(Ink.muted)
-                            } else { Text("Set times to see your next step.").font(.bt(size: 18)).foregroundStyle(Ink.muted) }
-                        }
-                    }
-                    Line()
-                    if store.document.restDays.contains(store.today) { Label("Rest day · routine anchors still show", systemImage: "moon.stars").font(.bt(size: 12)).foregroundStyle(Ink.accent) }
-                    ForEach(timed) { event in
-                        HStack(alignment: .top, spacing: 16) {
-                            Text(timeText(event.date, engine: store.engine)).font(.bt(size: 11, design: .monospaced)).foregroundStyle(Ink.muted).frame(width: 45, alignment: .leading).padding(.top, 14)
-                            if let id = event.habitID, let habit = store.document.habits.first(where: { $0.id == id }) {
-                                HabitRow(store: store, habit: habit, day: store.today, onLog: { editor = .metric(habit, store.today) }, onEdit: { editor = .habit(habit, nil) })
-                            } else {
-                                VStack(alignment: .leading, spacing: 5) { Text(event.title).font(.bt(size: 13)); Text("Routine window").font(.bt(size: 10)).foregroundStyle(Ink.muted); Line().padding(.top, 12) }.frame(maxWidth: .infinity, alignment: .leading).padding(.top, 13)
-                            }
-                        }
-                    }
-                    Kicker("Anytime · \(anytime.count)").padding(.top, 10)
-                    ForEach(anytime) { habit in
-                        HabitRow(store: store, habit: habit, day: store.today, onLog: { editor = .metric(habit, store.today) }, onEdit: { editor = .habit(habit, nil) })
-                    }
-                    if anytime.isEmpty { Text("No untimed tasks today.").font(.bt(size: 12)).foregroundStyle(Ink.muted) }
-                }.frame(maxWidth: .infinity, alignment: .topLeading)
-              }
-            }.onChange(of: store.document.routine) { _, _ in proxy.scrollTo("routine-top", anchor: .top) }
-        }
-    }
-}
 struct RoutineEditor: View {
     @ObservedObject var store: TrackerStore
     @Environment(\.dismiss) private var dismiss
@@ -148,7 +87,7 @@ struct RoutineEditor: View {
             FieldGroup(label: "Morning window") { Stepper("\(morning) minutes after waking", value: $morning, in: 15...360, step: 15).font(.bt(size: 12)) }
             FieldGroup(label: "Wind-down") { Stepper("\(windDown) minutes before bed", value: $windDown, in: 15...360, step: 15).font(.bt(size: 12)) }
             if let validation { Text(validation).font(.bt(size: 12)).foregroundStyle(.orange) }
-            else { Text("Wind down at \(clockTime(preferences.windDownMinute)). Your sleep window is \(Double(1440 - preferences.awakeMinutes) / 60, specifier: "%.1f") hours.").font(.bt(size: 13)).foregroundStyle(Ink.accent) }
+            else { Text("Wind down at \(HealthReport.clock(preferences.windDownMinute)). Your sleep window is \(Double(1440 - preferences.awakeMinutes) / 60, specifier: "%.1f") hours.").font(.bt(size: 13)).foregroundStyle(Ink.accent) }
             Text("Clock time zone: \(store.document.timeZoneID). These settings shape the clock; sleep duration is still logged separately.").font(.bt(size: 11)).foregroundStyle(Ink.muted)
             SaveError(store: store)
         } actions: { HStack { Spacer(); PrimaryButton(label: "Save routine") { if store.saveRoutine(preferences) { dismiss() } }.disabled(validation != nil) } }
