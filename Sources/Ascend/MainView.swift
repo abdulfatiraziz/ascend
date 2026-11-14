@@ -3,8 +3,8 @@ import AppKit
 import AscendCore
 
 enum Screen: String, CaseIterable {
-    case today = "Today", chat = "Chat", goals = "Goals", routine = "Routine", meals = "Meals", meds = "Meds", notes = "Notes", photos = "Photos", screenTime = "Screen time", health = "Health", body = "Body", patterns = "Patterns", urges = "Urges", calendar = "Calendar", cycle = "Cycle"
-    var symbol: String { switch self { case .today: "circle.hexagongrid"; case .chat: "sparkles"; case .goals: "scope"; case .routine: "clock"; case .meals: "fork.knife"; case .meds: "pills"; case .notes: "note.text"; case .photos: "person.crop.rectangle.stack"; case .screenTime: "hourglass"; case .health: "heart.text.square"; case .body: "figure.strengthtraining.traditional"; case .patterns: "point.3.connected.trianglepath.dotted"; case .urges: "circle.dotted"; case .calendar: "calendar"; case .cycle: "chart.bar.xaxis" } }
+    case today = "Today", chat = "Chat", goals = "Goals", routine = "Routine", meals = "Meals", meds = "Meds", notes = "Notes", photos = "Photos", screenTime = "Screen time", health = "Health", body = "Body", patterns = "Patterns", urges = "Urges", dossier = "Dossier", calendar = "Calendar", cycle = "Cycle"
+    var symbol: String { switch self { case .today: "circle.hexagongrid"; case .chat: "sparkles"; case .goals: "scope"; case .routine: "clock"; case .meals: "fork.knife"; case .meds: "pills"; case .notes: "note.text"; case .photos: "person.crop.rectangle.stack"; case .screenTime: "hourglass"; case .health: "heart.text.square"; case .body: "figure.strengthtraining.traditional"; case .patterns: "point.3.connected.trianglepath.dotted"; case .urges: "circle.dotted"; case .dossier: "folder"; case .calendar: "calendar"; case .cycle: "chart.bar.xaxis" } }
 }
 enum Editor: Identifiable {
     case goal(Goal?), habit(Habit?, UUID?), metric(Habit, String), urge(UUID), observation(String), caffeine(CaffeineEntry?, String), routine, aiSettings, settings, quick
@@ -72,6 +72,7 @@ struct MainView: View {
                     case .body: BodyView(store:store)
                     case .patterns: PatternsView(store: store, editor: $editor)
                     case .urges: UrgesView(store: store, editor: $editor)
+                    case .dossier: DossierView(store: store, lifestyle: store.lifestyle)
                     case .calendar: CalendarView(store: store, day: $selectedDay, editor: $editor)
                     case .cycle: CycleView(store: store)
                     }
@@ -143,6 +144,7 @@ struct MainView: View {
             if value == "QuickCheckIn" { editor = .quick }
             if value == "Body" { screen = .body }
             if value == "Photos" { screen = .photos }
+            if value == "Dossier" { screen = .dossier }
             if value == "Assistant" { screen = .chat }
             if value == "AISettings" { editor = .aiSettings }
             if value == "RoutineSettings" { editor = .routine }
@@ -171,7 +173,7 @@ struct MainView: View {
         HStack(alignment: .center) {
             VStack(alignment: .leading, spacing: 7) {
                 Kicker("Your next version starts here")
-                Text(screen == .today ? "The Brief." : screen == .goals ? "The blueprint." : screen == .calendar ? "Every day counts." : screen == .routine ? "Find your rhythm." : screen == .patterns ? "Connect the dots." : screen == .meals ? "Eat with intent." : screen == .meds ? "Take it as prescribed." : screen == .notes ? "Remember what matters." : screen == .photos ? "See the change." : screen == .screenTime ? "Own your attention." : screen == .body ? "Build strength. See change." : screen == .health ? "Know your rhythm." : screen == .urges ? "Notice the pattern." : "The long game.")
+                Text(screen == .today ? "The Brief." : screen == .goals ? "The blueprint." : screen == .calendar ? "Every day counts." : screen == .routine ? "Find your rhythm." : screen == .patterns ? "Connect the dots." : screen == .meals ? "Eat with intent." : screen == .meds ? "Take it as prescribed." : screen == .notes ? "Remember what matters." : screen == .photos ? "See the change." : screen == .screenTime ? "Own your attention." : screen == .body ? "Build strength. See change." : screen == .health ? "Know your rhythm." : screen == .urges ? "Notice the pattern." : screen == .dossier ? "The Dossier." : "The long game.")
                     .font(.bt(size: 36, weight: .semibold)).tracking(-1.5).lineLimit(1).minimumScaleFactor(0.8)
             }
             Spacer()
@@ -222,7 +224,7 @@ struct TodayView: View {
     }
     var body: some View {
         HStack(alignment: .top, spacing: 26) {
-            BriefPanel(store: store, day: day, score: score).frame(maxWidth: .infinity)
+            BriefPanel(store: store, lifestyle: store.lifestyle, day: day, score: score).frame(maxWidth: .infinity)
             VStack(alignment: .leading, spacing: 15) {
                 datePicker
                 HStack {

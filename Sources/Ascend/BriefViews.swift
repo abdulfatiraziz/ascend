@@ -5,30 +5,42 @@ import AscendCore
 /// four missions as watch dials, and today's ledger. Every number comes from the same stores the other tabs use.
 struct BriefPanel: View {
     @ObservedObject var store: TrackerStore
+    @ObservedObject var lifestyle: LifestyleStore
     let day: String
     let score: Score
     private var engine: TrackerEngine { store.engine }
     private var facts: BriefFacts { BriefFacts(store: store, day: day) }
+    /// The memo shows on the Brief on Sunday (from 10 am) and Monday; it lives in the Dossier all week.
+    private var memoDay: Bool { let w = engine.calendar.component(.weekday, from: Date()); return w == 1 || w == 2 }
 
     var body: some View {
         let f = facts
+        let weeks = WeekFacts(store: store)
+        let status = weeks.status
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                hero(f)
+                if status.level.rawValue > lifestyle.lifestyle.seenLevel {
+                    LevelUpCard(level: status.level, reward: lifestyle.lifestyle.rewards[status.level.mark] ?? "Set one in the Dossier.") {
+                        lifestyle.update { $0.seenLevel = status.level.rawValue }
+                    }
+                }
+                hero(f, status: status)
+                if memoDay, day == store.today, let m = weeks.debriefMonday { DebriefCard(store: store, monday: m, memo: Debrief.compose(weeks.debriefWeek(m))) }
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
                     ForEach(f.missions) { MissionDial(mission: $0) }
                 }
                 ledger(f)
             }
         }.scrollIndicators(.never)
+        .onAppear { if status.level.rawValue < lifestyle.lifestyle.seenLevel { lifestyle.update { $0.seenLevel = status.level.rawValue } } }
     }
 
     // MARK: Hero
 
-    private func hero(_ f: BriefFacts) -> some View {
+    private func hero(_ f: BriefFacts, status: ClearanceStatus) -> some View {
         HStack(alignment: .top, spacing: 20) {
             VStack(alignment: .leading, spacing: 10) {
-                Text("\(f.greeting.uppercased()), ABDUL · BRIEF").font(.bt(size: 10, design: .monospaced)).tracking(1.6).foregroundStyle(Ink.accent)
+                Text("\(f.greeting.uppercased()), ABDUL · BRIEF · \(status.level.title.uppercased())").font(.bt(size: 10, design: .monospaced)).tracking(1.6).foregroundStyle(Ink.accent)
                 Text(f.headline).font(.bt(size: 26)).foregroundStyle(Ink.ivory).fixedSize(horizontal: false, vertical: true)
                 Text(f.coaching).font(.bt(size: 12)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 4)
