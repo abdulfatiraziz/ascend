@@ -157,6 +157,26 @@ func runClearanceChecks() -> (count: Int, failures: Int) {
         try expect(a.first { $0.id == "a.bodyfat" }?.kind == .manual && a.first { $0.id == "a.bodyfat" }?.cadence == "Monthly")
         try expect(!a.contains { ["a.bench", "a.squat", "a.deadlift", "a.pullups", "a.run", "a.mind", "a.hair"].contains($0.id) })
     }
+    check("Mission E is the five hard skills; hikes come from the watch, the rest are logged per session") {
+        let e = Missions.defaults[4].targets
+        try expect(e.map(\.id) == ["e.swim", "e.hike", "e.ride", "e.range", "e.track"], "\(e.map(\.id))")
+        try expect(e[1].kind == .synced && e[1].source == "Watch workouts")
+        try expect(e.filter { $0.id != "e.hike" }.allSatisfy { $0.kind == .manual && !$0.cadence.isEmpty })
+        let shadow = Missions.defaults[2].targets.first { $0.id == "c.shadow" }!
+        try expect(shadow.kind == .synced && shadow.source == "Daily tap on Today")
+    }
+    check("Accent practice: added once as a daily tap, never again after it is archived") {
+        var doc = TrackerDocument.seeded(today: "2026-11-01")
+        doc.ensureAccentHabit(today: "2026-11-14")
+        try expect(doc.accentHabit?.latest.title == "Accent practice" && doc.accentHabit?.kind == .check)
+        try expect(doc.goals.filter { $0.title == "American accent" }.count == 1 && doc.accentHabit?.latest.schedule.weekdays.count == 7)
+        let count = doc.habits.count
+        doc.ensureAccentHabit(today: "2026-11-14"); try expect(doc.habits.count == count)
+        let i = doc.habits.firstIndex { $0.id == doc.accentHabit!.id }!
+        doc.habits[i].archivedDay = "2026-11-20"
+        doc.ensureAccentHabit(today: "2026-11-21"); try expect(doc.habits.count == count && doc.accentHabit == nil)
+        try doc.validate()
+    }
     check("Visits: next visit is last + interval unless a later date is booked; overdue once it passes") {
         var skin = Missions.defaults[0].targets.first { $0.id == "a.skin" }!
         try expect(skin.cadence == "Every month" && skin.state(nil, today: "2026-11-14") == .notLogged)

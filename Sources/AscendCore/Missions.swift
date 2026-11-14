@@ -137,10 +137,10 @@ public enum Missions {
                     MissionTarget("b.fund", "Emergency fund", unit: "months", target: 6, detail: "Months of expenses in cash."),
                 ]),
             MissionFile(id: "C", codename: "The Voice", title: "American accent", due: "2027-12-31",
-                brief: "Shadow 20 minutes a day, record the same 60-second passage every Sunday, score it honestly.",
+                brief: "Practise most days (one tap on Today: did you or not), record the same 60-second passage every Sunday, score it honestly.",
                 targets: [
                     MissionTarget("c.score", "Accent score, weekly recording", unit: "/10", target: 9, detail: "Score the Sunday recording 1–10; keep every file."),
-                    MissionTarget("c.shadow", "Shadowing days this week", unit: "/7", target: 6, detail: "20 minutes a day."),
+                    MissionTarget("c.shadow", "Practice days this week", unit: "/7", target: 6, auto: "accent", detail: "Counted from the daily Accent practice tap on Today."),
                     MissionTarget("c.vo", "YouTube voice-over with no retakes", target: 1, current: 0, checklist: true),
                     MissionTarget("c.call", "A stranger doesn't ask where you're from", target: 1, current: 0, checklist: true),
                 ]),
@@ -154,14 +154,15 @@ public enum Missions {
                     MissionTarget("d.family", "Family calls this week", target: 2),
                 ]),
             MissionFile(id: "E", codename: "Field Craft", title: "Hard skills", due: "2027-12-31",
-                brief: "Capable, not just good-looking: water, road, ring, kitchen, a second language.",
+                brief: "Capable outdoors: water, trail, saddle, range, track. Log a session only on the day it happens.",
                 targets: [
-                    MissionTarget("e.skills", "Dossier skills, average", unit: "%", target: 100, auto: "skills", detail: "From the Dossier's skill bars."),
-                    MissionTarget("e.swim", "Freestyle without stopping", unit: "m", start: 0, target: 1000, due: "2027-12-31", planStart: "2026-11-14"),
-                    MissionTarget("e.combat", "Boxing or Muay Thai sessions a week", target: 2),
-                    MissionTarget("e.cook", "Core meals you can cook", start: 0, target: 6, due: "2027-12-31", planStart: "2026-11-14", detail: "High protein, under 600 kcal each."),
-                    MissionTarget("e.drive", "Driving licence", target: 1, current: 0, checklist: true),
-                    MissionTarget("e.language", "Second language at A2", target: 1, current: 0, checklist: true),
+                    MissionTarget("e.swim", "Swimming: freestyle without stopping", unit: "m", start: 0, target: 1000, due: "2027-12-31", planStart: "2026-11-14",
+                                  detail: "Type your best distance on the days you test."),
+                    MissionTarget("e.hike", "Hiking: hikes done", start: 0, target: 6, auto: "hikes", due: "2027-12-31", planStart: "2026-11-14",
+                                  detail: "Counted from hikes recorded on the watch."),
+                    MissionTarget("e.ride", "Horse riding: lessons", start: 0, target: 12, due: "2027-12-31", planStart: "2026-11-14", detail: "Add one after each lesson."),
+                    MissionTarget("e.range", "Firearm: range sessions", start: 0, target: 10, due: "2027-12-31", planStart: "2026-11-14", detail: "Safety course first, then add one per session."),
+                    MissionTarget("e.track", "Race car: track or karting days", start: 0, target: 4, due: "2027-12-31", planStart: "2026-11-14", detail: "Add one per track day."),
                 ]),
         ]
     }
@@ -261,7 +262,8 @@ extension MissionTarget {
         case "ffmi": "Weight + body fat"
         case "sleep", "stress", "rhr", "steps": "Watch"
         case "protein": "Food log"
-        case "gym": "Watch workouts"
+        case "gym", "hikes": "Watch workouts"
+        case "accent": "Daily tap on Today"
         case "wardrobe", "skills": "Dossier"
         default: ""
         }
@@ -308,6 +310,6 @@ extension Missions {
         "b.income": "Monthly", "b.savings": "Monthly", "b.fund": "Monthly",
         "c.score": "Sundays", "c.shadow": "Weekly", "c.vo": "Once", "c.call": "Once",
         "d.grooming": "Weekly", "d.circle": "Monthly", "d.dates": "Monthly", "d.family": "Weekly",
-        "e.swim": "When you test", "e.combat": "Weekly", "e.drive": "Once", "e.language": "Once",
+        "e.swim": "When you test", "e.ride": "After each lesson", "e.range": "After each session", "e.track": "After each track day",
     ]
 }

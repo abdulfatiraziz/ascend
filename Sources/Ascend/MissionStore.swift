@@ -97,6 +97,12 @@ struct MissionFacts {
         case "protein":
             let days = last7.filter { store.document.meals.totals($0).kcal > 0 }
             return days.isEmpty ? nil : (days.map { store.document.meals.totals($0).protein }.reduce(0, +) / Double(days.count)).rounded()
+        case "accent":
+            guard let habit = store.document.accentHabit else { return nil }
+            let w = WeekFacts(store: store)
+            return Double(engine.days(from: w.monday(of: store.today), through: store.today).filter { engine.completed(habit, on: $0) }.count)
+        case "hikes":
+            return Double(engine.days(from: t.planStart ?? store.today, through: store.today).flatMap { store.document.health.records(.workout, on: $0, engine: engine) }.filter { $0.detail == TrackerDocument.hikeWorkoutType }.count)
         case "wardrobe":
             let owned = store.lifestyle.lifestyle.items(in: .wardrobe).filter { $0.tag == "Owned" && !$0.placeholder }
             return Double(owned.count)

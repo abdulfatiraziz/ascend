@@ -146,6 +146,7 @@ import UniformTypeIdentifiers
     func refreshAutoTicks() { change { _ in } }
     private func applyAutoTicks(_ doc: inout TrackerDocument) {
         let windDown = WindDown.nights(health: doc.health, screen: screenTime.archive, engine: TrackerEngine(document: doc), today: today)
+        doc.ensureAccentHabit(today: today)
         doc.applyAutoTicks(today: today, windDown: windDown)
     }
     @discardableResult func save() -> Bool {

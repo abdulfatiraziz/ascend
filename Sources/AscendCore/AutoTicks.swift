@@ -53,8 +53,24 @@ extension TrackerDocument {
 // MARK: - Habits that tick themselves
 
 extension TrackerDocument {
-    /// Watch workout types that count as a gym session. Mi Fitness's gym workout arrives as type 45.
-    public static let gymWorkoutTypes: Set<String> = ["Exercise type 45", "Exercise type 70", "Exercise type 81"]
+    /// Health Connect workout types (android.health.connect ExerciseSessionType) that count as a gym session:
+    /// 45 strength training (Mi Fitness's gym workout), 55 weightlifting.
+    public static let gymWorkoutTypes: Set<String> = ["Exercise type 45", "Exercise type 55"]
+    /// 21 hiking.
+    public static let hikeWorkoutType = "Exercise type 21"
+
+    public var accentHabit: Habit? { activeCheck { $0.contains("accent") } }
+    /// Adds the daily "Accent practice" tap (and its goal) once. Never re-added after you archive it.
+    public mutating func ensureAccentHabit(today: String) {
+        guard !habits.contains(where: { $0.latest.title.lowercased().contains("accent") }) else { return }
+        var goal = goals.first { $0.title == "American accent" }
+        if goal == nil {
+            goal = Goal(title: "American accent", symbol: "waveform", windows: [GoalWindow(effectiveDay: today, start: today, end: cycle.end)])
+            goals.append(goal!)
+        }
+        habits.append(Habit(goalID: goal!.id, kind: .check, createdDay: today, revisions: [HabitRevision(effectiveDay: today, title: "Accent practice",
+            note: "Shadowing or reading aloud, any length. Tick if you practised today.", period: .evening, schedule: Schedule(), target: nil)]))
+    }
     public static let gymMinimumMinutes = 20.0
 
     private func activeCheck(_ match: (String) -> Bool) -> Habit? {
