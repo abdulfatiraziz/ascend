@@ -82,7 +82,7 @@ struct MainView: View {
                 }
                 Group {
                     switch screen {
-                    case .today: TodayView(store: store, day: $selectedDay, editor: $editor)
+                    case .today: TodayView(store: store, lifestyle: store.lifestyle, day: $selectedDay, editor: $editor, open: { screen = $0 })
                     case .chat: EmptyView()
                     case .goals: GoalsView(store: store, editor: $editor)
                     case .routine: RoutineView(store: store, editor: $editor)
@@ -227,8 +227,6 @@ struct MainView: View {
             Spacer()
             Button { setEyesOnly(true) } label: { Label("Eyes only", systemImage: "eye.slash").font(.bt(size: 11)).padding(8) }
                 .buttonStyle(.plain).background(Ink.panel, in: RoundedRectangle(cornerRadius: 7)).keyboardShortcut("e", modifiers: [.command, .shift]).help("Eyes only · ⌘⇧E · hides everything until you open it again")
-            Button { editor = .quick } label: { Label("Quick check-in", systemImage: "menubar.rectangle").font(.bt(size: 11)).padding(8) }
-                .buttonStyle(.plain).background(Ink.panel, in: RoundedRectangle(cornerRadius: 7)).keyboardShortcut("k", modifiers: [.command, .shift])
             Button { store.recordUrge() } label: { Label("Urge", systemImage: "circle.dotted").font(.bt(size: 11)).padding(8) }.buttonStyle(.plain).background(Ink.panel, in: RoundedRectangle(cornerRadius: 7)).accessibilityLabel("Log an urge").keyboardShortcut("u", modifiers: [.command, .shift]).help("Log an urge · ⌘⇧U · time saved immediately")
             Button { screen = .chat } label: { Label("Ask Ascend", systemImage: "sparkles").font(.bt(size: 11)).padding(8) }.buttonStyle(.plain).background(Ink.panel, in: RoundedRectangle(cornerRadius: 7)).help("Open the Ascend chat · ⌘J").keyboardShortcut("j", modifiers: [.command])
             if let next = store.missions.missions.filter({ $0.due >= store.today }).min(by: { $0.due < $1.due }) {
@@ -240,82 +238,6 @@ struct MainView: View {
                 }.help("The next mission deadline: \(next.title)")
             }
         }
-    }
-}
-struct TodayView: View {
-    @ObservedObject var store: TrackerStore
-    @Binding var day: String
-    @Binding var editor: Editor?
-    @State private var filter = "Remaining"
-    let filters = ["Remaining", "Morning", "Daytime", "Evening", "All"]
-    private var score: Score { store.engine.score(on: day) }
-    private var tasks: [Habit] {
-        store.engine.due(on: day, includeMilestones: true).filter { habit in
-            if filter == "Remaining" { return !store.engine.completed(habit, on: day) }
-            if filter == "All" { return true }
-            return habit.revision(on: day)?.period.rawValue == filter
-        }
-    }
-    var body: some View {
-        HStack(alignment: .top, spacing: 26) {
-            BriefPanel(store: store, lifestyle: store.lifestyle, day: day, score: score).frame(maxWidth: .infinity)
-            VStack(alignment: .leading, spacing: 15) {
-                datePicker
-                HStack {
-                    Text(day == store.today ? "Today’s protocol" : "Day’s protocol").font(.bt(size: 22, weight: .medium)).tracking(-0.6)
-                    Spacer()
-                    Text("\(score.completed) / \(score.scheduled)").font(.bt(size: 12, design: .monospaced)).foregroundStyle(Ink.accent)
-                }
-                if store.document.restDays.contains(day) {
-                    Label("Rest day · check-ins preserved, excluded from score", systemImage: "moon.stars").font(.bt(size: 12)).foregroundStyle(Ink.accent)
-                }
-                Text(targetText).font(.bt(size: 12)).foregroundStyle(Ink.muted)
-                MedMomentsStrip(store: store, day: day)
-                HStack(spacing: 11) {
-                    ForEach(filters, id: \.self) { label in
-                        Button { filter = label } label: { Text(label).font(.bt(size: 11)).padding(.bottom, 8).overlay(alignment: .bottom) { if filter == label { Rectangle().fill(Ink.accent).frame(height: 2) } } }
-                            .buttonStyle(.plain).foregroundStyle(filter == label ? .white : Ink.muted)
-                    }
-                }.padding(.top, 5)
-                Line()
-                ScrollView {
-                    LazyVStack(spacing: 0) {
-                        ForEach(tasks) { habit in
-                            HabitRow(store: store, habit: habit, day: day, onLog: { editor = .metric(habit, day) }, onEdit: { editor = .habit(habit, nil) })
-                        }
-                        if tasks.isEmpty { emptyState.padding(.vertical, 50) }
-                    }
-                }.frame(maxHeight: .infinity)
-                HStack {
-                    Label("Private. Offline. Yours.", systemImage: "lock.shield").font(.bt(size: 11)).foregroundStyle(Ink.muted)
-                    Spacer()
-                    Button { editor = .habit(nil, nil) } label: { Label("Habit", systemImage: "plus") }.buttonStyle(.borderless).font(.bt(size: 11))
-                }
-            }.frame(maxWidth: .infinity).padding(.top, 3)
-        }
-    }
-    private var targetText: String {
-        if store.document.restDays.contains(day) { return "Use Day options to resume this day before editing recurring tasks." }
-        if score.scheduled == 0 { return "No recurring check-ins scheduled for this date." }
-        let left = score.remaining(target: store.document.cycle.target)
-        return left > 0 ? "\(left) more to hit your \(Int(store.document.cycle.target * 100))% target." : "Target reached. Keep building."
-    }
-    private var datePicker: some View {
-        HStack(spacing: 9) {
-            Button { day = store.engine.adding(-1, to: day) } label: { Image(systemName: "chevron.left") }.buttonStyle(.plain).help("Previous day")
-            DatePicker("Check-in date", selection: Binding(get: { store.engine.date(day) ?? Date() }, set: { day = store.engine.key($0) }), in: ...Date(), displayedComponents: .date).labelsHidden().datePickerStyle(.compact).frame(maxWidth: 170)
-            Button { day = store.engine.adding(1, to: day) } label: { Image(systemName: "chevron.right") }.buttonStyle(.plain).disabled(day >= store.today).help("Next day")
-            Spacer()
-            DayActions(store: store, day: day)
-            if day != store.today { Button("Today") { day = store.today }.font(.bt(size: 11)).buttonStyle(.borderless) }
-        }.foregroundStyle(Ink.muted)
-    }
-    private var emptyState: some View {
-        VStack(spacing: 10) {
-            Image(systemName: score.scheduled > 0 && score.completed == score.scheduled ? "checkmark.seal" : "moon.stars").font(.bt(size: 28)).foregroundStyle(Ink.accent)
-            Text(score.scheduled > 0 && score.completed == score.scheduled ? "Protocol complete." : "Nothing here for this view.").font(.bt(size: 14, weight: .medium))
-            Text(filter == "Remaining" ? "Choose All to review your check-ins." : "Your other habits are in the time-of-day tabs.").font(.bt(size: 12)).foregroundStyle(Ink.muted)
-        }.frame(maxWidth: .infinity)
     }
 }
 struct AvatarHero: View {
@@ -408,25 +330,32 @@ struct HabitRow: View {
 struct MedMomentsStrip: View {
     @ObservedObject var store: TrackerStore
     let day: String
+    var large = false
     var body: some View {
         let groups = store.document.meds.moments(on: day, engine: store.engine)
+        let now = store.engine.calendar.component(.hour, from: Date()) * 60 + store.engine.calendar.component(.minute, from: Date())
         if !groups.isEmpty {
-            HStack(spacing: 8) {
+            HStack(spacing: large ? 10 : 8) {
                 ForEach(groups) { g in
+                    let due = !g.allTaken && day == store.today && now >= g.minute
                     Button { store.setMoment(g.moment, day: day, taken: !g.allTaken, source: "mac") } label: {
-                        HStack(spacing: 7) {
-                            Image(systemName: g.allTaken ? "checkmark.circle.fill" : "pills").font(.bt(size: 11))
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text(g.moment.rawValue).font(.bt(size: 11, weight: .medium))
-                                Text(g.allTaken ? "Taken" : "\(HealthReport.clock(g.minute)) · \(g.taken)/\(g.slots.count)").font(.bt(size: 9, design: .monospaced))
-                                    .foregroundStyle(g.allTaken ? Ink.onTrack : Ink.muted)
+                        HStack(alignment: .top, spacing: 7) {
+                            if !large { Image(systemName: g.allTaken ? "checkmark.circle.fill" : "pills").font(.bt(size: 11)) }
+                            VStack(alignment: .leading, spacing: large ? 4 : 1) {
+                                HStack {
+                                    Text(g.moment.rawValue).font(.bt(size: large ? 14 : 11, weight: .medium))
+                                    if large && g.allTaken { Spacer(); Image(systemName: "checkmark").font(.bt(size: 12)) }
+                                }
+                                Text(status(g, due: due)).font(.bt(size: large ? 10 : 9, design: .monospaced))
+                                    .foregroundStyle(g.allTaken ? Ink.onTrack : due ? Ink.accent : Ink.muted)
+                                if large { Text(g.shortNames).font(.bt(size: 11)).foregroundStyle(Ink.muted).lineLimit(2).fixedSize(horizontal: false, vertical: true) }
                             }
                             Spacer(minLength: 0)
                         }
                         .foregroundStyle(g.allTaken ? Ink.onTrack : Ink.ivory)
-                        .padding(.horizontal, 10).padding(.vertical, 7).frame(maxWidth: .infinity)
-                        .background(g.allTaken ? Ink.onTrack.opacity(0.10) : Ink.panel, in: RoundedRectangle(cornerRadius: 8))
-                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(g.allTaken ? Ink.onTrack.opacity(0.35) : Ink.line))
+                        .padding(.horizontal, large ? 13 : 10).padding(.vertical, large ? 11 : 7).frame(maxWidth: .infinity, alignment: .leading)
+                        .background(g.allTaken ? Ink.onTrack.opacity(0.10) : Ink.panel2, in: RoundedRectangle(cornerRadius: large ? 11 : 8))
+                        .overlay(RoundedRectangle(cornerRadius: large ? 11 : 8).stroke(g.allTaken ? Ink.onTrack.opacity(0.35) : due ? Ink.goldDim : Ink.line))
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
@@ -436,5 +365,16 @@ struct MedMomentsStrip: View {
                 }
             }
         }
+    }
+    private func status(_ g: MedMomentGroup, due: Bool) -> String {
+        if g.allTaken {
+            let first = g.slots.compactMap(\.taken).map(\.takenAt).min()
+            return first.map { "TAKEN \(clock12($0))" } ?? "TAKEN"
+        }
+        return "\(due ? "DUE " : "")\(HealthReport.clock(g.minute).uppercased()) · \(g.taken)/\(g.slots.count)"
+    }
+    private func clock12(_ t: Double) -> String {
+        let c = store.engine.calendar, d = Date(timeIntervalSince1970: t)
+        return HealthReport.clock(c.component(.hour, from: d) * 60 + c.component(.minute, from: d)).uppercased()
     }
 }

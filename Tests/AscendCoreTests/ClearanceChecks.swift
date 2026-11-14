@@ -165,6 +165,11 @@ func runClearanceChecks() -> (count: Int, failures: Int) {
         let shadow = Missions.defaults[2].targets.first { $0.id == "c.shadow" }!
         try expect(shadow.kind == .synced && shadow.source == "Daily tap on Today")
     }
+    check("Medicine cards use short brand names") {
+        try expect(MedMomentGroup.short("Helio Tone Vitamin Oral Drops Each 1.25 ml") == "Helio Tone")
+        try expect(MedMomentGroup.short("Calmora Serum Not stated on the label") == "Calmora")
+        try expect(MedMomentGroup.short("Strovin-12.5 Solution 12.5% w/v, 60 ml") == "Strovin")
+    }
     check("Accent practice: added once as a daily tap, never again after it is archived") {
         var doc = TrackerDocument.seeded(today: "2026-11-01")
         doc.ensureAccentHabit(today: "2026-11-14")

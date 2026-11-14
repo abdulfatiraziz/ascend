@@ -21,6 +21,23 @@ public struct MedMomentGroup: Equatable, Sendable, Identifiable {
         for s in slots where !seen.contains(s.medicine.title) { seen.append(s.medicine.title) }
         return seen.joined(separator: " · ")
     }
+    /// "Helio Tone · Calmora": each medicine's brand words only, for small cards.
+    public var shortNames: String {
+        var seen: [String] = []
+        for s in slots { let n = Self.short(s.medicine.title); if !seen.contains(n) { seen.append(n) } }
+        return seen.joined(separator: " · ")
+    }
+    static let generic: Set<String> = ["hair", "serum", "solution", "drops", "oral", "loss", "control", "tablet", "tablets", "capsule", "capsules",
+                                       "cream", "gel", "lotion", "shampoo", "spray", "topical", "foam", "each", "not", "stated", "per", "ml", "mg"]
+    /// The first word (without a dose suffix like "-12.5"), plus the next one if it is a name, not a generic word or a dose.
+    public static func short(_ title: String) -> String {
+        let words = title.split(separator: " ").map(String.init)
+        guard let first = words.first else { return title }
+        let head = first.split(separator: "-").first.map(String.init) ?? first
+        guard head == first, words.count > 1 else { return head }
+        let next = words[1]
+        return generic.contains(next.lowercased()) || next.contains(where: \.isNumber) ? head : "\(head) \(next)"
+    }
 }
 
 extension MedCabinet {

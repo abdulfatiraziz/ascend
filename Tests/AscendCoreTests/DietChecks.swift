@@ -23,6 +23,25 @@ func runDietChecks() -> (count:Int,failures:Int) {
         var m=MealEntry(takenAt:at.timeIntervalSince1970,day:day,photo:"",source:"mac")
         m.dietKind=kind;m.confirmed=confirmed;m.kcal=kcal;m.protein=21;return m
     }
+    check("Today: 'as planned' logs the plan slot due now with its calories and protein, then moves to the next slot") {
+        var d=fixture();let e=TrackerEngine(document:d);d.diet=plan(d)
+        let day="2026-06-08"
+        try expect(d.suggestedPlanSlot(on:day,minute:600,engine:e)?.name=="Breakfast")
+        try d.logPlanned(d.diet!.slots[0],day:day,now:e.calendar.date(bySettingHour:23,minute:0,second:0,of:e.date(day)!)!,engine:e,today:day)
+        let m=d.meals.on(day)
+        try expect(m.count==1 && m[0].kcal==410 && m[0].protein==24 && m[0].confirmed && m[0].dietKind == .cafe && m[0].photos.isEmpty)
+        let slots=d.planSlots(on:day,engine:e)
+        try expect(slots.map(\.logged)==[true,false])
+        try expect(d.suggestedPlanSlot(on:day,minute:600,engine:e)?.name=="Dessert")
+        try d.validate()
+    }
+    check("Today: habits that fill themselves are never listed as taps") {
+        var d=fixture();d.diet=plan(d)
+        let auto=d.autoHabitIDs
+        if let s=d.sweetsHabit { try expect(auto.contains(s.id)) }
+        if let c=d.mealHabits.calories { try expect(auto.contains(c.id)) }
+        try expect(d.accentHabit.map { !auto.contains($0.id) } ?? true)
+    }
     check("legacy tracker and habit revisions decode without diet fields") {
         let d=fixture(),data=try JSONEncoder().encode(d)
         let copy=try JSONDecoder().decode(TrackerDocument.self,from:data)

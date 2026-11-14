@@ -193,6 +193,21 @@ import UniformTypeIdentifiers
         let done = engine.completed(habit, on: day)
         return change { $0.setEntry(CheckIn(habitID: habit.id, day: day, completed: !done)) }
     }
+    /// Yes/no answer for a check habit: true done, false "didn't", nil clears it. Answering the same way twice clears it.
+    @discardableResult func answer(_ habit: Habit, day: String, done: Bool) -> Bool {
+        guard day <= today, (engine.isDue(habit, on: day) || engine.entry(for: habit, day: day) != nil), !document.restDays.contains(day) || habit.kind == .milestone else { return false }
+        let current = engine.entry(for: habit, day: day)
+        return change {
+            if current?.completed == done { $0.checkIns.removeAll { $0.habitID == habit.id && $0.day == day } }
+            else { $0.setEntry(CheckIn(habitID: habit.id, day: day, completed: done)) }
+            $0.health.filled?["\(habit.id.uuidString)|\(day)"] = nil   // yours now, never auto-changed
+        }
+    }
+    @discardableResult func logPlanned(_ slot: DietSlot, day: String) -> Bool {
+        change { doc in
+            do { try doc.logPlanned(slot, day: day, now: Date(), engine: TrackerEngine(document: doc), today: today) } catch { notice = error.localizedDescription }
+        }
+    }
     @discardableResult func log(_ habit: Habit, value: Double?, day: String) -> Bool {
         guard day <= today, (engine.isDue(habit, on: day) || engine.entry(for: habit, day: day) != nil), !document.restDays.contains(day), value.map({ $0.isFinite && $0 >= 0 }) ?? true else { return false }
         return change {

@@ -1,85 +1,6 @@
 import SwiftUI
 import AscendCore
 
-/// The Brief: the home screen's left side. A lit header with the countdown to the cycle's end,
-/// four missions as watch dials, and today's ledger. Every number comes from the same stores the other tabs use.
-struct BriefPanel: View {
-    @ObservedObject var store: TrackerStore
-    @ObservedObject var lifestyle: LifestyleStore
-    let day: String
-    let score: Score
-    private var engine: TrackerEngine { store.engine }
-    private var facts: BriefFacts { BriefFacts(store: store, day: day) }
-    /// The memo shows on the Brief on Sunday (from 10 am) and Monday; it lives in the Dossier all week.
-    private var memoDay: Bool { let w = engine.calendar.component(.weekday, from: Date()); return w == 1 || w == 2 }
-
-    var body: some View {
-        let f = facts
-        let weeks = WeekFacts(store: store)
-        let status = weeks.status
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                if status.level.rawValue > lifestyle.lifestyle.seenLevel {
-                    LevelUpCard(level: status.level, reward: lifestyle.lifestyle.rewards[status.level.mark] ?? "Set one in the Dossier.") {
-                        lifestyle.update { $0.seenLevel = status.level.rawValue }
-                    }
-                }
-                hero(f, status: status)
-                if memoDay, day == store.today, let m = weeks.debriefMonday { DebriefCard(store: store, monday: m, memo: Debrief.compose(weeks.debriefWeek(m))) }
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
-                    ForEach(f.missions) { MissionDial(mission: $0) }
-                }
-                ledger(f)
-            }
-        }.scrollIndicators(.never)
-        .onAppear { if status.level.rawValue < lifestyle.lifestyle.seenLevel { lifestyle.update { $0.seenLevel = status.level.rawValue } } }
-    }
-
-    // MARK: Hero
-
-    private func hero(_ f: BriefFacts, status: ClearanceStatus) -> some View {
-        HStack(alignment: .top, spacing: 20) {
-            VStack(alignment: .leading, spacing: 10) {
-                Text("\(f.greeting.uppercased()), ABDUL · BRIEF · \(status.level.title.uppercased())").font(.bt(size: 10, design: .monospaced)).tracking(1.6).foregroundStyle(Ink.accent)
-                Text(f.headline).font(.bt(size: 26)).foregroundStyle(Ink.ivory).fixedSize(horizontal: false, vertical: true)
-                Text(f.coaching).font(.bt(size: 12)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
-                Spacer(minLength: 4)
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(score.percentLabel).font(.bt(size: 26)).foregroundStyle(Ink.ivory)
-                    Text("\(score.completed) of \(score.scheduled) check-ins · \(Int(store.document.cycle.target * 100))% is the mission").font(.bt(size: 11)).foregroundStyle(Ink.muted)
-                }
-                ProgressTrack(ratio: score.ratio ?? 0, target: store.document.cycle.target)
-            }
-            CountdownDial(daysLeft: f.daysLeft, totalDays: f.totalDays).frame(width: 150, height: 150)
-        }
-        .padding(22)
-        .background(LitFelt().clipShape(RoundedRectangle(cornerRadius: 14)))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Ink.accent.opacity(0.28)))
-    }
-
-    // MARK: Ledger
-
-    private func ledger(_ f: BriefFacts) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack { Kicker("Today’s ledger"); Spacer(); Kicker(dateText(day, engine: engine, pattern: "EEEE, d MMM")) }
-            ForEach(f.ledger, id: \.label) { row in
-                HStack(spacing: 10) {
-                    Text(row.label).font(.bt(size: 12)).foregroundStyle(Ink.muted).frame(width: 92, alignment: .leading)
-                    if let ratio = row.ratio {
-                        GeometryReader { g in
-                            ZStack(alignment: .leading) {
-                                Capsule().fill(Ink.ivory.opacity(0.08))
-                                Capsule().fill(row.over ? Ink.offTrack : Ink.accent).frame(width: g.size.width * min(1, ratio))
-                            }
-                        }.frame(height: 4)
-                    } else { Spacer() }
-                    Text(row.value).font(.bt(size: 11, design: .monospaced)).foregroundStyle(Ink.ivory).frame(minWidth: 110, alignment: .trailing)
-                }
-            }
-        }.panel()
-    }
-}
-
 // MARK: - Pieces
 
 /// Felt with one lamp above it: the screen's single lit moment.
@@ -167,7 +88,6 @@ struct Mission: Identifiable {
     let value: String, unit: String, progress: Double
     let detail: String, statusText: String, status: MissionStatus
 }
-struct LedgerRow { let label: String; let value: String; let ratio: Double?; var over = false }
 
 @MainActor
 struct BriefFacts {
@@ -194,8 +114,11 @@ struct BriefFacts {
     }
     private var weakest: Mission? { missions.first { $0.status == .offTrack } ?? missions.first { $0.status == .watch } }
 
-    static let focus = ["Body": "the scale", "Sleep": "the night", "Training": "the gym", "Composure": "the evening"]
-    var missions: [Mission] { [body, sleep, training, composure] }
+    static let focus = ["Body": "the scale", "Sleep": "the night", "Training": "the gym"]
+    var missions: [Mission] { [body, sleep, training] }
+    /// "Today is about the scale." from the weakest mission.
+    var focusLine: String { weakest.map { "Today is about \(Self.focus[$0.area] ?? $0.area.lowercased())." } ?? "Hold the line." }
+    var focusDetail: String { weakest?.detail ?? "Every mission on pace." }
 
     // 01 · Body: weight toward 72 kg.
     private var body: Mission {
@@ -255,45 +178,5 @@ struct BriefFacts {
                        detail: "Gym Mon · Wed · Sat. \(stepsText)", statusText: left == 0 ? "Week done" : "\(left) session\(left == 1 ? "" : "s") left", status: status)
     }
 
-    // 04 · Composure: evening stress (6 pm–midnight), target under 28.
-    private var composure: Mission {
-        func evening(_ d: String) -> Double? {
-            let readings = store.document.health.records(.stress, on: d, engine: engine).filter { cal.component(.hour, from: Date(timeIntervalSince1970: $0.start)) >= 18 }
-            return readings.isEmpty ? nil : readings.map(\.value).reduce(0, +) / Double(readings.count)
-        }
-        let (value, which) = evening(day).map { ($0, "this evening") } ?? evening(engine.adding(-1, to: day)).map { ($0, "last evening") } ?? (nil, "")
-        guard let value else {
-            return Mission(number: "04", area: "Composure", codename: "Still Water", value: "—", unit: "EVE STRESS", progress: 0, detail: "Evening stress under 28. No watch stress yet.", statusText: "No data", status: .none)
-        }
-        let status: MissionStatus = value < 28 ? .onTrack : value < 34 ? .watch : .offTrack
-        return Mission(number: "04", area: "Composure", codename: "Still Water", value: "\(Int(value.rounded()))", unit: "EVE STRESS", progress: min(1, 28 / max(1, value)),
-                       detail: "Evening stress under 28; \(Int(value.rounded())) \(which). Two sighs at 11 pm help most.", statusText: status == .onTrack ? "On pace · target 28" : "Close · target 28", status: status)
-    }
-
-    var ledger: [LedgerRow] {
-        var rows: [LedgerRow] = []
-        let totals = store.document.meals.totals(day)
-        let habits = store.document.mealHabits
-        let kcalMax = habits.calories.flatMap { engine.target(for: $0, on: day)?.maximum }
-        let proteinMin = habits.protein.flatMap { engine.target(for: $0, on: day)?.minimum }
-        rows.append(LedgerRow(label: "Calories", value: "\(Int(totals.kcal).formatted())" + (kcalMax.map { " / \(Int($0).formatted())" } ?? "") + " kcal",
-                              ratio: kcalMax.map { totals.kcal / $0 }, over: kcalMax.map { totals.kcal > $0 } ?? false))
-        rows.append(LedgerRow(label: "Protein", value: "\(Int(totals.protein))" + (proteinMin.map { " / \(Int($0))" } ?? "") + " g", ratio: proteinMin.map { totals.protein / $0 }))
-        let steps = store.document.health.steps(on: day, engine: engine)
-        rows.append(LedgerRow(label: "Steps", value: steps.map { "\(Int($0).formatted()) / 10,000" } ?? "—", ratio: steps.map { $0 / 10_000 }))
-        let meds = store.document.meds.slots(on: day, engine: engine)
-        if !meds.isEmpty {
-            let taken = meds.filter { $0.taken != nil }.count
-            rows.append(LedgerRow(label: "Meds", value: "\(taken) / \(meds.count) taken", ratio: Double(taken) / Double(meds.count)))
-        }
-        if let screen = screenSeconds { rows.append(LedgerRow(label: "Screen time", value: hm(screen), ratio: nil)) }
-        return rows
-    }
-    private var screenSeconds: Double? {
-        let start = cal.startOfDay(for: date).timeIntervalSince1970
-        let values = store.screenTime.archive.devices.compactMap { device in device.days.first { abs($0.start - start) < 3600 }?.screenSeconds }
-        return values.isEmpty ? nil : values.reduce(0, +)
-    }
-    private func hm(_ s: Double) -> String { let m = Int(s / 60); return m >= 60 ? "\(m / 60) h \(m % 60) m" : "\(m) m" }
     private func ordinal(_ n: Int) -> String { let s = (11...13).contains(n % 100) ? "th" : [1: "st", 2: "nd", 3: "rd"][n % 10] ?? "th"; return "\(n)\(s)" }
 }
