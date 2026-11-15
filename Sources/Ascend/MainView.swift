@@ -231,7 +231,8 @@ struct MainView: View {
         }
     }
     private var header: some View {
-        HStack(alignment: .center) {
+        // Title and countdown share one baseline, with matching kickers above them.
+        HStack(alignment: .lastTextBaseline, spacing: 28) {
             VStack(alignment: .leading, spacing: 7) {
                 Kicker(kicker)
                 Text(screen == .today ? "The Brief." : screen == .goals ? "The blueprint." : screen == .routine ? "Find your rhythm." : screen == .patterns ? "Connect the dots." : screen == .meals ? "Eat with intent." : screen == .meds ? "Take it as prescribed." : screen == .notes ? "Remember what matters." : screen == .photos ? "See the change." : screen == .screenTime ? "Own your attention." : screen == .body ? "Build strength. See change." : screen == .health ? "Know your rhythm." : screen == .urges ? "Notice the pattern." : screen == .dossier ? "The Dossier." : "The long game.")
@@ -240,14 +241,11 @@ struct MainView: View {
             Spacer()
             Button { setEyesOnly(true) } label: { Label("Eyes only", systemImage: "eye.slash").font(.bt(size: 11)).padding(8) }
                 .buttonStyle(.plain).background(Ink.panel, in: RoundedRectangle(cornerRadius: 7)).keyboardShortcut("e", modifiers: [.command, .shift]).help("Eyes only · ⌘⇧E · hides everything until you open it again")
-            Button { store.recordUrge() } label: { Label("Urge", systemImage: "circle.dotted").font(.bt(size: 11)).padding(8) }.buttonStyle(.plain).background(Ink.panel, in: RoundedRectangle(cornerRadius: 7)).accessibilityLabel("Log an urge").keyboardShortcut("u", modifiers: [.command, .shift]).help("Log an urge · ⌘⇧U · time saved immediately")
-            Button { screen = .chat } label: { Label("Ask Ascend", systemImage: "sparkles").font(.bt(size: 11)).padding(8) }.buttonStyle(.plain).background(Ink.panel, in: RoundedRectangle(cornerRadius: 7)).help("Open the Ascend chat · ⌘J").keyboardShortcut("j", modifiers: [.command])
             if let next = store.missions.missions.filter({ $0.due >= store.today }).min(by: { $0.due < $1.due }) {
                 let left = store.engine.days(from: store.today, through: next.due).count - 1
-                VStack(alignment: .trailing, spacing: 6) {
-                    Kicker("Mission \(next.id) · \(next.codename)").lineLimit(1)
-                    Text("\(left) days").font(.bt(size: 18, weight: .medium))
-                    Text("to \(dateText(next.due, engine: store.engine))").font(.bt(size: 11, design: .monospaced)).foregroundStyle(Ink.muted)
+                VStack(alignment: .trailing, spacing: 7) {
+                    Kicker("Mission \(next.id) · \(next.codename) · \(dateText(next.due, engine: store.engine))").lineLimit(1)
+                    Text("\(left) days").font(.bt(size: 36, weight: .medium)).tracking(-1)
                 }.help("The next mission deadline: \(next.title)")
             }
         }
