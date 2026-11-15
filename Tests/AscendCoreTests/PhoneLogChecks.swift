@@ -132,5 +132,17 @@ func runPhoneLogChecks() -> (count: Int, failures: Int) {
             try expect(SpotArchive.read(url).spots.isEmpty)
         }
     }
+    check("the phone's brief survives the JSON trip and long notes clip on a word") {
+        var b = PhoneBrief()
+        b.missions = [PhoneMission(id: "A", codename: "The Instrument", title: "Mind & body", due: "31 Dec 2026", progress: 0.27, status: "Behind")]
+        b.orders = [PhoneOrder(mission: "A", title: "Body fat", line: "21% now", logged: true)]
+        b.routine = [PhoneRoutineItem(time: "4:00 pm", title: "Lunch", detail: "560 kcal planned", status: "in 1 h 53", kind: "meal", done: false, current: false)]
+        b.notes = [PhoneNote(kind: "Plan", title: "Diet plan", body: "Goal", date: "4 Nov", pinned: true)]
+        b.clearance = PhoneClearance(level: 1, next: "Next", week: "Gym 2/3", marks: ["I"], ranks: ["Recruit"], rewards: ["Set a reward"])
+        try expect(try JSONDecoder().decode(PhoneBrief.self, from: JSONEncoder().encode(b)) == b)
+        let clipped = PhoneNote.clip(String(repeating: "word ", count: 200), max: 22)
+        try expect(clipped == "word word word word…")
+        try expect(PhoneNote.clip("short") == "short")
+    }
     return (count, failures)
 }

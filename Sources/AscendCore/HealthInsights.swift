@@ -138,6 +138,8 @@ public struct PhoneToday: Codable, Equatable, Sendable {
     public var spots: [UrgeSpot]? = nil
     public var latestWeight: Double? = nil
     public var latestWeightAt: Double? = nil
+    /// The Mac's other screens in small form for the phone's tabs.
+    public var brief: PhoneBrief? = nil
 }
 extension TrackerDocument {
     public func phoneToday(today: String) -> PhoneToday {

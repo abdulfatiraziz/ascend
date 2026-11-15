@@ -56,6 +56,7 @@ extension TrackerStore {
       t.latestWeight = w.kilograms
       t.latestWeightAt = w.date.timeIntervalSince1970
     }
+    t.brief = phoneBrief(now: now)
     return t
   }
   func bodyAssistantSummary() -> String? {

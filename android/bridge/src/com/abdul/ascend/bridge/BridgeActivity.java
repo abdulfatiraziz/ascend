@@ -40,10 +40,17 @@ import java.util.function.Consumer;
  * you allow in Health Connect and never writes health data. No account, cloud service or Android debugging.
  */
 public final class BridgeActivity extends Activity {
-    enum Screen { LOG, TODAY, MEALS, MEDS, URGES, SETTINGS, ADD_MEDS, SETS }
+    enum Screen { GOALS, TODAY, ROUTINE, HEALTH, BODY, SCREEN_TIME, MEALS, MEDS, URGES, NOTES, DOSSIER, SETTINGS, ADD_MEDS }
+    /** The Mac's sidebar: Brief, Condition, Field log, Dossier, each with the same sub-tabs in the same order. */
+    static final String[][] TABS = {{"Brief", "ic_brief"}, {"Condition", "ic_condition"}, {"Field log", "ic_fieldlog"}, {"Dossier", "ic_dossier"}};
+    static final Screen[][] GROUPS = {{Screen.GOALS, Screen.TODAY, Screen.ROUTINE}, {Screen.HEALTH, Screen.BODY, Screen.SCREEN_TIME}, {Screen.MEALS, Screen.MEDS, Screen.URGES, Screen.NOTES}, {Screen.DOSSIER}};
+    /** The last sub-tab opened in each tab, so a tab returns where you left it (like the Mac). */
+    final Screen[] lastInTab = {Screen.TODAY, Screen.HEALTH, Screen.MEALS, Screen.DOSSIER};
+    static int group(Screen s) { for (int g = 0; g < GROUPS.length; g++) for (Screen x : GROUPS[g]) if (x == s) return g; return -1; }
+    static String subLabel(Screen s) { return s == Screen.SCREEN_TIME ? "Screen time" : s.name().charAt(0) + s.name().substring(1).toLowerCase(Locale.ROOT); }
     static final String LOCAL_NETWORK = "android.permission.ACCESS_LOCAL_NETWORK";
     static final int REQ_HEALTH = 7, REQ_NETWORK = 8, REQ_CAMERA = 11, REQ_PICK = 12, REQ_NOTIFY = 13, REQ_BACKGROUND = 14, REQ_LOCATION = 15, REQ_BACKGROUND_LOCATION = 16, REQ_SPOT_FINE = 17;
-    static final String VERSION = "0.9.4";
+    static final String VERSION = "0.9.6";
 
     SyncEngine engine;
     Ui ui;
@@ -55,7 +62,7 @@ public final class BridgeActivity extends Activity {
     View statusScrim;
     LinearLayout nav;
     TextView toast;
-    Screen screen = Screen.LOG;
+    Screen screen = Screen.TODAY;
     int insetTop, insetBottom;
     boolean syncing;
     String captureName;
@@ -70,7 +77,7 @@ public final class BridgeActivity extends Activity {
         engine = new SyncEngine(this); ui = new Ui(this); prefs = engine.prefs;
         if (state != null) {
             captureName = state.getString("captureName"); photoMode = state.getString("photoMode", "meal");
-            try { screen = Screen.valueOf(state.getString("screen", "LOG")); } catch (Exception ignored) {}
+            try { screen = Screen.valueOf(state.getString("screen", "TODAY")); } catch (Exception ignored) {}
         }
         Window w = getWindow();
         w.setDecorFitsSystemWindows(false);
@@ -113,13 +120,13 @@ public final class BridgeActivity extends Activity {
             && System.currentTimeMillis() - prefs.getLong("lastSync", 0) > 10 * 60 * 1000L) sync(true, true);
     }
     /**
-     * Back returns to the previous screen and only leaves the app from Log. With predictive back (target SDK 36),
+     * Back returns to the previous screen and only leaves the app from Brief › Today. With predictive back (target SDK 36),
      * onBackPressed isn't called, so a callback is registered while any other screen is showing.
      */
-    final android.window.OnBackInvokedCallback back = () -> show(screen == Screen.ADD_MEDS ? Screen.MEDS : Screen.LOG);
+    final android.window.OnBackInvokedCallback back = () -> show(screen == Screen.ADD_MEDS ? Screen.MEDS : Screen.TODAY);
     boolean backRegistered;
     void updateBack() {
-        boolean want = screen != Screen.LOG;
+        boolean want = screen != Screen.TODAY;
         if (want == backRegistered) return;
         android.window.OnBackInvokedDispatcher dispatcher = getOnBackInvokedDispatcher();
         if (want) dispatcher.registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, back);
@@ -129,23 +136,28 @@ public final class BridgeActivity extends Activity {
     @Override protected void onDestroy() { super.onDestroy(); network.shutdown(); }
 
     void openExerciseDemos(){startActivity(new Intent(this,ExerciseDemoActivity.class));}
-    void show(Screen s) { screen = s; render(); }
+    void show(Screen s) { screen = s; int g = group(s); if (g >= 0) lastInTab[g] = s; render(); }
     void render() {
         if (root == null) return;
         content.removeAllViews();
         View page;
         switch (screen) {
+            case GOALS: page = goals(); break;
+            case ROUTINE: page = routine(); break;
+            case HEALTH: page = health(); break;
+            case BODY: page = body(); break;
+            case SCREEN_TIME: page = screenTime(); break;
             case MEALS: page = meals(); break;
             case MEDS: page = meds(); break;
             case URGES: page = urges(); break;
+            case NOTES: page = notes(); break;
+            case DOSSIER: page = dossier(); break;
             case SETTINGS: page = settings(); break;
             case ADD_MEDS: page = addMeds(); break;
-            case SETS: page = sets(); break;
-            case TODAY: page = today(); break;
-            default: page = log();
+            default: page = today();
         }
         content.addView(page, new FrameLayout.LayoutParams(Ui.MATCH, Ui.MATCH));
-        boolean tabs = screen != Screen.SETTINGS && screen != Screen.ADD_MEDS && screen != Screen.SETS;
+        boolean tabs = group(screen) >= 0;
         nav.setVisibility(tabs ? View.VISIBLE : View.GONE);
         if (tabs) buildNav();
         ((FrameLayout.LayoutParams) toast.getLayoutParams()).bottomMargin = (tabs ? ui.dp(84) : ui.dp(96)) + insetBottom + ui.dp(8);
@@ -207,10 +219,10 @@ public final class BridgeActivity extends Activity {
         navBg.setLayerInset(1, 0, 1, 0, 0);
         nav.setBackground(navBg);
         nav.setPadding(ui.dp(12), ui.dp(8), ui.dp(12), insetBottom + ui.dp(10));
-        String[][] tabs = {{"Log", "ic_plus"}, {"Today", "ic_home"}, {"Meals", "ic_meal"}, {"Meds", "ic_pill"}, {"Urges", "ic_urge"}};
-        Screen[] targets = {Screen.LOG, Screen.TODAY, Screen.MEALS, Screen.MEDS, Screen.URGES};
+        String[][] tabs = TABS;
+        int current = group(screen);
         for (int i = 0; i < tabs.length; i++) {
-            boolean on = screen == targets[i];
+            boolean on = current == i;
             LinearLayout tab = ui.column(4); tab.setGravity(Gravity.CENTER_HORIZONTAL);
             FrameLayout pill = new FrameLayout(this);
             if (on) pill.setBackground(ui.round(0x2ED9B46E, 15, 0, 0));
@@ -219,8 +231,8 @@ public final class BridgeActivity extends Activity {
             // Column children are full width, so the label itself must be centred under the icon.
             TextView label = ui.text(tabs[i][0], 11, on ? Ui.ACCENT : Ui.MUTED, on ? 600 : 500); label.setGravity(Gravity.CENTER);
             tab.addView(label);
-            Screen target = targets[i];
-            tab.setOnClickListener(Ui.tap(v -> show(target)));
+            int index = i;
+            tab.setOnClickListener(Ui.tap(v -> show(lastInTab[index])));
             tab.setContentDescription(tabs[i][0]);
             nav.addView(tab, new LinearLayout.LayoutParams(0, Ui.WRAP, 1));
         }
@@ -268,37 +280,6 @@ public final class BridgeActivity extends Activity {
     }
 
     // MARK: Today
-    View today() {
-        ViewGroup[] holder = new ViewGroup[1];
-        LinearLayout col = page(holder, true);
-        JSONObject t = engine.today();
-        String kicker = t.has("dayNumber") ? "Day " + t.optInt("dayNumber") + " of " + t.optInt("dayCount") + " · " + t.optString("cycle") : "Ascend";
-        col.addView(header(kicker, "Today", circleButton("ic_gear", "Settings", v -> show(Screen.SETTINGS))));
-        col.addView(syncPill(), new LinearLayout.LayoutParams(Ui.WRAP, ui.dp(36)));
-        col.addView(ui.secondary("Workout artwork · offline", v -> openExerciseDemos()));
-        if (!engine.paired()) col.addView(setupCard());
-        if (t.has("avatar")) col.addView(avatarCard(t));
-        JSONObject next = nextDose();
-        if (next != null) col.addView(nextDoseCard(next));
-        if (t.has("habits")) col.addView(habitsCard(t));
-        col.addView(ui.grid(10,
-            actionTile("ic_camera", "Snap meal", v -> { photoMode = "meal"; takePhoto(); }),
-            actionTile("ic_pill", "Add meds", v -> show(Screen.ADD_MEDS)),
-            actionTile("ic_urge", "Log urge", v -> show(Screen.URGES))));
-        if (t.length() > 0) {
-            col.addView(lastNight(t));
-            col.addView(daySoFar(t));
-        } else if (engine.paired()) {
-            col.addView(ui.small("Sync once to see your day from the Mac here: steps, sleep, food and habits."));
-        }
-        int waiting = engine.waiting();
-        TextView w = ui.small(waiting == 0 ? "Nothing waiting to send" : waiting + (waiting == 1 ? " item" : " items") + " waiting · sent on the next sync");
-        w.setGravity(Gravity.CENTER); col.addView(w);
-        long at = prefs.getLong("todayAt", 0);
-        if (at > 0) { TextView u = ui.small("From your Mac at " + clock(at)); u.setGravity(Gravity.CENTER); u.setTextSize(11); col.addView(u); }
-        askNotificationsOnce();
-        return holder[0];
-    }
     View syncPill() {
         LinearLayout pill = ui.row(8);
         pill.setBackground(ui.round(Ui.PANEL, 18, Ui.LINE, 1)); ui.pad(pill, 14, 0, 14, 0);
@@ -552,7 +533,7 @@ public final class BridgeActivity extends Activity {
     View meals() {
         ViewGroup[] holder = new ViewGroup[1];
         LinearLayout col = page(holder, true);
-        col.addView(header("Photo → Claude estimate on your Mac", "Meals", null));
+        col.addView(tabHead());
         View snap = ui.iconButton("Take meal photo", "ic_camera", ui.round(Ui.ACCENT, 16, 0, 0), Ui.ON_ACCENT, 56, v -> { photoMode = "meal"; takePhoto(); });
         View pick = ui.iconButton("Choose from gallery", "ic_gallery", ui.round(Ui.PANEL, 14, 0x1FFFFFFF, 1), Ui.TEXT, 48, v -> { photoMode = "meal"; choosePhotos(SyncEngine.MAX_MEAL_PHOTOS); });
         LinearLayout buttons = ui.column(10); buttons.addView(snap, Ui.wide()); buttons.addView(pick, Ui.wide());
@@ -638,7 +619,7 @@ public final class BridgeActivity extends Activity {
         pill.addView(ui.text(remindersOn() ? "Reminders on" : "Turn on reminders", 12, remindersOn() ? Ui.SOFT : Ui.ORANGE, 500));
         pill.setOnClickListener(Ui.tap(v -> enableReminders()));
         pill.setLayoutParams(new LinearLayout.LayoutParams(Ui.WRAP, ui.dp(30)));
-        col.addView(header("As your doctor prescribed", "Medicines", pill));
+        col.addView(tabHead()); col.addView(pill);
         List<JSONObject> doses = dosesToday();
         int takenCount = 0;
         for (JSONObject d : doses) if (ReminderReceiver.taken(this, d)) takenCount++;
@@ -772,7 +753,7 @@ public final class BridgeActivity extends Activity {
     View urges() {
         ViewGroup[] holder = new ViewGroup[1];
         LinearLayout col = page(holder, true);
-        col.addView(header("A moment, not a verdict", "Urges", null));
+        col.addView(tabHead());
         LinearLayout choices = ui.row(10);
         choices.addView(urgeTile("Let it pass", true)); choices.addView(urgeTile("Acted on it", false));
         col.addView(choices);
@@ -842,14 +823,22 @@ public final class BridgeActivity extends Activity {
         JSONObject t = engine.today();
         return LocalDate.now().toString().equals(t.optString("day")) ? t : new JSONObject();
     }
-    View log() {
+    /** Brief › Today: the Mac's Today on the phone. Your taps, what's next, and the quick logs. */
+    View today() {
         ViewGroup[] holder = new ViewGroup[1];
         LinearLayout col = page(holder, true);
         JSONObject t = todayFresh();
-        String date = LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("EEE d MMM", Locale.ENGLISH));
-        col.addView(header(date, "Log", circleButton("ic_gear", "Settings", v -> show(Screen.SETTINGS))));
+        JSONObject b = t.optJSONObject("brief");
+        col.addView(tabHead());
         col.addView(syncPill(), new LinearLayout.LayoutParams(Ui.WRAP, ui.dp(36)));
         if (!engine.paired()) col.addView(setupCard());
+        if (b != null && !b.optString("focus").isEmpty()) {
+            LinearLayout f = ui.column(4);
+            f.addView(serif(b.optString("focus"), 23));
+            String d = b.optString("focusDetail");
+            if (!d.isEmpty()) f.addView(ui.small(d));
+            col.addView(f);
+        }
         JSONObject now = t.optJSONObject("now");
         if (now != null) col.addView(nowCard(now));
         // Only what needs a hand: weight, steps, sleep and screen time arrive on their own.
@@ -857,7 +846,7 @@ public final class BridgeActivity extends Activity {
             logTile("ic_urge", "Urge", false, v -> logUrge(null)),
             logTile("ic_meal", "Meal", false, v -> { photoMode = "meal"; takePhoto(); }),
             logTile("ic_pill", "Meds", false, v -> show(Screen.MEDS)),
-            logTile("ic_dumbbell", "Workout", false, v -> show(Screen.SETS))));
+            logTile("ic_dumbbell", "Workout", false, v -> show(Screen.BODY))));
         if (t.length() > 0) {
             double kcal = t.optDouble("kcal", 0), limit = t.optDouble("kcalLimit", Double.NaN), protein = t.optDouble("protein", 0), goal = t.optDouble("proteinGoal", Double.NaN);
             double steps = t.optDouble("steps", Double.NaN), stepGoal = t.optDouble("stepGoal", Double.NaN);
@@ -867,6 +856,9 @@ public final class BridgeActivity extends Activity {
                 miniStat("steps", Double.isNaN(steps) ? "—" : steps >= 1000 ? String.format(Locale.US, "%.1fk", steps / 1000) : fmt(steps),
                     Double.isNaN(stepGoal) ? "" : "/" + (stepGoal >= 1000 ? fmt(stepGoal / 1000) + "k" : fmt(stepGoal)), false)));
         }
+        JSONObject next = nextDose();
+        if (next != null) col.addView(nextDoseCard(next));
+        if (t.has("habits")) col.addView(habitsCard(t));
         col.addView(timeline());
         int waiting = engine.waiting();
         TextView w = ui.small(waiting == 0 ? "Nothing waiting to send" : waiting + (waiting == 1 ? " item" : " items") + " waiting · sent on the next sync");
@@ -1144,16 +1136,19 @@ public final class BridgeActivity extends Activity {
     }
 
     // MARK: Sets
-    View sets() {
+    /** Condition › Body: latest weigh-in and today's session with the set logger. */
+    View body() {
         ViewGroup[] holder = new ViewGroup[1];
-        LinearLayout col = page(holder, false);
-        col.addView(topBar("Workout", Screen.LOG, null));
+        LinearLayout col = page(holder, true);
+        col.addView(tabHead());
+        col.addView(weightCard());
         JSONObject w = todayFresh().optJSONObject("workout");
         if (w == null) {
             LinearLayout card = ui.card(8);
             card.addView(ui.text("No gym session planned today", 16, Ui.TEXT, 600));
             card.addView(ui.small("Your training plan lives in Ascend on the Mac → Body. Sessions planned for today show here with last time’s weights. Sync to refresh."));
             col.addView(card);
+            col.addView(ui.secondary("Workout artwork · offline", v -> openExerciseDemos()));
             return holder[0];
         }
         String kind = w.optString("kind");
@@ -1171,6 +1166,17 @@ public final class BridgeActivity extends Activity {
         }
         for (int i = 0; i < list.length(); i++) col.addView(exerciseCard(list.optJSONObject(i)));
         return holder[0];
+    }
+    View weightCard() {
+        JSONObject t = todayFresh();
+        LinearLayout card = ui.card(4);
+        card.addView(ui.kicker("Weight"));
+        LinearLayout v = ui.row(4); v.setGravity(Gravity.BOTTOM);
+        v.addView(serif(t.has("latestWeight") ? String.format(Locale.US, "%.1f", t.optDouble("latestWeight")) : "—", 30));
+        if (t.has("latestWeight")) v.addView(ui.text("kg", 13, Ui.MUTED, 500));
+        card.addView(v);
+        card.addView(ui.small(t.has("latestWeightAt") ? "Weighed " + ago((long) (t.optDouble("latestWeightAt") * 1000)) : "No weigh-in synced yet"));
+        return card;
     }
     static String setLabel(JSONObject s, boolean timed) { return fmt(s.optDouble("weight")) + " × " + s.optInt("reps") + (timed ? " s" : ""); }
     View exerciseCard(JSONObject e) {
@@ -1256,11 +1262,459 @@ public final class BridgeActivity extends Activity {
             .setNegativeButton("Cancel", null).show();
     }
 
+    // MARK: Tabs like the Mac
+    JSONObject brief() { return todayFresh().optJSONObject("brief"); }
+    TextView serif(String s, float sp) { TextView t = ui.text(s, sp, Ui.TEXT, 600); t.setTypeface(Ui.serif(600)); t.setLetterSpacing(-0.01f); return t; }
+    View noBrief() {
+        LinearLayout card = ui.card(6);
+        card.addView(ui.text("Sync to fill this in", 16, Ui.TEXT, 600));
+        card.addView(ui.small("This page comes from Ascend on your Mac. Tap the sync pill on Brief › Today when you're on the same Wi-Fi."));
+        return card;
+    }
+    /** The Mac's page head: kicker, serif title and countdown, then the open tab's sub-tabs as pills. */
+    View tabHead() {
+        JSONObject b = brief();
+        LinearLayout col = ui.column(14);
+        String title;
+        switch (screen) {
+            case GOALS: title = "The blueprint."; break;
+            case ROUTINE: title = "Find your rhythm."; break;
+            case HEALTH: title = "Know your rhythm."; break;
+            case BODY: title = "Build strength. See change."; break;
+            case SCREEN_TIME: title = "Own your attention."; break;
+            case MEALS: title = "Eat with intent."; break;
+            case MEDS: title = "Take it as prescribed."; break;
+            case URGES: title = "Notice the pattern."; break;
+            case NOTES: title = "Remember what matters."; break;
+            case DOSSIER: title = "The Dossier."; break;
+            default: title = "The Brief.";
+        }
+        String kicker = "Your next version starts here";
+        if (screen == Screen.HEALTH) kicker = "Condition report · " + LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("EEE d MMM · h:mm a", Locale.ENGLISH));
+        else if (screen == Screen.SCREEN_TIME) kicker = "Your attention";
+        else if (screen == Screen.BODY) {
+            JSONObject a = b == null || b.optJSONArray("missions") == null ? null : b.optJSONArray("missions").optJSONObject(0);
+            kicker = a == null ? "Mission A" : "Mission A · " + a.optString("codename");
+        }
+        LinearLayout row = ui.row(10); row.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout text = ui.column(4);
+        text.addView(ui.oneLine(ui.kicker(kicker)));
+        TextView t = serif(title, 30); t.setMaxLines(2);
+        text.addView(t);
+        row.addView(text, new LinearLayout.LayoutParams(0, Ui.WRAP, 1));
+        if (b != null && b.has("daysLeft")) {
+            LinearLayout d = ui.column(0); d.setGravity(Gravity.END);
+            TextView n = serif(String.valueOf(b.optInt("daysLeft")), 26); n.setGravity(Gravity.END); d.addView(n);
+            TextView l = ui.kicker("days"); l.setGravity(Gravity.END); d.addView(l);
+            row.addView(d);
+        }
+        row.addView(circleButton("ic_gear", "Settings", v -> show(Screen.SETTINGS)));
+        col.addView(row);
+        Screen[] subs = GROUPS[Math.max(0, group(screen))];
+        if (subs.length > 1) {
+            HorizontalScrollView scroll = new HorizontalScrollView(this);
+            scroll.setHorizontalScrollBarEnabled(false); scroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
+            LinearLayout pills = ui.row(6);
+            for (Screen s : subs) {
+                boolean on = s == screen;
+                TextView p = ui.text(subLabel(s), 13, on ? Ui.LAMP : Ui.MUTED, on ? 600 : 500);
+                p.setGravity(Gravity.CENTER);
+                p.setBackground(ui.round(on ? 0x24D9B46E : 0, 18, on ? 0x80D9B46E : 0x24F1E8D4, 1));
+                ui.pad(p, 16, 0, 16, 0);
+                p.setContentDescription(subLabel(s));
+                p.setOnClickListener(Ui.tap(v -> show(s)));
+                pills.addView(p, new LinearLayout.LayoutParams(Ui.WRAP, ui.dp(36)));
+            }
+            scroll.addView(pills);
+            col.addView(scroll);
+        }
+        return col;
+    }
+
+    // MARK: Brief › Goals
+    View goals() {
+        ViewGroup[] holder = new ViewGroup[1];
+        LinearLayout col = page(holder, true);
+        col.addView(tabHead());
+        JSONObject b = brief();
+        if (b == null) { col.addView(noBrief()); return holder[0]; }
+        JSONObject c = b.optJSONObject("clearance");
+        JSONArray ms = b.optJSONArray("missions");
+        if (c != null) {
+            TextView k = ui.kicker("Clearance " + c.optJSONArray("marks").optString(c.optInt("level") - 1) + " · " + c.optJSONArray("ranks").optString(c.optInt("level") - 1));
+            k.setTextColor(Ui.ACCENT); col.addView(k);
+        }
+        if (ms != null && ms.length() > 0) {
+            double[] values = new double[ms.length()]; String[] labels = new String[ms.length()];
+            for (int i = 0; i < ms.length(); i++) { values[i] = ms.optJSONObject(i).optDouble("progress", 0); labels[i] = ms.optJSONObject(i).optString("id"); }
+            LinearLayout radarCard = ui.card(6);
+            radarCard.addView(new RadarView(this, values, labels, ui), new LinearLayout.LayoutParams(Ui.MATCH, ui.dp(250)));
+            TextView cap = ui.kicker("The shape grows to the gold line as you hit targets"); cap.setTextColor(Ui.GOLD_DIM); cap.setTextSize(8.5f); cap.setGravity(Gravity.CENTER);
+            radarCard.addView(cap);
+            col.addView(radarCard);
+        }
+        LinearLayout orders = ui.card(10);
+        orders.addView(ui.kicker("Orders / the three most behind"));
+        JSONArray os = b.optJSONArray("orders");
+        if (os == null || os.length() == 0) orders.addView(serif("All targets on plan. Hold the line.", 20));
+        for (int i = 0; os != null && i < os.length(); i++) {
+            JSONObject o = os.optJSONObject(i);
+            if (i > 0) orders.addView(ui.divider());
+            LinearLayout r = ui.row(12); r.setGravity(Gravity.TOP);
+            TextView num = serif(String.format(Locale.ROOT, "%02d", i + 1), 22); num.setTextColor(Ui.ACCENT); r.addView(num);
+            LinearLayout tx = ui.column(3);
+            tx.addView(ui.text(o.optString("title"), 15, Ui.TEXT, 600));
+            tx.addView(ui.mono(o.optString("line"), 11, o.optBoolean("logged") ? Ui.ORANGE : Ui.MUTED));
+            r.addView(tx, new LinearLayout.LayoutParams(0, Ui.WRAP, 1));
+            TextView m = serif(o.optString("mission"), 18); m.setTextColor(Ui.GOLD_DIM); r.addView(m);
+            orders.addView(r);
+        }
+        orders.addView(ui.divider());
+        orders.addView(ui.grid(8,
+            bigStat(b.optInt("measured") + " of " + b.optInt("targets"), "targets measured"),
+            bigStat(String.valueOf(b.optInt("behind")), "behind plan"),
+            bigStat(String.valueOf(b.optInt("milestones")), "milestones done")));
+        col.addView(orders);
+        LinearLayout list = ui.card(0);
+        for (int i = 0; ms != null && i < ms.length(); i++) {
+            JSONObject m = ms.optJSONObject(i);
+            if (i > 0) list.addView(ui.divider());
+            LinearLayout block = ui.column(8); ui.pad(block, 0, 12, 0, 12);
+            LinearLayout top = ui.row(12); top.setGravity(Gravity.CENTER_VERTICAL);
+            TextView letter = serif(m.optString("id"), 26); letter.setTextColor(Ui.ACCENT_TEXT); top.addView(letter, ui.size(26, -2));
+            LinearLayout names = ui.column(2);
+            names.addView(ui.oneLine(ui.kicker(m.optString("codename"))));
+            names.addView(ui.oneLine(serif(m.optString("title"), 19)));
+            top.addView(names, new LinearLayout.LayoutParams(0, Ui.WRAP, 1));
+            top.addView(serif(Math.round(m.optDouble("progress") * 100) + "%", 18));
+            block.addView(top);
+            block.addView(ui.bar(Math.max(0.01, m.optDouble("progress")), Ui.ACCENT));
+            LinearLayout foot = ui.row(8); foot.setGravity(Gravity.CENTER_VERTICAL);
+            String st = m.optString("status");
+            TextView chip = ui.mono(st.toUpperCase(Locale.ROOT), 9.5f, st.equals("On plan") ? Ui.GREEN : Ui.ORANGE);
+            chip.setBackground(ui.round(0, 10, st.equals("On plan") ? 0x8086D19F : 0x80E6B04E, 1)); ui.pad(chip, 8, 2, 8, 2);
+            foot.addView(chip);
+            View gap = new View(this); foot.addView(gap, new LinearLayout.LayoutParams(0, 1, 1));
+            foot.addView(ui.mono(m.optString("due").toUpperCase(Locale.ROOT), 10, Ui.MUTED));
+            block.addView(foot);
+            list.addView(block);
+        }
+        col.addView(list);
+        col.addView(ui.small("Missions and targets are edited on the Mac → Brief → Goals."));
+        return holder[0];
+    }
+    View bigStat(String value, String label) {
+        LinearLayout c = ui.column(2);
+        c.addView(serif(value, 20));
+        TextView l = ui.kicker(label); l.setTextSize(8.5f); c.addView(l);
+        return c;
+    }
+    /** The Mac's mission pentagon: grid rings, the gold target line, and the filled shape of progress. */
+    static final class RadarView extends View {
+        final double[] values; final String[] labels; final Ui ui;
+        final android.graphics.Paint line = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+        RadarView(android.content.Context c, double[] values, String[] labels, Ui ui) { super(c); this.values = values; this.labels = labels; this.ui = ui; }
+        float[] point(int i, float r, float cx, float cy) {
+            double a = -Math.PI / 2 + i * 2 * Math.PI / values.length;
+            return new float[]{cx + (float) (Math.cos(a) * r), cy + (float) (Math.sin(a) * r)};
+        }
+        android.graphics.Path shape(float r, float cx, float cy, double[] scale) {
+            android.graphics.Path p = new android.graphics.Path();
+            for (int i = 0; i < values.length; i++) {
+                float[] pt = point(i, (float) (r * (scale == null ? 1 : Math.max(0.04, Math.min(1, scale[i])))), cx, cy);
+                if (i == 0) p.moveTo(pt[0], pt[1]); else p.lineTo(pt[0], pt[1]);
+            }
+            p.close(); return p;
+        }
+        @Override protected void onDraw(android.graphics.Canvas canvas) {
+            float cx = getWidth() / 2f, cy = getHeight() / 2f + ui.dp(6), r = Math.min(getWidth(), getHeight()) / 2f - ui.dp(30);
+            line.setStyle(android.graphics.Paint.Style.STROKE); line.setStrokeWidth(ui.dp(1));
+            line.setColor(0x1FF1E8D4);
+            for (int k = 1; k <= 3; k++) canvas.drawPath(shape(r * k / 4f, cx, cy, null), line);
+            for (int i = 0; i < values.length; i++) { float[] pt = point(i, r, cx, cy); canvas.drawLine(cx, cy, pt[0], pt[1], line); }
+            line.setColor(Ui.ACCENT); line.setStrokeWidth(ui.dp(1.5f));
+            canvas.drawPath(shape(r, cx, cy, null), line);
+            android.graphics.Path fill = shape(r, cx, cy, values);
+            line.setStyle(android.graphics.Paint.Style.FILL); line.setColor(0x4DF0D49A); canvas.drawPath(fill, line);
+            line.setStyle(android.graphics.Paint.Style.STROKE); line.setColor(Ui.LAMP); canvas.drawPath(fill, line);
+            android.graphics.Paint label = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+            label.setTextAlign(android.graphics.Paint.Align.CENTER);
+            for (int i = 0; i < values.length; i++) {
+                float[] pt = point(i, r + ui.dp(17), cx, cy);
+                label.setTypeface(Ui.serif(600)); label.setTextSize(ui.dp(18)); label.setColor(Ui.ACCENT_TEXT);
+                canvas.drawText(labels[i], pt[0], pt[1], label);
+                label.setTypeface(Ui.monoFace(500)); label.setTextSize(ui.dp(9)); label.setColor(Ui.MUTED);
+                canvas.drawText(Math.round(values[i] * 100) + "%", pt[0], pt[1] + ui.dp(12), label);
+            }
+        }
+    }
+
+    // MARK: Brief › Routine
+    View routine() {
+        ViewGroup[] holder = new ViewGroup[1];
+        LinearLayout col = page(holder, true);
+        col.addView(tabHead());
+        JSONObject b = brief();
+        if (b == null) { col.addView(noBrief()); return holder[0]; }
+        col.addView(serif(b.optString("routineLine"), 23));
+        LinearLayout card = ui.card(0);
+        LinearLayout head = ui.row(8);
+        TextView k = ui.kicker("The night ahead"); k.setTextColor(Ui.ACCENT);
+        head.addView(k, new LinearLayout.LayoutParams(0, Ui.WRAP, 1));
+        head.addView(ui.small("From your plan · nothing to tap"));
+        card.addView(head);
+        LinearLayout nowRow = ui.row(10); nowRow.setGravity(Gravity.CENTER_VERTICAL); ui.pad(nowRow, 0, 12, 0, 6);
+        nowRow.addView(timeCell(LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("h:mm a", Locale.ENGLISH)).toLowerCase(Locale.ROOT), Ui.ACCENT));
+        View dot = new View(this); dot.setBackground(ui.round(Ui.ACCENT, 5, 0x40D9B46E, 4)); nowRow.addView(dot, ui.size(12, 12));
+        TextView nk = ui.kicker("Now"); nk.setTextColor(Ui.ACCENT); nowRow.addView(nk);
+        card.addView(nowRow);
+        JSONArray items = b.optJSONArray("routine");
+        if (items == null || items.length() == 0) card.addView(ui.small("Nothing left on the plan tonight."));
+        for (int i = 0; items != null && i < items.length(); i++) {
+            JSONObject e = items.optJSONObject(i);
+            if (i > 0) card.addView(ui.divider());
+            boolean current = e.optBoolean("current"), done = e.optBoolean("done");
+            String kind = e.optString("kind");
+            LinearLayout r = ui.row(10); r.setGravity(Gravity.CENTER_VERTICAL); ui.pad(r, current ? 6 : 0, 9, current ? 6 : 0, 9);
+            if (current) r.setBackground(ui.round(0x14D9B46E, 10, 0, 0));
+            r.addView(timeCell(e.optString("time"), Ui.MUTED));
+            View m = new View(this);
+            boolean solid = kind.equals("windDown") || kind.equals("bed");
+            m.setBackground(solid ? ui.round(kind.equals("bed") ? Ui.TEXT : Ui.LAMP, 5, 0, 0) : ui.round(0, 5, done ? Ui.GREEN : kind.equals("meds") ? Ui.ACCENT : Ui.GOLD_DIM, 1.5f));
+            r.addView(m, ui.size(10, 10));
+            LinearLayout tx = ui.column(2);
+            TextView title = kind.equals("windDown") ? serif(e.optString("title"), 20) : ui.text(e.optString("title"), 14.5f, done ? Ui.GREEN : Ui.TEXT, 500);
+            tx.addView(title);
+            if (!e.optString("detail").isEmpty()) tx.addView(ui.oneLine(ui.small(e.optString("detail"))));
+            r.addView(tx, new LinearLayout.LayoutParams(0, Ui.WRAP, 1));
+            r.addView(ui.mono(e.optString("status"), 10.5f, done ? Ui.GREEN : current ? Ui.ACCENT : Ui.MUTED));
+            card.addView(r);
+        }
+        JSONArray earlier = b.optJSONArray("earlier");
+        if (earlier != null && earlier.length() > 0) {
+            card.addView(ui.divider());
+            LinearLayout e = ui.column(6); ui.pad(e, 0, 12, 0, 0);
+            e.addView(ui.kicker("Earlier today"));
+            for (int i = 0; i < earlier.length(); i++) {
+                String s = earlier.optString(i);
+                boolean warn = s.endsWith("not tapped");
+                TextView chip = ui.text(s, 12, warn ? Ui.ORANGE : Ui.MUTED, 500);
+                chip.setBackground(ui.round(0, 14, warn ? 0x59E6B04E : 0x24F1E8D4, 1)); ui.pad(chip, 10, 4, 10, 4);
+                e.addView(chip, new LinearLayout.LayoutParams(Ui.WRAP, Ui.WRAP));
+            }
+            card.addView(e);
+        }
+        col.addView(card);
+        col.addView(ui.small("Times come from your routine on the Mac → Brief → Routine → Edit times."));
+        return holder[0];
+    }
+    TextView timeCell(String s, int color) { TextView t = ui.mono(s, 11, color); t.setGravity(Gravity.END); t.setLayoutParams(ui.size(66, -2)); return t; }
+
+    // MARK: Condition › Health
+    View health() {
+        ViewGroup[] holder = new ViewGroup[1];
+        LinearLayout col = page(holder, true);
+        col.addView(tabHead());
+        JSONObject t = todayFresh();
+        if (t.length() == 0) { col.addView(noBrief()); return holder[0]; }
+        col.addView(lastNight(t));
+        col.addView(daySoFar(t));
+        LinearLayout meds = ui.card(4);
+        meds.addView(ui.kicker("Meds this week"));
+        meds.addView(ui.text(t.optInt("medsWeekTaken") + " taken · " + t.optInt("medsWeekMissed") + " missed", 16, t.optInt("medsWeekMissed") > 0 ? Ui.ORANGE : Ui.TEXT, 600));
+        col.addView(meds);
+        col.addView(ui.small("Heart rate, stress and the full charts are on the Mac → Condition → Health."));
+        return holder[0];
+    }
+
+    // MARK: Condition › Screen time
+    View screenTime() {
+        ViewGroup[] holder = new ViewGroup[1];
+        LinearLayout col = page(holder, true);
+        col.addView(tabHead());
+        JSONObject b = brief();
+        JSONArray days = b == null ? null : b.optJSONArray("screenDays");
+        if (days == null || days.length() == 0) {
+            LinearLayout card = ui.card(6);
+            card.addView(ui.text("No phone screen time yet", 16, Ui.TEXT, 600));
+            card.addView(ui.small("Turn on Settings → Share screen time with Mac and allow Usage access, then sync."));
+            card.addView(ui.secondary("Open Settings", v -> show(Screen.SETTINGS)), Ui.wide());
+            col.addView(card);
+            return holder[0];
+        }
+        col.addView(serif(b.optString("screenLine"), 23));
+        LinearLayout card = ui.card(10);
+        LinearLayout head = ui.row(8);
+        TextView k = ui.kicker("Phone · last 7 days"); k.setTextColor(Ui.ACCENT);
+        head.addView(k, new LinearLayout.LayoutParams(0, Ui.WRAP, 1));
+        card.addView(head);
+        double most = 1;
+        for (int i = 0; i < days.length(); i++) most = Math.max(most, days.optJSONObject(i).optDouble("minutes", 0));
+        LinearLayout bars = ui.row(6); bars.setGravity(Gravity.BOTTOM);
+        for (int i = 0; i < days.length(); i++) {
+            JSONObject d = days.optJSONObject(i);
+            double min = d.optDouble("minutes", Double.NaN);
+            LinearLayout c = ui.column(4); c.setGravity(Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM);
+            TextView v = ui.mono(Double.isNaN(min) ? "—" : hm(min), 8.5f, Ui.SOFT); v.setGravity(Gravity.CENTER); c.addView(v);
+            View bar = new View(this);
+            bar.setBackground(ui.round(d.optBoolean("shown") ? Ui.LAMP : 0xFF7F7D55, 3, 0, 0));
+            c.addView(bar, new LinearLayout.LayoutParams(Ui.MATCH, ui.dp(Double.isNaN(min) ? 2 : Math.max(3, (float) (130 * min / most)))));
+            TextView l = ui.mono(d.optString("label").toUpperCase(Locale.ROOT), 8.5f, Ui.MUTED); l.setGravity(Gravity.CENTER); c.addView(l);
+            bars.addView(c, new LinearLayout.LayoutParams(0, Ui.WRAP, 1));
+        }
+        card.addView(bars);
+        col.addView(card);
+        JSONArray apps = b.optJSONArray("topApps");
+        if (apps != null && apps.length() > 0) {
+            LinearLayout ac = ui.card(10);
+            TextView ak = ui.kicker("Top apps"); ak.setTextColor(Ui.ACCENT); ac.addView(ak);
+            double top = Math.max(1, apps.optJSONObject(0).optDouble("minutes"));
+            for (int i = 0; i < apps.length(); i++) {
+                JSONObject a = apps.optJSONObject(i);
+                LinearLayout r = ui.row(10); r.setGravity(Gravity.CENTER_VERTICAL);
+                LinearLayout n = ui.column(6);
+                n.addView(ui.oneLine(ui.text(a.optString("name"), 13, Ui.TEXT, 500)));
+                n.addView(ui.bar(a.optDouble("minutes") / top, Ui.ACCENT));
+                r.addView(n, new LinearLayout.LayoutParams(0, Ui.WRAP, 1));
+                r.addView(ui.mono(hm(a.optDouble("minutes")), 11, Ui.MUTED));
+                ac.addView(r);
+            }
+            col.addView(ac);
+        }
+        col.addView(ui.small("Late-night use and this Mac's own screen time are on the Mac → Condition → Screen time."));
+        return holder[0];
+    }
+    static String hm(double minutes) { long m = Math.round(minutes); return m >= 60 ? (m / 60) + "h " + String.format(Locale.ROOT, "%02d", m % 60) : m + "m"; }
+
+    // MARK: Field log › Notes
+    View notes() {
+        ViewGroup[] holder = new ViewGroup[1];
+        LinearLayout col = page(holder, true);
+        col.addView(tabHead());
+        JSONObject b = brief();
+        if (b == null) { col.addView(noBrief()); return holder[0]; }
+        TextView k = ui.kicker("Plans, decisions and reflections worth keeping"); col.addView(k);
+        JSONArray notes = b.optJSONArray("notes");
+        if (notes == null || notes.length() == 0) col.addView(ui.small("No notes yet. Write them on the Mac → Field log → Notes, or save a chat with Ask Ascend."));
+        for (int i = 0; notes != null && i < notes.length(); i++) {
+            JSONObject n = notes.optJSONObject(i);
+            LinearLayout card = ui.card(6);
+            LinearLayout head = ui.row(8); head.setGravity(Gravity.CENTER_VERTICAL);
+            head.addView(ui.text(n.optString("kind") + (n.optBoolean("pinned") ? " · pinned" : ""), 11, Ui.ACCENT, 500));
+            View gap = new View(this); head.addView(gap, new LinearLayout.LayoutParams(0, 1, 1));
+            head.addView(ui.mono(n.optString("date"), 10.5f, Ui.MUTED));
+            card.addView(head);
+            card.addView(ui.text(n.optString("title"), 15, Ui.TEXT, 600));
+            String body = n.optString("body").replace("**", "");
+            if (!body.isEmpty()) {
+                TextView bt = ui.text(body, 12.5f, Ui.SOFT, 400); bt.setMaxLines(5); bt.setEllipsize(android.text.TextUtils.TruncateAt.END);
+                card.addView(bt);
+                bt.setOnClickListener(v -> { boolean open = bt.getMaxLines() > 5; bt.setMaxLines(open ? 5 : 200); });
+            }
+            col.addView(card);
+        }
+        col.addView(ui.small("Read-only here. New notes are written on the Mac."));
+        return holder[0];
+    }
+
+    // MARK: Dossier
+    View dossier() {
+        ViewGroup[] holder = new ViewGroup[1];
+        LinearLayout col = page(holder, true);
+        col.addView(tabHead());
+        JSONObject b = brief();
+        if (b == null) { col.addView(noBrief()); return holder[0]; }
+        JSONObject c = b.optJSONObject("clearance");
+        if (c != null) {
+            int level = c.optInt("level", 1);
+            JSONArray marks = c.optJSONArray("marks"), ranks = c.optJSONArray("ranks"), rewards = c.optJSONArray("rewards");
+            LinearLayout card = ui.card(10);
+            card.setBackground(ui.round(0xFF0F3026, 18, 0x33D9B46E, 1));
+            TextView k = ui.kicker("Clearance · " + ranks.optString(level - 1)); k.setTextColor(Ui.ACCENT); card.addView(k);
+            card.addView(serif(level == 5 ? "Double-O. Licensed." : "You hold Clearance " + marks.optString(level - 1) + ".", 28));
+            card.addView(ui.small(c.optString("next")));
+            card.addView(ui.kicker("This week so far"));
+            card.addView(ui.mono(c.optString("week"), 11.5f, Ui.TEXT));
+            HorizontalScrollView hs = new HorizontalScrollView(this); hs.setHorizontalScrollBarEnabled(false);
+            LinearLayout plates = ui.row(8);
+            for (int i = 0; i < marks.length(); i++) {
+                boolean earned = i + 1 <= level, current = i + 1 == level;
+                LinearLayout p = ui.column(6); ui.pad(p, 12, 12, 12, 12);
+                p.setBackground(ui.round(current ? Ui.PANEL2 : 0x590B2A21, 10, current ? 0xCCF0D49A : Ui.LINE, current ? 1.5f : 1));
+                LinearLayout top = ui.row(6); top.setGravity(Gravity.CENTER_VERTICAL);
+                TextView mk = serif(marks.optString(i), 28); mk.setTextColor(earned ? Ui.LAMP : Ui.GOLD_DIM);
+                top.addView(mk, new LinearLayout.LayoutParams(0, Ui.WRAP, 1));
+                top.addView(ui.iconView(earned ? "ic_check" : "ic_close", earned ? Ui.ACCENT : Ui.FAINT, 14));
+                p.addView(top);
+                TextView rk = ui.kicker(ranks.optString(i)); rk.setTextSize(8.5f); if (current) rk.setTextColor(Ui.ACCENT); p.addView(rk);
+                TextView rw = ui.text(rewards.optString(i), 11, earned ? Ui.TEXT : Ui.MUTED, 400); rw.setMaxLines(3); p.addView(rw);
+                plates.addView(p, new LinearLayout.LayoutParams(ui.dp(150), ui.dp(128)));
+            }
+            hs.addView(plates);
+            card.addView(hs);
+            TextView rules = ui.mono("Clean week: 3 gym sessions, 70% of check-ins, 4 nights asleep by 1 am. Slack week (no gym, or under 40% of check-ins) drops one level.", 9.5f, Ui.GOLD_DIM);
+            card.addView(rules);
+            col.addView(card);
+        }
+        JSONObject memo = b.optJSONObject("memo");
+        if (memo != null) col.addView(memoCard(memo));
+        JSONArray sections = b.optJSONArray("sections");
+        for (int i = 0; sections != null && i < sections.length(); i++) {
+            JSONObject s = sections.optJSONObject(i);
+            LinearLayout card = ui.card(8);
+            card.addView(serif(s.optString("title"), 22));
+            card.addView(ui.small(s.optString("blurb")));
+            JSONArray items = s.optJSONArray("items");
+            if (items == null || items.length() == 0) card.addView(ui.small("Nothing here yet."));
+            for (int j = 0; items != null && j < items.length(); j++) {
+                JSONObject it = items.optJSONObject(j);
+                card.addView(ui.divider());
+                LinearLayout r = ui.row(8); r.setGravity(Gravity.CENTER_VERTICAL);
+                LinearLayout tx = ui.column(2);
+                LinearLayout name = ui.row(6); name.setGravity(Gravity.CENTER_VERTICAL);
+                name.addView(ui.text(it.optString("title"), 14, Ui.TEXT, 600));
+                if (it.optBoolean("placeholder")) { TextView ph = ui.kicker("placeholder"); ph.setTextSize(8); ph.setTextColor(Ui.GOLD_DIM); name.addView(ph); }
+                tx.addView(name);
+                if (!it.optString("detail").isEmpty()) tx.addView(ui.small(it.optString("detail")));
+                if (it.has("progress")) { tx.addView(ui.bar(Math.max(0.01, it.optDouble("progress")), Ui.ACCENT)); }
+                r.addView(tx, new LinearLayout.LayoutParams(0, Ui.WRAP, 1));
+                TextView tag = ui.mono(it.optString("tag").toUpperCase(Locale.ROOT), 9, it.optString("tag").equals("Owned") ? Ui.GREEN : Ui.ACCENT_TEXT);
+                tag.setBackground(ui.round(0, 10, it.optString("tag").equals("Owned") ? 0x8086D19F : 0x59D9B46E, 1)); ui.pad(tag, 8, 2, 8, 2);
+                r.addView(tag);
+                card.addView(r);
+            }
+            col.addView(card);
+        }
+        col.addView(ui.small("Placeholders are marked. Edit any line on the Mac → Dossier; it stays on your devices."));
+        return holder[0];
+    }
+    /** M's weekly memorandum, on paper like the Mac. */
+    View memoCard(JSONObject memo) {
+        int paper = 0xFFF1E8D4, ink = 0xFF1D2A24, red = 0xFF9E2B33;
+        LinearLayout card = ui.column(10); ui.pad(card, 18, 18, 18, 18);
+        card.setBackground(ui.round(paper, 12, 0, 0));
+        LinearLayout head = ui.row(8);
+        TextView k = ui.kicker("Memorandum · from M"); k.setTextColor(0xB31D2A24);
+        head.addView(k, new LinearLayout.LayoutParams(0, Ui.WRAP, 1));
+        head.addView(ui.mono(memo.optString("week"), 10, 0xB31D2A24));
+        card.addView(head);
+        View rule = new View(this); rule.setBackgroundColor(0x401D2A24); card.addView(rule, new LinearLayout.LayoutParams(Ui.MATCH, 1));
+        for (String part : new String[]{"wins", "misses"}) {
+            TextView pk = ui.kicker(part); pk.setTextColor(0xB31D2A24); card.addView(pk);
+            JSONArray list = memo.optJSONArray(part);
+            for (int i = 0; list != null && i < list.length(); i++) card.addView(ui.text("· " + list.optString(i), 13, ink, 400));
+        }
+        TextView ok = ui.kicker("Order"); ok.setTextColor(red); ok.setTypeface(Ui.monoFace(700)); card.addView(ok);
+        TextView order = serif(memo.optString("order"), 20); order.setTextColor(ink); card.addView(order);
+        TextView sign = serif("— M", 18); sign.setTextColor(0xCC1D2A24); sign.setGravity(Gravity.END); card.addView(sign);
+        return card;
+    }
+
     // MARK: Settings
     View settings() {
         ViewGroup[] holder = new ViewGroup[1];
         LinearLayout col = page(holder, false);
-        col.addView(topBar("Settings", Screen.LOG, null));
+        col.addView(topBar("Settings", lastInTab[0], null));
         LinearLayout mac = ui.card(12);
         mac.addView(ui.kicker("Your Mac"));
         if (engine.paired()) {
