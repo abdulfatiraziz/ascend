@@ -191,6 +191,9 @@ struct MainView: View {
                 }
             }
             Spacer(minLength: 0)
+            Button { setEyesOnly(true) } label: { Image(systemName: "eye.slash").font(.bt(size: 17)).frame(width: 44, height: 44) }
+                .buttonStyle(.plain).foregroundStyle(Ink.muted).keyboardShortcut("e", modifiers: [.command, .shift])
+                .help("Eyes only · ⌘⇧E · hides everything until you open it again").accessibilityLabel("Eyes only")
             Button { editor = .settings } label: { Image(systemName: "slider.horizontal.3").font(.bt(size: 18)).frame(width: 44, height: 44) }.buttonStyle(.plain).foregroundStyle(Ink.muted).help("Settings, avatar finish and backups")
             VStack(spacing: 8) { Circle().fill(Ink.muted).frame(width: 4, height: 4); Kicker("Local") }
         }.padding(.top, 26).padding(.bottom, 18).frame(width: 78).frame(maxHeight: .infinity).overlay(alignment: .trailing) { Rectangle().fill(Ink.line).frame(width: 1) }
@@ -239,8 +242,6 @@ struct MainView: View {
                     .font(.bt(size: 36, weight: .semibold)).tracking(-1.5).lineLimit(1).minimumScaleFactor(0.8).alignmentGuide(.titleMiddle) { $0[VerticalAlignment.center] }
             }
             Spacer()
-            Button { setEyesOnly(true) } label: { Label("Eyes only", systemImage: "eye.slash").font(.bt(size: 11)).padding(8) }
-                .buttonStyle(.plain).background(Ink.panel, in: RoundedRectangle(cornerRadius: 7)).keyboardShortcut("e", modifiers: [.command, .shift]).help("Eyes only · ⌘⇧E · hides everything until you open it again").alignmentGuide(.titleMiddle) { $0[VerticalAlignment.center] }
             if let next = store.missions.missions.filter({ $0.due >= store.today }).min(by: { $0.due < $1.due }) {
                 let left = store.engine.days(from: store.today, through: next.due).count - 1
                 VStack(alignment: .trailing, spacing: 7) {
