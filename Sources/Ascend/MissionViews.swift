@@ -68,7 +68,7 @@ struct MissionBoard: View {
         }
         .onAppear {
             // ASCEND_OPEN_MISSION=A opens a mission file on launch, like ASCEND_OPEN_SCREEN.
-            if let id = ProcessInfo.processInfo.environment["ASCEND_OPEN_MISSION"], open == nil { open = ms.first { $0.id == id } }
+            if !LaunchOnce.missionOpened, let id = ProcessInfo.processInfo.environment["ASCEND_OPEN_MISSION"], open == nil { LaunchOnce.missionOpened = true; open = ms.first { $0.id == id } }
         }
         .sheet(item: $open) { m in
             MissionSheet(missionID: m.id, store: store, missions: missions, facts: facts, today: store.today, close: { open = nil }) { habit in
@@ -446,3 +446,6 @@ extension MissionFacts {
         let f = DateFormatter(); f.calendar = Calendar(identifier: .gregorian); f.timeZone = TimeZone(identifier: "UTC")!; f.dateFormat = "yyyy-MM-dd"; return f
     }()
 }
+
+/// Launch-only actions (QA env flags) that must not repeat when a view reappears.
+@MainActor enum LaunchOnce { static var missionOpened = false }
