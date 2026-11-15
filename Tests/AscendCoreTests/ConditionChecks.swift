@@ -12,6 +12,15 @@ func runConditionChecks() -> (count: Int, failures: Int) {
     }
     let engine = TrackerEngine(document: TrackerDocument.seeded(today: "2026-11-15"))
 
+    check("Last night: stage notes and the pattern only say what the data shows") {
+        try expect(Condition.stageNote(.deep, percent: 25) == "Good · aim 15–25%" && Condition.stageNote(.rem, percent: 18).hasPrefix("Low side"))
+        let late = Condition.nightPattern(asleepAt: 197, phoneMinutes: 245, deepPercent: 25) ?? ""
+        try expect(late.hasPrefix("4 h 05 on the phone from 11 pm, asleep at 3:17 am, 2 h 17 past"), late)
+        try expect(late.contains("past your 1 am line") && late.contains("Deep sleep was fine"), late)
+        try expect(Condition.nightPattern(asleepAt: 40, phoneMinutes: 5, deepPercent: 20) == nil, "on time and no phone: nothing to say")
+        try expect(Condition.nightPattern(asleepAt: 200, phoneMinutes: nil, deepPercent: 10).map { !$0.contains("Deep sleep was fine") } ?? false)
+    }
+
     check("Resting HR from sleep: lowest 30-minute average while asleep, needs 3 readings") {
         let t0 = 1_000_000.0
         // 5-minute readings: 60 bpm, then a calm 50 stretch, one 40 spike-down alone is not enough.

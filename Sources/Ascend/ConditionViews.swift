@@ -152,6 +152,10 @@ struct HealthView: View {
                     wire(r, key)
                     week(key).frame(width: 450)
                 }
+                HStack(alignment: .top, spacing: 16) {
+                    lastNight(key)
+                    fuelCard(key).frame(width: 450)
+                }
             }.padding(.bottom, 12)
         }
         .onAppear { if day.isEmpty { settle() } }
@@ -373,6 +377,170 @@ struct HealthView: View {
             Text(average ?? "—").font(.bt(size: 11, design: .monospaced)).foregroundStyle(bad ? Ink.offTrack : Ink.ivory.opacity(0.85)).frame(width: 96, alignment: .trailing)
         }.padding(.vertical, 9).overlay(alignment: .bottom) { if divider { Line() } }
     }
+    // MARK: Last night
+    private static let laneColor: [Condition.Lane: Color] = [.awake: Ink.watch, .rem: Color(hex: 0x8B7BD8), .light: Color(hex: 0x5E9C88), .deep: Color(hex: 0x3E6FA8)]
+    private func clock(_ t: Double) -> String { HealthReport.clock(minute(t)) }
+
+    private func lastNight(_ key: String) -> some View {
+        let night = Condition.night(archive, on: key, engine: engine)
+        let title = key == store.today || key == fallback ? "Last night" : "Night before \(dateText(key, engine: engine, pattern: "d MMM"))"
+        let phone = phoneDevice.flatMap { Condition.afterHoursMinutes($0, evening: engine.adding(-1, to: key), engine: engine) }
+        return VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .firstTextBaseline) {
+                CardTitle(title)
+                Spacer()
+                if let n = night {
+                    Text("Asleep \(clock(n.start)) → up \(clock(n.end)) · \(shortDuration((n.end - n.start) / 60)) in bed").font(.bt(size: 11)).foregroundStyle(Ink.muted)
+                }
+            }.padding(.bottom, 16)
+            if let n = night {
+                if n.hasStages { hypnogram(n) } else {
+                    Text("The watch sent no sleep stages for this night.").font(.bt(size: 12)).foregroundStyle(Ink.muted).frame(maxWidth: .infinity, minHeight: 120)
+                }
+                if n.hasStages {
+                    HStack(alignment: .top, spacing: 12) {
+                        stageStat(.deep, n); stageStat(.rem, n); stageStat(.light, n)
+                        let awake = n.minutes[.awake] ?? 0
+                        stat("AWAKE", shortDuration(awake), n.wakeTimes.count == 1 ? "1 time" : "\(n.wakeTimes.count) times", fraction: awake / max(1, (n.end - n.start) / 60),
+                             color: Self.laneColor[.awake]!, note: n.wakeTimes.prefix(3).map(clock).joined(separator: ", "))
+                    }.padding(.top, 18).overlay(alignment: .top) { Line() }.padding(.top, 4)
+                }
+                HStack(spacing: 12) {
+                    chip("HEART OVERNIGHT", [n.heartLow.map { "low \(Int($0.rounded()))" }, n.heartAverage.map { "avg \(Int($0.rounded())) bpm" }].compactMap { $0 }.joined(separator: " · "), bad: false)
+                    chip("OXYGEN OVERNIGHT", [n.oxygenLow.map { "low \(Int($0.rounded()))" }, n.oxygenAverage.map { "avg \(Int($0.rounded()))%" }].compactMap { $0 }.joined(separator: " · "), bad: (n.oxygenLow ?? 100) < 90)
+                    chip("PHONE 11 PM – 4 AM", phone.map { "\(shortDuration($0)) before sleep" } ?? "No phone data", bad: (phone ?? 0) >= 60)
+                }.padding(.top, 16)
+                let deep = n.hasStages ? n.percent(.deep) : nil
+                if let text = Condition.nightPattern(asleepAt: Condition.signedMinute(n.start, calendar: engine.calendar), phoneMinutes: phone, deepPercent: deep) {
+                    PatternBox(text: text).padding(.top, 14)
+                }
+            } else {
+                Text("No night recorded for this day.").font(.bt(size: 12)).foregroundStyle(Ink.muted).frame(maxWidth: .infinity, minHeight: 120)
+            }
+        }.conditionCard()
+    }
+
+    private func hypnogram(_ n: Condition.Night) -> some View {
+        let lanes: [Condition.Lane] = [.awake, .rem, .light, .deep]
+        let span = max(1, n.end - n.start)
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 0) {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(lanes, id: \.self) { l in
+                        Text(l == .rem ? "REM" : l.rawValue.uppercased()).font(.bt(size: 9.5, design: .monospaced)).foregroundStyle(Ink.muted).frame(height: 34)
+                    }
+                }.frame(width: 56, alignment: .leading)
+                Canvas { ctx, size in
+                    let row = size.height / 4
+                    for i in 0..<4 {
+                        var p = Path(); p.move(to: CGPoint(x: 0, y: row * (Double(i) + 0.5))); p.addLine(to: CGPoint(x: size.width, y: row * (Double(i) + 0.5)))
+                        ctx.stroke(p, with: .color(Ink.ivory.opacity(0.07)), lineWidth: 1)
+                    }
+                    var axis = Path(); axis.move(to: .zero); axis.addLine(to: CGPoint(x: 0, y: size.height)); ctx.stroke(axis, with: .color(Ink.ivory.opacity(0.1)), lineWidth: 1)
+                    for b in n.blocks {
+                        guard let i = lanes.firstIndex(of: b.lane) else { continue }
+                        let x0 = (b.start - n.start) / span * size.width, x1 = (b.end - n.start) / span * size.width
+                        let rect = CGRect(x: x0, y: row * (Double(i) + 0.5) - 9, width: max(2, x1 - x0), height: 18)
+                        ctx.fill(Path(roundedRect: rect, cornerRadius: 3), with: .color(Self.laneColor[b.lane]!))
+                    }
+                }.frame(height: 136).accessibilityHidden(true)
+            }
+            HStack {
+                ForEach(0..<5, id: \.self) { i in
+                    Text(clock(n.start + span * Double(i) / 4)).font(.bt(size: 9.5, design: .monospaced)).foregroundStyle(Ink.muted)
+                    if i < 4 { Spacer() }
+                }
+            }.padding(.leading, 56)
+        }
+    }
+
+    private func stageStat(_ lane: Condition.Lane, _ n: Condition.Night) -> some View {
+        let p = n.percent(lane)
+        return stat(lane == .rem ? "REM" : lane.rawValue.uppercased(), shortDuration(n.minutes[lane] ?? 0), "\(Int(p.rounded()))%", fraction: p / 100,
+                    color: Self.laneColor[lane]!, note: Condition.stageNote(lane, percent: p))
+    }
+
+    private func stat(_ label: String, _ value: String, _ unit: String, fraction: Double, color: Color, note: String) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(label).font(.bt(size: 9.5, weight: .medium, design: .monospaced)).tracking(1.8).foregroundStyle(Ink.muted)
+            HStack(alignment: .firstTextBaseline, spacing: 5) {
+                Text(value).font(.bt(size: 22, design: .serif)).foregroundStyle(Ink.ivory).monospacedDigit()
+                Text(unit).font(.bt(size: 11)).foregroundStyle(Ink.muted)
+            }
+            GeometryReader { g in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Ink.ivory.opacity(0.08))
+                    Capsule().fill(color).frame(width: g.size.width * min(1, max(0, fraction)))
+                }
+            }.frame(height: 3)
+            Text(note).font(.bt(size: 11)).foregroundStyle(Ink.muted).lineLimit(1)
+        }.frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func chip(_ label: String, _ value: String, bad: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label).font(.bt(size: 9.5, weight: .medium, design: .monospaced)).tracking(1.6).foregroundStyle(Ink.muted)
+            Text(value.isEmpty ? "No readings" : value).font(.bt(size: 13)).foregroundStyle(bad ? Ink.offTrack : Ink.ivory).lineLimit(1).minimumScaleFactor(0.85)
+        }.padding(.horizontal, 12).padding(.vertical, 10).frame(maxWidth: .infinity, alignment: .leading)
+            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Ink.line))
+    }
+
+    // MARK: Fuel
+    private func fuelCard(_ key: String) -> some View {
+        let f = Condition.fuel(store.document, on: key, engine: engine)
+        let weekday = engine.date(key).map { engine.calendar.component(.weekday, from: $0) } ?? 2
+        let kind = (weekday == 1 || weekday == 7) ? "weekend" : "weekday"
+        return VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .firstTextBaseline) {
+                CardTitle("Fuel · \(dateText(key, engine: engine, pattern: "EEE d MMM"))")
+                Spacer()
+                if let t = f.kcalTarget { Text("\(kind) target \(Int(t).formatted())").font(.bt(size: 11)).foregroundStyle(Ink.muted) }
+            }.padding(.bottom, 16)
+            if f.meals > 0 {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(Int(f.kcal.rounded()).formatted()).font(.bt(size: 28, design: .serif)).foregroundStyle(Ink.ivory).monospacedDigit()
+                    Text(f.kcalTarget.map { "eaten of \(Int($0).formatted()) kcal" } ?? "kcal eaten").font(.bt(size: 12)).foregroundStyle(Ink.muted)
+                }
+                if let t = f.kcalTarget {
+                    meter(f.kcal / t, color: f.kcal > t ? Ink.offTrack : Ink.onTrack, marker: true)
+                    meterLabels("\(f.meals) meal\(f.meals == 1 ? "" : "s") logged" + (f.unconfirmed > 0 ? " · \(f.unconfirmed) not confirmed" : ""),
+                                f.kcal > t ? "\(Int((f.kcal - t).rounded()).formatted()) over" : "\(Int((t - f.kcal).rounded()).formatted()) left")
+                }
+                if let p = f.proteinTarget {
+                    Text("PROTEIN").font(.bt(size: 9.5, weight: .medium, design: .monospaced)).tracking(1.8).foregroundStyle(Ink.muted).padding(.top, 18)
+                    meter(f.protein / p, color: f.protein >= p ? Ink.onTrack : f.protein >= p * 0.75 ? Ink.watch : Ink.offTrack, marker: false)
+                    meterLabels("\(Int(f.protein.rounded())) g of \(Int(p)) g", f.protein >= p ? "done" : "\(Int((p - f.protein).rounded())) g short")
+                }
+            }
+            Text("BURNED · WATCH").font(.bt(size: 9.5, weight: .medium, design: .monospaced)).tracking(1.8).foregroundStyle(Ink.muted).padding(.top, f.meals > 0 ? 18 : 0)
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(f.activeKcal.map { Int($0.rounded()).formatted() } ?? "—").font(.bt(size: 22, design: .serif)).foregroundStyle(Ink.ivory).monospacedDigit()
+                Text("active kcal").font(.bt(size: 12)).foregroundStyle(Ink.muted)
+            }.padding(.top, 4)
+            Text("Movement only, not your resting burn").font(.bt(size: 10, design: .monospaced)).foregroundStyle(Ink.muted).padding(.top, 4)
+            if f.meals == 0 {
+                Text(f.lastMealDay.map { "No meals logged since \(dateText($0, engine: engine, pattern: "d MMM")). Eaten and protein show here once you log a meal." } ?? "No meals logged yet. Eaten and protein show here once you log a meal.")
+                    .font(.bt(size: 12)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
+                    .padding(12).frame(maxWidth: .infinity, alignment: .leading)
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Ink.line, style: StrokeStyle(lineWidth: 1, dash: [4, 3]))).padding(.top, 16)
+            }
+            Spacer(minLength: 0)
+        }.conditionCard()
+    }
+
+    private func meter(_ fraction: Double, color: Color, marker: Bool) -> some View {
+        GeometryReader { g in
+            ZStack(alignment: .leading) {
+                Capsule().fill(Ink.ivory.opacity(0.08))
+                Capsule().fill(color).frame(width: g.size.width * min(1, max(0, fraction)))
+                if marker { Rectangle().fill(Ink.lamp).frame(width: 1.5, height: 16).offset(x: g.size.width - 1.5) }
+            }
+        }.frame(height: 8).padding(.top, 10).padding(.bottom, 5)
+    }
+    private func meterLabels(_ left: String, _ right: String) -> some View {
+        HStack { Text(left); Spacer(); Text(right) }.font(.bt(size: 10, design: .monospaced)).foregroundStyle(Ink.muted)
+    }
+
     private var phoneDevice: ScreenTimeDevice? { screen.archive.devices.filter { $0.source != "macKnowledge" }.max { $0.lastSync < $1.lastSync } }
 }
 
