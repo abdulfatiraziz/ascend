@@ -4,8 +4,35 @@ import Foundation
 public enum Condition {
     /// The steps floor the mission uses (Mission A: "Floor 7,000; mission 10,000").
     public static let stepsFloor = 7_000.0
+    /// The steps goal above the floor (the "Walk 10,000 steps" habit and the diet plan).
+    public static let stepsGoal = 10_000.0
     /// "Asleep by 1 am", in minutes after midnight.
     public static let asleepBy = 60
+    /// The "Evening stress under 28" goal; the line on the stress row.
+    public static let stressLine = 28.0
+    /// Phone hours a day before the dot turns red. A starting line, not a goal he set.
+    public static let phoneHoursLine = 6.0
+
+    /// Resting heart rate from one night's readings: the lowest 30-minute average while asleep.
+    /// Needs at least 3 readings in that window; nil when the night is too thin.
+    public static func restingFromSleep(_ points: [(time: Double, value: Double)], from start: Double, to end: Double) -> Double? {
+        let night = points.filter { $0.time >= start && $0.time <= end && $0.value > 25 && $0.value < 200 }.sorted { $0.time < $1.time }
+        var best: Double?
+        for (i, p) in night.enumerated() {
+            let window = night[i...].prefix { $0.time < p.time + 1800 }
+            guard window.count >= 3 else { continue }
+            let avg = window.map(\.value).reduce(0, +) / Double(window.count)
+            if best.map({ avg < $0 }) ?? true { best = avg }
+        }
+        return best.map { ($0 * 10).rounded() / 10 }
+    }
+
+    /// Resting heart rate worked out from the night that ended on `day` (the main sleep session).
+    public static func restingFromSleep(_ health: HealthArchive, on day: String, engine: TrackerEngine) -> Double? {
+        guard let night = health.sleepSessions(on: day, engine: engine).first else { return nil }
+        let points = health.records.filter { $0.metric == .heartRate && $0.start >= night.start && $0.start <= night.end }.map { (time: $0.start, value: $0.value) }
+        return restingFromSleep(points, from: night.start, to: night.end)
+    }
 
     /// The day the Health report opens on: today when it already has readings, otherwise the latest of the
     /// three days before it that does (after midnight that is yesterday, the last full day).

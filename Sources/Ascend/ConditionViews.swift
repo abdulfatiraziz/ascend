@@ -73,18 +73,22 @@ struct GaugeCard: View {
 }
 
 /// Dots joined by faint lines; green when the day was fine, red when not. Missing days are skipped.
+/// `line` draws the target as a dashed line, so red always means "past the line".
 struct DotSpark: View {
     var values: [Double?]
     var good: (Double) -> Bool
     var inverted = false
+    var line: Double? = nil
     var body: some View {
         Canvas { ctx, size in
-            let known = values.compactMap { $0 }
+            let known = values.compactMap { $0 } + (line.map { [$0] } ?? [])
             guard let lo = known.min(), let hi = known.max(), values.count > 1 else { return }
             let span = hi - lo == 0 ? 1 : hi - lo
-            func pt(_ i: Int, _ v: Double) -> CGPoint {
-                let t = (v - lo) / span
-                return CGPoint(x: 8 + (size.width - 16) * Double(i) / Double(values.count - 1), y: inverted ? 5 + t * (size.height - 10) : size.height - 5 - t * (size.height - 10))
+            func y(_ v: Double) -> Double { let t = (v - lo) / span; return inverted ? 5 + t * (size.height - 10) : size.height - 5 - t * (size.height - 10) }
+            func pt(_ i: Int, _ v: Double) -> CGPoint { CGPoint(x: 8 + (size.width - 16) * Double(i) / Double(values.count - 1), y: y(v)) }
+            if let line {
+                var p = Path(); p.move(to: CGPoint(x: 0, y: y(line))); p.addLine(to: CGPoint(x: size.width, y: y(line)))
+                ctx.stroke(p, with: .color(Ink.lamp.opacity(0.35)), style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
             }
             var last: CGPoint?
             for (i, v) in values.enumerated() {
@@ -182,13 +186,18 @@ struct HealthView: View {
             GaugeCard(label: "SLEEP", value: shortDuration(asleep), unit: "", note: "Asleep \(HealthReport.clock((at + 1440) % 1440))" + (late > 15 ? " · \(shortDuration(Double(late))) late" : " · on time"),
                       fraction: asleep / 480, color: off ? Ink.offTrack : Ink.onTrack)
         } else { GaugeCard(label: "SLEEP", value: "—", unit: "", note: "No night recorded", fraction: 0, color: missing) }
-        // Resting heart rate: Mi Fitness's figure; amber when it hasn't arrived for 2+ days.
+        // Resting heart rate: Mi Fitness's figure for the day; else worked out from last night's sleep; amber only when both are missing.
         let last = Condition.lastResting(archive, onOrBefore: key, engine: engine)
-        let stale = last.map { $0.day < engine.adding(-1, to: key) } ?? true
-        if let value = stale ? (last?.value ?? r.restingHeartRate) : (r.restingHeartRate ?? last?.value) {
-            GaugeCard(label: "RESTING HR", value: "\(Int(value.rounded()))", unit: "bpm",
-                      note: stale ? (last.map { "Last read \(dateText($0.day, engine: engine, pattern: "d MMM"))" } ?? "Lowest while asleep") : value < 60 ? "Under 60 · strong" : "Mi Fitness daily figure",
-                      fraction: value / 100, color: stale ? missing : Ink.onTrack)
+        let fresh = last.map { $0.day >= engine.adding(-1, to: key) } ?? false
+        if fresh, let last {
+            GaugeCard(label: "RESTING HR", value: "\(Int(last.value.rounded()))", unit: "bpm", note: last.value < 60 ? "Under 60 · strong" : "Mi Fitness daily figure",
+                      fraction: last.value / 100, color: Ink.onTrack)
+        } else if let calc = Condition.restingFromSleep(archive, on: key, engine: engine) {
+            GaugeCard(label: "RESTING HR", value: "\(Int(calc.rounded()))", unit: "bpm", note: "From last night's sleep",
+                      fraction: calc / 100, color: Ink.onTrack)
+        } else if let last {
+            GaugeCard(label: "RESTING HR", value: "\(Int(last.value.rounded()))", unit: "bpm", note: "Last read \(dateText(last.day, engine: engine, pattern: "d MMM"))",
+                      fraction: last.value / 100, color: missing)
         } else { GaugeCard(label: "RESTING HR", value: "—", unit: "", note: "Not sent yet", fraction: 0, color: missing) }
         // Stress
         if let s = r.stressAverage {
@@ -201,11 +210,12 @@ struct HealthView: View {
             GaugeCard(label: "BLOOD OXYGEN", value: "\(Int(o.rounded()))", unit: "%", note: (o >= 95 ? "Normal" : "Below normal") + (r.oxygenLow.map { " · low \(Int($0))" } ?? ""),
                       fraction: o / 100, color: o >= 95 ? Ink.onTrack : Ink.offTrack)
         } else { GaugeCard(label: "BLOOD OXYGEN", value: "—", unit: "", note: "No readings", fraction: 0, color: missing) }
-        // Steps against the floor
+        // Steps: red under the 7,000 floor, gold between floor and the 10,000 goal, green over the goal.
         if let steps = r.steps {
-            let floor = Condition.stepsFloor
-            GaugeCard(label: "STEPS", value: Int(steps).formatted(), unit: "", note: steps < floor ? "Floor is \(Int(floor).formatted())" : "Over the \(Int(floor).formatted()) floor",
-                      fraction: min(1, steps / floor), color: steps < floor ? Ink.offTrack : Ink.onTrack)
+            let floor = Condition.stepsFloor, goal = Condition.stepsGoal
+            GaugeCard(label: "STEPS", value: Int(steps).formatted(), unit: "",
+                      note: steps < floor ? "Under the \(Int(floor).formatted()) floor" : steps < goal ? "\(Int(goal - steps).formatted()) to the \(Int(goal).formatted()) goal" : "Over the \(Int(goal).formatted()) goal",
+                      fraction: min(1, steps / goal), color: steps < floor ? Ink.offTrack : steps < goal ? Ink.accent : Ink.onTrack)
         } else { GaugeCard(label: "STEPS", value: "—", unit: "", note: "No steps received", fraction: 0, color: missing) }
     }
 
@@ -227,7 +237,7 @@ struct HealthView: View {
             HStack {
                 CardTitle("The day on the wire")
                 Spacer()
-                HStack(spacing: 12) { legend("heart rate", Ink.accent, line: true); legend("stress", Color(hex: 0x5E8A78)); legend("asleep", Color(hex: 0x3A5A4E)) }
+                HStack(spacing: 12) { legend("heart rate", Ink.accent, line: true); legend("asleep", Color(hex: 0x3A5A4E)) }
             }
             if heart.isEmpty && stress.isEmpty {
                 Text("No heart-rate or stress readings for this day.").font(.bt(size: 12)).foregroundStyle(Ink.muted).frame(maxWidth: .infinity, minHeight: 240)
@@ -240,10 +250,6 @@ struct HealthView: View {
                                 Text(i == 0 ? "ASLEEP \(HealthReport.clock(minute(s.start)).uppercased()) – \(HealthReport.clock(minute(s.end)).uppercased())".replacingOccurrences(of: " AM –", with: " –").replacingOccurrences(of: " PM –", with: " –") : "NAP")
                                     .font(.bt(size: 9.5, design: .monospaced)).tracking(1.4).foregroundStyle(Color(hex: 0xB9D2C6)).padding(.top, 8).lineLimit(1).fixedSize()
                             }
-                    }
-                    ForEach(stress) { s in
-                        BarMark(x: .value("Hour", at(r.dayStart, Double(s.hour)), unit: .hour), yStart: .value("Base", 40), yEnd: .value("Stress", 40 + s.value * 0.6), width: .ratio(0.72))
-                            .foregroundStyle(Color(hex: 0x5E8A78).opacity(0.55)).cornerRadius(2)
                     }
                     ForEach(heart) { h in
                         LineMark(x: .value("Hour", at(r.dayStart, Double(h.hour) + 0.5)), y: .value("BPM", h.value), series: .value("Series", "heart"))
@@ -260,11 +266,36 @@ struct HealthView: View {
                     AxisValueLabel(anchor: .top) { if let d = v.as(Date.self) { Text(axisHour(d, r.dayStart)).font(.bt(size: 9.5, design: .monospaced)).foregroundStyle(Ink.muted) } }
                 } }
                 .chartYAxis { AxisMarks(position: .leading, values: [50, 70, 90]) { _ in AxisGridLine().foregroundStyle(Ink.ivory.opacity(0.06)); AxisValueLabel().font(.bt(size: 9.5, design: .monospaced)).foregroundStyle(Ink.muted) } }
-                .frame(height: 250)
+                .frame(height: 206)
+                stressBand(stress, r.dayStart)
             }
             Spacer(minLength: 0)
             sourcesLine(key)
         }.conditionCard()
+    }
+    /// Stress on its own 0–100 scale under the heart line: one bar per hour, coloured calm / medium / high.
+    private func stressBand(_ stress: [Hourly], _ dayStart: Double) -> some View {
+        func tone(_ v: Double) -> Color { v < 30 ? Color(hex: 0x5E8A78) : v < 50 ? Ink.watch : Ink.offTrack }
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 12) {
+                Text("STRESS · 0–100").font(.bt(size: 9.5, design: .monospaced)).tracking(1.4).foregroundStyle(Ink.muted)
+                Spacer()
+                legend("calm < 30", Color(hex: 0x5E8A78)); legend("medium", Ink.watch); legend("high 50+", Ink.offTrack)
+            }
+            if stress.isEmpty {
+                Text("No stress readings").font(.bt(size: 11)).foregroundStyle(Ink.muted).frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
+            } else {
+                Chart(stress) { s in
+                    BarMark(x: .value("Hour", at(dayStart, Double(s.hour)), unit: .hour), y: .value("Stress", s.value), width: .ratio(0.72))
+                        .foregroundStyle(tone(s.value).opacity(0.8)).cornerRadius(2)
+                }
+                .chartXScale(domain: at(dayStart, 0)...at(dayStart, 24))
+                .chartYScale(domain: 0...100)
+                .chartXAxis(.hidden)
+                .chartYAxis { AxisMarks(position: .leading, values: [50]) { _ in AxisGridLine().foregroundStyle(Ink.ivory.opacity(0.08)); AxisValueLabel().font(.bt(size: 9, design: .monospaced)).foregroundStyle(Ink.muted) } }
+                .frame(height: 56)
+            }
+        }
     }
     private func minute(_ t: Double) -> Int { let c = engine.calendar.dateComponents([.hour, .minute], from: Date(timeIntervalSince1970: t)); return (c.hour ?? 0) * 60 + (c.minute ?? 0) }
     private func axisHour(_ d: Date, _ dayStart: Double) -> String {
@@ -280,7 +311,9 @@ struct HealthView: View {
 
     private func sourcesLine(_ key: String) -> some View {
         let last = Condition.lastResting(archive, onOrBefore: store.today, engine: engine)
-        let restingStale = last.map { $0.day < engine.adding(-2, to: store.today) } ?? false
+        let restingStale = (last.map { $0.day < engine.adding(-2, to: store.today) } ?? false)
+            && Condition.restingFromSleep(archive, on: store.today, engine: engine) == nil
+            && Condition.restingFromSleep(archive, on: engine.adding(-1, to: store.today), engine: engine) == nil
         func chip(_ name: String, _ time: Double?) -> some View {
             let fresh = time.map { Date().timeIntervalSince1970 - $0 < 6 * 3600 } ?? false
             return HStack(spacing: 6) {
@@ -304,7 +337,7 @@ struct HealthView: View {
         let keys = (0..<7).reversed().map { engine.adding(-$0, to: key) }
         let asleep: [Double?] = keys.map { k in archive.sleepSessions(on: k, engine: engine).first.map { Double(Condition.signedMinute($0.start, calendar: engine.calendar)) } }
         let steps: [Double?] = keys.map { Condition.steps(archive, on: $0, engine: engine) }
-        let stress: [Double?] = keys.map { Condition.stress(archive, on: $0, engine: engine) }
+        let stress: [Double?] = keys.map { Condition.stress(archive, on: $0, engine: engine, eveningOnly: true) }
         let phone = phoneDevice
         let hours: [Double?] = keys.map { k in phone.flatMap { Condition.day($0, key: k, engine: engine)?.screenSeconds }.map { $0 / 3600 } }
         let workouts = keys.map { !archive.records(.workout, on: $0, engine: engine).isEmpty }
@@ -313,22 +346,29 @@ struct HealthView: View {
         let pattern = Condition.stepsPattern(days: keys.indices.map { (dateText(keys[$0], engine: engine, pattern: "d MMM"), steps[$0], workouts[$0]) })
         return VStack(alignment: .leading, spacing: 0) {
             HStack { CardTitle("Last 7 days"); Spacer(); Text("\(first) – \(last) · automatic").font(.bt(size: 11)).foregroundStyle(Ink.muted) }.padding(.bottom, 8)
-            row("Asleep at", DotSpark(values: asleep, good: { $0 <= Double(Condition.asleepBy) }, inverted: true),
+            row("Asleep at", "by 1 am", DotSpark(values: asleep, good: { $0 <= Double(Condition.asleepBy) }, inverted: true, line: Double(Condition.asleepBy)),
                 avg(asleep).map { "avg \(HealthReport.clock((Int($0.rounded()) + 1440) % 1440))" }, bad: avg(asleep).map { $0 > Double(Condition.asleepBy) } ?? false)
-            row("Steps", DotSpark(values: steps, good: { $0 >= Condition.stepsFloor }), avg(steps).map { "avg \(Int($0.rounded()).formatted())" }, bad: avg(steps).map { $0 < Condition.stepsFloor } ?? false)
-            row("Stress", DotSpark(values: stress, good: { $0 < 30 }, inverted: true), avg(stress).map { "avg \(Int($0.rounded()))" }, bad: avg(stress).map { $0 >= 50 } ?? false)
-            row("Phone", DotSpark(values: hours, good: { $0 < 6 }, inverted: true), avg(hours).map { "avg \(shortDuration($0 * 60))" }, bad: false)
-            row("Workouts", HStack(spacing: 0) {
+            row("Steps", "floor 7k", DotSpark(values: steps, good: { $0 >= Condition.stepsFloor }, line: Condition.stepsFloor),
+                avg(steps).map { "avg \(Int($0.rounded()).formatted())" }, bad: avg(steps).map { $0 < Condition.stepsFloor } ?? false)
+            row("Eve. stress", "after 6 pm · < 28", DotSpark(values: stress, good: { $0 < Condition.stressLine }, inverted: true, line: Condition.stressLine),
+                avg(stress).map { "avg \(Int($0.rounded()))" }, bad: avg(stress).map { $0 >= Condition.stressLine } ?? false)
+            row("Phone", "under 6 h", DotSpark(values: hours, good: { $0 < Condition.phoneHoursLine }, inverted: true, line: Condition.phoneHoursLine),
+                avg(hours).map { "avg \(shortDuration($0 * 60))" }, bad: avg(hours).map { $0 >= Condition.phoneHoursLine } ?? false)
+            row("Workouts", "gym days", HStack(spacing: 0) {
                 ForEach(workouts.indices, id: \.self) { i in
                     Circle().fill(workouts[i] ? Ink.accent : Color.clear).overlay(Circle().stroke(workouts[i] ? Color.clear : Ink.ivory.opacity(0.25))).frame(width: 10, height: 10).frame(maxWidth: .infinity)
                 }
-            }.frame(height: 34), "\(workouts.filter { $0 }.count) this week", bad: false, divider: false)
-            if let pattern { PatternBox(text: pattern).padding(.top, 14) }
+            }.frame(height: 34), "\(workouts.filter { $0 }.count) in 7 days", bad: false, divider: false)
+            Text("Dashed line = your line · green dot inside it, red dot past it").font(.bt(size: 10.5)).foregroundStyle(Ink.muted).padding(.top, 6)
+            if let pattern { PatternBox(text: pattern).padding(.top, 12) }
         }.conditionCard()
     }
-    private func row<V: View>(_ title: String, _ spark: V, _ average: String?, bad: Bool, divider: Bool = true) -> some View {
+    private func row<V: View>(_ title: String, _ target: String, _ spark: V, _ average: String?, bad: Bool, divider: Bool = true) -> some View {
         HStack(spacing: 12) {
-            Text(title).font(.bt(size: 13)).foregroundStyle(Ink.ivory).frame(width: 110, alignment: .leading)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title).font(.bt(size: 13)).foregroundStyle(Ink.ivory)
+                Text(target).font(.bt(size: 10, design: .monospaced)).foregroundStyle(Ink.muted)
+            }.frame(width: 110, alignment: .leading)
             spark.frame(maxWidth: .infinity)
             Text(average ?? "—").font(.bt(size: 11, design: .monospaced)).foregroundStyle(bad ? Ink.offTrack : Ink.ivory.opacity(0.85)).frame(width: 96, alignment: .trailing)
         }.padding(.vertical, 9).overlay(alignment: .bottom) { if divider { Line() } }

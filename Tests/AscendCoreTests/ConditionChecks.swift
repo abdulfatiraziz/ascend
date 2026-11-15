@@ -12,6 +12,16 @@ func runConditionChecks() -> (count: Int, failures: Int) {
     }
     let engine = TrackerEngine(document: TrackerDocument.seeded(today: "2026-11-15"))
 
+    check("Resting HR from sleep: lowest 30-minute average while asleep, needs 3 readings") {
+        let t0 = 1_000_000.0
+        // 5-minute readings: 60 bpm, then a calm 50 stretch, one 40 spike-down alone is not enough.
+        var pts: [(time: Double, value: Double)] = (0..<12).map { (t0 + Double($0) * 300, 60) }
+        pts += (12..<18).map { (t0 + Double($0) * 300, 50) }
+        pts += [(t0 + 30 * 300, 40)]
+        try expect(Condition.restingFromSleep(pts, from: t0, to: t0 + 18 * 300) == 50, "calm stretch wins; outside the night ignored")
+        try expect(Condition.restingFromSleep(Array(pts.prefix(2)), from: t0, to: t0 + 600) == nil, "too thin")
+    }
+
     check("Style & people: no family calls, grooming repeats every 3 weeks, meet-ups and dates fill from planned days") {
         let d = Missions.defaults.first { $0.id == "D" }!
         try expect(d.title == "Style & people" && !d.targets.contains { $0.id == "d.family" }, "family calls removed, name kept")
