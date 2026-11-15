@@ -326,8 +326,12 @@ public enum TrainingProgression {
       return last == nil ? "Start with \(e.minReps)–\(e.maxReps) s holds" : "+5 s when comfortable"
     }
     guard let last, !last.sets.isEmpty else {
-      return
-        "Start at \(String(format:"%.2f",e.startingWeight)) kg · \(e.minReps)–\(e.maxReps) reps"
+      guard e.startingWeight > 0 else {
+        return "First time: pick a weight you can do for \(e.minReps) clean reps"
+      }
+      let kg = e.startingWeight == e.startingWeight.rounded()
+        ? String(Int(e.startingWeight)) : String(format: "%g", e.startingWeight)
+      return "Start at \(kg) kg\(e.assisted ? " assist" : "") · \(e.minReps)–\(e.maxReps) reps"
     }
     guard last.sets.count >= e.sets, last.sets.allSatisfy({ $0.reps >= e.maxReps }) else {
       return "+1 rep next time, within your range"
