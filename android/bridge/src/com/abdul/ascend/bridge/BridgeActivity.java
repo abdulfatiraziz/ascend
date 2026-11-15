@@ -50,7 +50,7 @@ public final class BridgeActivity extends Activity {
     static String subLabel(Screen s) { return s == Screen.SCREEN_TIME ? "Screen time" : s.name().charAt(0) + s.name().substring(1).toLowerCase(Locale.ROOT); }
     static final String LOCAL_NETWORK = "android.permission.ACCESS_LOCAL_NETWORK";
     static final int REQ_HEALTH = 7, REQ_NETWORK = 8, REQ_CAMERA = 11, REQ_PICK = 12, REQ_NOTIFY = 13, REQ_BACKGROUND = 14, REQ_LOCATION = 15, REQ_BACKGROUND_LOCATION = 16, REQ_SPOT_FINE = 17;
-    static final String VERSION = "0.9.9";
+    static final String VERSION = "0.9.10";
 
     SyncEngine engine;
     Ui ui;
@@ -943,9 +943,8 @@ public final class BridgeActivity extends Activity {
             if (!d.isEmpty()) f.addView(ui.small(d));
             col.addView(f);
         }
-        // Phone-only: the one-tap logs. Weight, steps, sleep and screen time arrive on their own.
+        // Phone-only: the one-tap logs. Weight, steps, sleep and screen time arrive on their own; urges come from spot visits (Field log › Urges).
         col.addView(ui.grid(8,
-            logTile("ic_urge", "Urge", false, v -> logUrge(null)),
             logTile("ic_meal", "Meal", false, v -> { photoMode = "meal"; takePhoto(); }),
             logTile("ic_pill", "Meds", false, v -> show(Screen.MEDS)),
             logTile("ic_dumbbell", "Workout", false, v -> show(Screen.BODY))));
