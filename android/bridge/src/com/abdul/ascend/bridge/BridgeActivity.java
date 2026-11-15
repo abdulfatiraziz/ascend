@@ -348,8 +348,6 @@ public final class BridgeActivity extends Activity {
     }
 
     // MARK: Avatar and habits
-    String habitFilter = "remaining";
-    String goalFilter;
     /** The Mac's avatar card, compact: portrait, today's percentage against the target, and the three forms. */
     View avatarCard(JSONObject t) {
         LinearLayout card = ui.card(0);
@@ -393,46 +391,6 @@ public final class BridgeActivity extends Activity {
         info.addView(ui.small(nextForm == null ? "Final form reached this cycle." : nextForm + " at " + (nextForm.equals("Titanium") ? 50 : 100) + "% · you’re at " + Math.round(evolution * 100) + "%"));
         row.addView(info, new LinearLayout.LayoutParams(0, Ui.WRAP, 1));
         card.addView(row);
-        return card;
-    }
-    /** Today's habits from the Mac, ticked here and sent like doses. */
-    View habitsCard(JSONObject t) {
-        LinearLayout card = ui.card(10);
-        LinearLayout head = ui.row(8);
-        head.addView(ui.text("Today’s habits", 15, Ui.TEXT, 600), new LinearLayout.LayoutParams(0, Ui.WRAP, 1));
-        for (String f : new String[]{"remaining", "all"}) {
-            Button chip = ui.chip(f.equals("remaining") ? "Remaining" : "All", habitFilter.equals(f), v -> { habitFilter = f; render(); });
-            head.addView(chip, new LinearLayout.LayoutParams(Ui.WRAP, ui.dp(32)));
-        }
-        card.addView(head);
-        if (t.optBoolean("rest")) { card.addView(ui.small("Rest day. Resume it on the Mac to log recurring habits.")); return card; }
-        JSONArray goals = t.optJSONArray("goals");
-        if (goals != null && goals.length() > 1) {
-            HorizontalScrollView scroll = new HorizontalScrollView(this); scroll.setHorizontalScrollBarEnabled(false);
-            LinearLayout strip = ui.row(8);
-            for (int i = 0; i < goals.length(); i++) {
-                JSONObject g = goals.optJSONObject(i);
-                String title = g.optString("title");
-                boolean on = title.equals(goalFilter);
-                strip.addView(ui.chip(title + "  " + g.optInt("done") + "/" + g.optInt("due"), on, v -> { goalFilter = on ? null : title; render(); }), new LinearLayout.LayoutParams(Ui.WRAP, ui.dp(34)));
-            }
-            scroll.addView(strip);
-            card.addView(scroll);
-        }
-        JSONArray habits = t.optJSONArray("habits");
-        String period = null;
-        int shown = 0;
-        for (int i = 0; habits != null && i < habits.length(); i++) {
-            JSONObject h = habits.optJSONObject(i);
-            if (h == null || (habitFilter.equals("remaining") && h.optBoolean("done")) || (goalFilter != null && !goalFilter.equals(h.optString("goal")))) continue;
-            if (!h.optString("period").equals(period)) {
-                period = h.optString("period");
-                TextView p = ui.kicker(period); p.setPadding(0, ui.dp(shown == 0 ? 2 : 10), 0, 0); card.addView(p);
-            }
-            card.addView(habitRow(h, t.optString("day")));
-            shown++;
-        }
-        if (shown == 0) card.addView(ui.small(habitFilter.equals("remaining") ? "All done for now. Nice work." : "Nothing scheduled here today."));
         return card;
     }
     View habitRow(JSONObject h, String day) {
@@ -823,7 +781,7 @@ public final class BridgeActivity extends Activity {
         JSONObject t = engine.today();
         return LocalDate.now().toString().equals(t.optString("day")) ? t : new JSONObject();
     }
-    /** Brief › Today: the Mac's Today on the phone. Your taps, what's next, and the quick logs. */
+    /** Brief › Today, laid out like the Mac's Today: the lede, your taps, what Ascend tracks itself, then the missions. */
     View today() {
         ViewGroup[] holder = new ViewGroup[1];
         LinearLayout col = page(holder, true);
@@ -839,46 +797,159 @@ public final class BridgeActivity extends Activity {
             if (!d.isEmpty()) f.addView(ui.small(d));
             col.addView(f);
         }
-        JSONObject now = t.optJSONObject("now");
-        if (now != null) col.addView(nowCard(now));
-        // Only what needs a hand: weight, steps, sleep and screen time arrive on their own.
+        // Phone-only: the one-tap logs. Weight, steps, sleep and screen time arrive on their own.
         col.addView(ui.grid(8,
             logTile("ic_urge", "Urge", false, v -> logUrge(null)),
             logTile("ic_meal", "Meal", false, v -> { photoMode = "meal"; takePhoto(); }),
             logTile("ic_pill", "Meds", false, v -> show(Screen.MEDS)),
             logTile("ic_dumbbell", "Workout", false, v -> show(Screen.BODY))));
-        if (t.length() > 0) {
-            double kcal = t.optDouble("kcal", 0), limit = t.optDouble("kcalLimit", Double.NaN), protein = t.optDouble("protein", 0), goal = t.optDouble("proteinGoal", Double.NaN);
-            double steps = t.optDouble("steps", Double.NaN), stepGoal = t.optDouble("stepGoal", Double.NaN);
-            col.addView(ui.grid(8,
-                miniStat("kcal", fmt(kcal), Double.isNaN(limit) ? "" : "/" + fmt(limit), !Double.isNaN(limit) && kcal > limit),
-                miniStat("protein", fmt(protein) + " g", Double.isNaN(goal) ? "" : "/" + fmt(goal), false),
-                miniStat("steps", Double.isNaN(steps) ? "—" : steps >= 1000 ? String.format(Locale.US, "%.1fk", steps / 1000) : fmt(steps),
-                    Double.isNaN(stepGoal) ? "" : "/" + (stepGoal >= 1000 ? fmt(stepGoal / 1000) + "k" : fmt(stepGoal)), false)));
-        }
-        JSONObject next = nextDose();
-        if (next != null) col.addView(nextDoseCard(next));
-        if (t.has("habits")) col.addView(habitsCard(t));
-        col.addView(timeline());
+        if (t.length() > 0) col.addView(foodCard(t, b == null ? null : b.optJSONObject("food")));
+        col.addView(tapsCard(t));
+        if (b != null && b.optJSONArray("tracking") != null) col.addView(trackingCard(b));
+        if (b != null && b.optJSONArray("missions") != null) col.addView(missionStrip(b.optJSONArray("missions")));
         int waiting = engine.waiting();
         TextView w = ui.small(waiting == 0 ? "Nothing waiting to send" : waiting + (waiting == 1 ? " item" : " items") + " waiting · sent on the next sync");
         w.setGravity(Gravity.CENTER); col.addView(w);
         askNotificationsOnce();
         return holder[0];
     }
-    View nowCard(JSONObject now) {
-        LinearLayout card = ui.card(6);
-        card.setBackground(ui.round(Ui.PANEL2, 18, 0x59D9B46E, 1));
-        TextView k = ui.kicker(now.optString("kicker")); k.setTextColor(Ui.ACCENT); card.addView(ui.oneLine(k));
-        card.addView(ui.text(now.optString("title"), 16, Ui.TEXT, 600));
-        String d = now.optString("detail");
-        if (!d.isEmpty()) card.addView(ui.small(d));
-        if ("meal".equals(now.optString("kind"))) {
-            LinearLayout row = ui.row(8); row.setPadding(0, ui.dp(4), 0, 0);
-            row.addView(ui.pill("Photo it", v -> { photoMode = "meal"; takePhoto(); }), new LinearLayout.LayoutParams(Ui.WRAP, ui.dp(40)));
+    /** What you ate today: calories against the limit, then protein, carbs and fat, then each meal. Confirmed meals only count. */
+    View foodCard(JSONObject t, JSONObject food) {
+        double kcal = food != null ? food.optDouble("kcal", 0) : t.optDouble("kcal", 0);
+        double protein = food != null ? food.optDouble("protein", 0) : t.optDouble("protein", 0);
+        double limit = food != null ? food.optDouble("kcalLimit", Double.NaN) : t.optDouble("kcalLimit", Double.NaN);
+        double goal = food != null ? food.optDouble("proteinGoal", Double.NaN) : t.optDouble("proteinGoal", Double.NaN);
+        LinearLayout card = ui.card(10);
+        LinearLayout head = ui.row(8); head.setGravity(Gravity.BOTTOM);
+        TextView k = ui.kicker("Eaten today"); k.setTextColor(Ui.ACCENT);
+        head.addView(k, new LinearLayout.LayoutParams(0, Ui.WRAP, 1));
+        boolean over = !Double.isNaN(limit) && kcal > limit;
+        if (!Double.isNaN(limit)) head.addView(ui.mono(over ? fmt(kcal - limit) + " over" : fmt(limit - kcal) + " left", 12, over ? Ui.ORANGE : Ui.MUTED));
+        card.addView(head);
+        LinearLayout v = ui.row(6); v.setGravity(Gravity.BOTTOM);
+        TextView big = serif(fmt(kcal), 34); if (over) big.setTextColor(Ui.ORANGE); v.addView(big);
+        v.addView(ui.text(Double.isNaN(limit) ? "kcal" : "/ " + fmt(limit) + " kcal", 13, Ui.MUTED, 500));
+        card.addView(v);
+        if (!Double.isNaN(limit)) card.addView(ui.bar(kcal / limit, over ? Ui.ORANGE : Ui.ACCENT));
+        boolean macros = food != null;
+        card.addView(ui.grid(8,
+            macro("Protein", protein, Double.isNaN(goal) ? "" : "/" + fmt(goal), Double.isNaN(goal) ? Double.NaN : protein / goal),
+            macro("Carbs", macros ? food.optDouble("carbs", 0) : Double.NaN, "", Double.NaN),
+            macro("Fat", macros ? food.optDouble("fat", 0) : Double.NaN, "", Double.NaN)));
+        JSONArray meals = food == null ? null : food.optJSONArray("meals");
+        if (meals != null && meals.length() > 0) {
+            card.addView(ui.divider());
+            for (int i = 0; i < meals.length(); i++) {
+                JSONObject m = meals.optJSONObject(i);
+                LinearLayout row = ui.row(10); row.setGravity(Gravity.CENTER_VERTICAL); ui.pad(row, 0, 4, 0, 4);
+                row.addView(ui.mono(m.optString("time"), 11, Ui.MUTED), new LinearLayout.LayoutParams(ui.dp(62), Ui.WRAP));
+                row.addView(ui.oneLine(ui.text(m.optString("title"), 14, Ui.TEXT, 500)), new LinearLayout.LayoutParams(0, Ui.WRAP, 1));
+                row.addView(m.optBoolean("confirmed")
+                    ? ui.mono(fmt(m.optDouble("kcal")) + " kcal · " + fmt(m.optDouble("protein")) + "P " + fmt(m.optDouble("carbs")) + "C " + fmt(m.optDouble("fat")) + "F", 11, Ui.MUTED)
+                    : ui.mono("ESTIMATING", 10, Ui.ORANGE));
+                card.addView(row);
+            }
+        } else card.addView(ui.small(food == null ? "Sync to see carbs, fat and each meal." : "No meals logged yet. Tap Meal above to photo one."));
+        int pending = food == null ? 0 : food.optInt("pending");
+        if (pending > 0) card.addView(ui.small(pending + (pending == 1 ? " meal" : " meals") + " still estimating on the Mac · not counted yet"));
+        card.setOnClickListener(Ui.tap(x -> show(Screen.MEALS)));
+        return card;
+    }
+    View macro(String label, double grams, String of, double fraction) {
+        LinearLayout c = ui.column(4); c.setBackground(ui.round(Ui.PANEL2, 14, 0, 0)); ui.pad(c, 12, 10, 12, 10);
+        c.addView(ui.kicker(label));
+        LinearLayout v = ui.row(3); v.setGravity(Gravity.BOTTOM);
+        v.addView(ui.text(Double.isNaN(grams) ? "—" : fmt(grams) + " g", 16, Ui.TEXT, 700));
+        if (!of.isEmpty()) v.addView(ui.oneLine(ui.text(of, 11, Ui.MUTED, 500)));
+        c.addView(v);
+        if (!Double.isNaN(fraction)) c.addView(ui.bar(fraction, fraction >= 1 ? Ui.GREEN : Ui.ACCENT));
+        return c;
+    }
+    /** The Mac's "Your taps": doses still due, then the check-ins only you can answer. */
+    View tapsCard(JSONObject t) {
+        LinearLayout card = ui.card(10);
+        int left = 0;
+        for (JSONObject d : dosesToday()) if (!ReminderReceiver.taken(this, d)) left++;
+        JSONArray habits = t.optJSONArray("habits");
+        for (int i = 0; habits != null && i < habits.length(); i++) { JSONObject h = habits.optJSONObject(i); if (h != null && !h.optBoolean("auto") && !h.optBoolean("done")) left++; }
+        LinearLayout head = ui.row(8); head.setGravity(Gravity.CENTER_VERTICAL);
+        TextView k = ui.kicker("Your taps"); k.setTextColor(Ui.ACCENT);
+        head.addView(k, new LinearLayout.LayoutParams(0, Ui.WRAP, 1));
+        head.addView(ui.text(left == 0 ? "All done" : left + " left today", 12, left == 0 ? Ui.GREEN : Ui.MUTED, 500));
+        card.addView(head);
+        if (t.optBoolean("rest")) card.addView(ui.small("Rest day · check-ins kept, not scored"));
+        JSONObject next = nextDose();
+        if (next != null) card.addView(nextDoseCard(next));
+        String period = null; int shown = 0;
+        for (int i = 0; habits != null && i < habits.length(); i++) {
+            JSONObject h = habits.optJSONObject(i);
+            if (h == null || h.optBoolean("auto")) continue;
+            if (!h.optString("period").equals(period)) {
+                period = h.optString("period");
+                TextView p = ui.kicker(period); p.setPadding(0, ui.dp(shown == 0 ? 2 : 10), 0, 0); card.addView(p);
+            }
+            card.addView(habitRow(h, t.optString("day")));
+            shown++;
+        }
+        if (shown == 0 && next == null) card.addView(ui.small("Nothing to tap right now."));
+        return card;
+    }
+    /** The Mac's "Ascend is tracking": filled by the watch, the phone and your meals. Nothing to tap. */
+    View trackingCard(JSONObject b) {
+        LinearLayout card = ui.card(0);
+        LinearLayout head = ui.row(8); head.setGravity(Gravity.CENTER_VERTICAL); ui.pad(head, 0, 0, 0, 6);
+        TextView k = ui.kicker("Ascend is tracking"); k.setTextColor(Ui.ACCENT);
+        head.addView(k, new LinearLayout.LayoutParams(0, Ui.WRAP, 1));
+        head.addView(ui.text("Nothing to tap here", 12, Ui.MUTED, 500));
+        card.addView(head);
+        JSONArray lines = b.optJSONArray("tracking");
+        for (int i = 0; i < lines.length(); i++) {
+            JSONObject l = lines.optJSONObject(i);
+            if (i > 0) card.addView(ui.divider());
+            String st = l.optString("state");
+            int color = st.equals("done") ? Ui.GREEN : st.equals("missed") ? Ui.RED : st.equals("going") ? Ui.ACCENT : Ui.FAINT;
+            LinearLayout row = ui.row(12); row.setGravity(Gravity.CENTER_VERTICAL); ui.pad(row, 0, 10, 0, 10);
+            View dot = new View(this); dot.setBackground(st.equals("waiting") ? ui.round(0, 5, color, 1.5f) : ui.round(color, 5, 0, 0));
+            row.addView(dot, new LinearLayout.LayoutParams(ui.dp(10), ui.dp(10)));
+            LinearLayout text = ui.column(3);
+            LinearLayout top = ui.row(8);
+            top.addView(ui.oneLine(ui.text(l.optString("title"), 15, Ui.TEXT, 500)), new LinearLayout.LayoutParams(0, Ui.WRAP, 1));
+            top.addView(ui.mono(l.optString("value"), 12, st.equals("missed") ? Ui.RED : Ui.SOFT));
+            text.addView(top);
+            if (l.has("ratio") && !l.isNull("ratio")) text.addView(ui.bar(l.optDouble("ratio"), color));
+            if (l.has("note") && !l.isNull("note") && !l.optString("note").isEmpty()) text.addView(ui.small(l.optString("note")));
+            row.addView(text, new LinearLayout.LayoutParams(0, Ui.WRAP, 1));
+            if (l.optString("title").equals("Urges")) row.setOnClickListener(Ui.tap(x -> show(Screen.URGES)));
+            card.addView(row);
+        }
+        JSONObject s = b.optJSONObject("score");
+        if (s != null) {
+            card.addView(ui.divider());
+            LinearLayout row = ui.row(10); row.setGravity(Gravity.CENTER_VERTICAL); ui.pad(row, 0, 12, 0, 0);
+            row.addView(serif(s.optInt("completed") + " / " + s.optInt("scheduled"), 24));
+            row.addView(ui.small(s.optString("line")), new LinearLayout.LayoutParams(0, Ui.WRAP, 1));
             card.addView(row);
         }
         return card;
+    }
+    /** The Mac's mission strip under Today; tap to open Goals. */
+    View missionStrip(JSONArray ms) {
+        HorizontalScrollView scroll = new HorizontalScrollView(this); scroll.setHorizontalScrollBarEnabled(false);
+        LinearLayout strip = ui.row(8);
+        for (int i = 0; i < ms.length(); i++) {
+            JSONObject m = ms.optJSONObject(i);
+            LinearLayout chip = ui.column(6); chip.setBackground(ui.round(Ui.PANEL, 14, Ui.LINE, 1)); ui.pad(chip, 12, 10, 12, 10);
+            LinearLayout top = ui.row(8); top.setGravity(Gravity.CENTER_VERTICAL);
+            TextView letter = serif(m.optString("id"), 20); letter.setTextColor(Ui.ACCENT_TEXT); top.addView(letter);
+            top.addView(ui.oneLine(ui.text(m.optString("title"), 13, Ui.TEXT, 500)), new LinearLayout.LayoutParams(0, Ui.WRAP, 1));
+            top.addView(ui.mono(Math.round(m.optDouble("progress") * 100) + "%", 11, Ui.MUTED));
+            chip.addView(top);
+            chip.addView(ui.bar(Math.max(0.01, m.optDouble("progress")), m.optString("status").equals("On plan") ? Ui.GREEN : Ui.ACCENT));
+            chip.setOnClickListener(Ui.tap(x -> show(Screen.GOALS)));
+            strip.addView(chip, new LinearLayout.LayoutParams(ui.dp(176), Ui.WRAP));
+        }
+        scroll.addView(strip);
+        return scroll;
     }
     View logTile(String icon, String label, boolean hot, View.OnClickListener l) {
         LinearLayout tile = ui.column(6); tile.setGravity(Gravity.CENTER);
@@ -890,15 +961,6 @@ public final class BridgeActivity extends Activity {
         tile.setOnClickListener(Ui.tap(l));
         return tile;
     }
-    View miniStat(String label, String value, String of, boolean over) {
-        LinearLayout c = ui.column(4); c.setBackground(ui.round(Ui.PANEL, 14, Ui.LINE, 1)); ui.pad(c, 12, 10, 12, 10);
-        c.addView(ui.kicker(label));
-        LinearLayout v = ui.row(2); v.setGravity(Gravity.BOTTOM);
-        v.addView(ui.text(value, 15, over ? Ui.ORANGE : Ui.TEXT, 700));
-        if (!of.isEmpty()) v.addView(ui.oneLine(ui.text(of, 11, Ui.MUTED, 500)));
-        c.addView(v);
-        return c;
-    }
     JSONArray logHistory() { try { return new JSONArray(prefs.getString("logHistory", "[]")); } catch (JSONException e) { return new JSONArray(); } }
     void addHistory(String label, String tag) {
         try {
@@ -906,25 +968,6 @@ public final class BridgeActivity extends Activity {
             for (int i = 0; i < Math.min(old.length(), 79); i++) next.put(old.get(i));
             prefs.edit().putString("logHistory", next.toString()).apply();
         } catch (JSONException ignored) {}
-    }
-    View timeline() {
-        LinearLayout card = ui.card(0);
-        card.addView(ui.kicker("Logged on this phone today"));
-        JSONArray h = logHistory();
-        LocalDate today = LocalDate.now();
-        int shown = 0;
-        for (int i = 0; i < h.length() && shown < 12; i++) {
-            JSONObject e = h.optJSONObject(i);
-            if (e == null || !Instant.ofEpochMilli(e.optLong("at")).atZone(ZoneId.systemDefault()).toLocalDate().equals(today)) continue;
-            LinearLayout row = ui.row(10); ui.pad(row, 0, 10, 0, 0);
-            row.addView(ui.mono(clock12(e.optLong("at")), 12, Ui.MUTED), new LinearLayout.LayoutParams(ui.dp(66), Ui.WRAP));
-            row.addView(ui.oneLine(ui.text(e.optString("label"), 14, Ui.TEXT, 400)), new LinearLayout.LayoutParams(0, Ui.WRAP, 1));
-            String tag = e.optString("tag");
-            if (!tag.isEmpty()) { TextView tg = ui.mono(tag, 11, Ui.MUTED); tg.setBackground(ui.round(Ui.PANEL2, 6, 0, 0)); ui.pad(tg, 6, 3, 6, 3); row.addView(tg); }
-            card.addView(row); shown++;
-        }
-        if (shown == 0) { TextView s = ui.small("Nothing yet. Tap a tile above; each log takes one tap."); s.setPadding(0, ui.dp(8), 0, 0); card.addView(s); }
-        return card;
     }
     static void writeJSON(File file, JSONObject json) throws IOException { try (OutputStream out = new FileOutputStream(file)) { out.write(SyncEngine.bytes(json)); } }
 

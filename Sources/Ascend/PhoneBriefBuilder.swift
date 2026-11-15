@@ -87,6 +87,30 @@ extension TrackerStore {
                 PhoneDossierItem(title: $0.title, detail: $0.detail, tag: $0.tag, placeholder: $0.placeholder, progress: $0.progress)
             })
         }
+        // Brief › Today: the Mac's "Ascend is tracking" card, the score under it, and what was eaten.
+        b.tracking = TodayGlanceCard.lines(store: self, day: today).map { l in
+            let state: String
+            switch l.state { case .done: state = "done"; case .going: state = "going"; case .waiting: state = "waiting"; case .missed: state = "missed" }
+            return PhoneGlance(title: l.title, state: state, value: l.value, note: l.note, ratio: l.ratio.map { min(1, max(0, $0)) })
+        }
+        let score = engine.score(on: today), target = document.cycle.target
+        let left = score.remaining(target: target)
+        b.score = PhoneScore(completed: score.completed, scheduled: score.scheduled,
+                             line: score.scheduled == 0 ? "nothing scheduled" : "done today · \(Int(target * 100))% is the mission · " + (left > 0 ? "\(left) to go" : "hit"))
+        let totals = document.meals.totals(today), mealHabits = document.mealHabits
+        let cal = engine.calendar
+        b.food = PhoneFood(kcal: totals.kcal, protein: totals.protein, carbs: totals.carbs, fat: totals.fat,
+                           kcalLimit: mealHabits.calories.flatMap { engine.target(for: $0, on: today)?.maximum },
+                           proteinGoal: mealHabits.protein.flatMap { engine.target(for: $0, on: today)?.minimum },
+                           pending: totals.pending,
+                           meals: document.meals.on(today).map { m in
+                               let at = Date(timeIntervalSince1970: m.takenAt)
+                               let v = m.values
+                               let name = m.estimate?.name ?? ""
+                               return PhoneMealLine(time: HealthReport.clock(cal.component(.hour, from: at) * 60 + cal.component(.minute, from: at)),
+                                                    title: !name.isEmpty ? name : (m.note.isEmpty ? "Meal" : m.note),
+                                                    kcal: v.kcal, protein: v.protein, carbs: v.carbs, fat: v.fat, confirmed: m.confirmed)
+                           })
         return b
     }
 }

@@ -28,6 +28,10 @@ public struct PhoneBrief: Codable, Equatable, Sendable {
     public var clearance: PhoneClearance?
     public var memo: PhoneMemo?
     public var sections: [PhoneDossierSection] = []
+    /// Brief › Today, as the Mac shows it: what Ascend tracks by itself, the day's score and what was eaten.
+    public var tracking: [PhoneGlance]? = nil
+    public var score: PhoneScore? = nil
+    public var food: PhoneFood? = nil
     public init() {}
 }
 public struct PhoneMission: Codable, Equatable, Sendable {
@@ -91,5 +95,33 @@ extension PhoneNote {
         guard text.count > max else { return text }
         let cut = text.prefix(max)
         return (cut.lastIndex(of: " ").map { String(cut[..<$0]) } ?? String(cut)) + "…"
+    }
+}
+
+/// One line of the Mac's "Ascend is tracking" card. state: done, going, waiting or missed.
+public struct PhoneGlance: Codable, Equatable, Sendable {
+    public var title: String, state: String, value: String, note: String?, ratio: Double?
+    public init(title: String, state: String, value: String, note: String?, ratio: Double?) {
+        self.title = title; self.state = state; self.value = value; self.note = note; self.ratio = ratio
+    }
+}
+public struct PhoneScore: Codable, Equatable, Sendable {
+    public var completed: Int, scheduled: Int, line: String
+    public init(completed: Int, scheduled: Int, line: String) { self.completed = completed; self.scheduled = scheduled; self.line = line }
+}
+/// The day's eaten totals (confirmed meals only) and each meal logged.
+public struct PhoneFood: Codable, Equatable, Sendable {
+    public var kcal: Double, protein: Double, carbs: Double, fat: Double
+    public var kcalLimit: Double?, proteinGoal: Double?
+    public var pending: Int
+    public var meals: [PhoneMealLine]
+    public init(kcal: Double, protein: Double, carbs: Double, fat: Double, kcalLimit: Double?, proteinGoal: Double?, pending: Int, meals: [PhoneMealLine]) {
+        self.kcal = kcal; self.protein = protein; self.carbs = carbs; self.fat = fat; self.kcalLimit = kcalLimit; self.proteinGoal = proteinGoal; self.pending = pending; self.meals = meals
+    }
+}
+public struct PhoneMealLine: Codable, Equatable, Sendable {
+    public var time: String, title: String, kcal: Double, protein: Double, carbs: Double, fat: Double, confirmed: Bool
+    public init(time: String, title: String, kcal: Double, protein: Double, carbs: Double, fat: Double, confirmed: Bool) {
+        self.time = time; self.title = title; self.kcal = kcal; self.protein = protein; self.carbs = carbs; self.fat = fat; self.confirmed = confirmed
     }
 }
