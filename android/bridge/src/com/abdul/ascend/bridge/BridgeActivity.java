@@ -50,7 +50,7 @@ public final class BridgeActivity extends Activity {
     static String subLabel(Screen s) { return s == Screen.SCREEN_TIME ? "Screen time" : s.name().charAt(0) + s.name().substring(1).toLowerCase(Locale.ROOT); }
     static final String LOCAL_NETWORK = "android.permission.ACCESS_LOCAL_NETWORK";
     static final int REQ_HEALTH = 7, REQ_NETWORK = 8, REQ_CAMERA = 11, REQ_PICK = 12, REQ_NOTIFY = 13, REQ_BACKGROUND = 14, REQ_LOCATION = 15, REQ_BACKGROUND_LOCATION = 16, REQ_SPOT_FINE = 17;
-    static final String VERSION = "0.9.7";
+    static final String VERSION = "0.9.8";
 
     SyncEngine engine;
     Ui ui;
@@ -105,21 +105,34 @@ public final class BridgeActivity extends Activity {
         SyncJob.schedule(this, background && engine.backgroundAllowed());
         SpotReceiver.register(this);
         render();
-        if (prefs.getBoolean("eyesOnly", false)) sealEyes();
+        setRecentsScreenshotEnabled(!lockOnLeave());
+        if (prefs.getBoolean("eyesOnly", false)) sealEyes(false);
         if ("com.abdul.ascend.bridge.EXERCISE_DEMOS".equals(getIntent().getAction())) openExerciseDemos();
     }
 
     // MARK: Eyes only
     EyesOnlyView eyes;
+    /** True while the app itself opened the camera, photo picker or a Settings page, so coming back doesn't lock. */
+    boolean ownTrip;
+    boolean lockOnLeave() { return prefs.getBoolean("eyesLockOnLeave", true); }
+    @Override public void startActivityForResult(Intent intent, int request, Bundle options) { ownTrip = true; super.startActivityForResult(intent, request, options); }
+    @Override protected void onStart() { super.onStart(); ownTrip = false; }
+    /** Leaving the app (home, switching apps, screen off) seals it, so it always opens on the vault. */
+    @Override protected void onStop() {
+        super.onStop();
+        if (!isChangingConfigurations() && !ownTrip && lockOnLeave()) sealEyes(false);
+    }
     /** Seals the app behind the vault, as on the Mac. It stays sealed after the app closes, until the fingerprint or PIN opens it. */
-    void sealEyes() {
+    void sealEyes() { sealEyes(true); }
+    /** animated: the iris closes on screen; otherwise the vault is simply there (leaving the app, opening it sealed). */
+    void sealEyes(boolean animated) {
         if (eyes != null) return;
         prefs.edit().putBoolean("eyesOnly", true).apply();
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);   // no preview in Recents, no screenshots of the data
         eyes = new EyesOnlyView(this, ui, this::askToOpen, this::openEyes);
         eyes.setElevation(ui.dp(60));
         root.addView(eyes, new FrameLayout.LayoutParams(Ui.MATCH, Ui.MATCH));
-        eyes.post(eyes::seal);
+        if (animated) eyes.post(eyes::seal); else eyes.sealedNow();
     }
     void openEyes() {
         if (eyes == null) return;
@@ -1851,6 +1864,9 @@ public final class BridgeActivity extends Activity {
                 boolean scheduled = SyncJob.schedule(this, on);
                 toast(!on ? "Background sync off" : scheduled ? "Background sync on" : "Android didn’t allow the background job. Try again later."); render();
             }));
+        sync.addView(toggle("Lock when I leave the app", "Eyes only: opens on the vault every time; fingerprint or PIN to get in", lockOnLeave(), on -> {
+            prefs.edit().putBoolean("eyesLockOnLeave", on).apply(); setRecentsScreenshotEnabled(!on);
+        }));
         sync.addView(toggle("Sync when I open the app", "Quietly sends anything waiting", prefs.getBoolean("autoSync", true), on -> prefs.edit().putBoolean("autoSync", on).apply()));
         sync.addView(toggle("Medicine reminders", remindersOn() ? "At each prescribed time, with a Taken button" : "Notifications are off for Ascend Bridge", remindersOn(), on -> enableReminders()));
         col.addView(sync);

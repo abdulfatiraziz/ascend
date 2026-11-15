@@ -124,6 +124,9 @@ final class EyesOnlyView extends FrameLayout {
         }, 550);
     }
 
+    /** Already sealed, no animation: used when the app opens or comes back locked. */
+    void sealedNow() { iris = 0; card.setAlpha(1); card.setScaleX(1); card.setScaleY(1); dial.setRotation(-180); show(Phase.SEALED); invalidate(); }
+
     void unlock() {
         if (phase == Phase.CHECKING || phase == Phase.CLEARED) return;
         show(Phase.CHECKING);
