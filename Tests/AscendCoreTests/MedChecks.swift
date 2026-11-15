@@ -175,7 +175,7 @@ func runMedChecks() async -> (count: Int, failures: Int) {
         let habits = t0.habits
         try expect(habits.count == t0.habitsDue && habits.first?.period == "Morning" && habits.last?.period == "Evening", "Ordered morning to evening")
         let sleep = habits.first { $0.title == "Sleep" }, meds = habits.first { $0.title == "Take medication" }
-        try expect(sleep?.kind == "metric" && sleep?.auto == true && sleep?.target == "7–8 hours" && meds?.kind == "check" && meds?.auto == false && meds?.goal == "Self-care")
+        try expect(sleep?.kind == "metric" && sleep?.auto == true && sleep?.target == "7–8 hours" && meds?.kind == "check" && meds?.auto == true && meds?.goal == "Self-care", "Medication is filled by medicine taps, as on the Mac")
         try expect(t0.goals.map(\.title).contains("Self-care") && t0.goals.allSatisfy { $0.done == 0 })
         try doc.applyPhoneCheckIn(PhoneCheckIn(id: "a", habitID: meds!.id, day: day, completed: true), today: day)
         try doc.applyPhoneCheckIn(PhoneCheckIn(id: "b", habitID: sleep!.id, day: day, value: 7.5), today: day)

@@ -41,7 +41,8 @@ extension TrackerDocument {
     /// Today's habits in the Mac's order (period, then time), with goal names and whether each is done.
     public func phoneHabits(today: String) -> [PhoneHabit] {
         let engine = TrackerEngine(document: self)
-        let autoIDs = Set([healthHabits.sleep, healthHabits.steps, mealHabits.calories, mealHabits.protein].compactMap { $0?.id })
+        // The same set the Mac keeps off "Your taps": filled by the watch, meals, medicine taps or screen time.
+        let autoIDs = autoHabitIDs
         let goalNames = Dictionary(uniqueKeysWithValues: goals.map { ($0.id, $0.title) })
         let periods = Period.allCases
         return engine.due(on: today, includeMilestones: true).compactMap { habit -> PhoneHabit? in

@@ -868,8 +868,10 @@ public final class BridgeActivity extends Activity {
     /** The Mac's "Your taps": doses still due, then the check-ins only you can answer. */
     View tapsCard(JSONObject t) {
         LinearLayout card = ui.card(10);
-        int left = 0;
-        for (JSONObject d : dosesToday()) if (!ReminderReceiver.taken(this, d)) left++;
+        // Like the Mac: one per medicine time still open, plus each check-in not answered.
+        java.util.Set<Integer> openTimes = new java.util.HashSet<>();
+        for (JSONObject d : dosesToday()) if (!ReminderReceiver.taken(this, d)) openTimes.add(d.optInt("minute"));
+        int left = openTimes.size();
         JSONArray habits = t.optJSONArray("habits");
         for (int i = 0; habits != null && i < habits.length(); i++) { JSONObject h = habits.optJSONObject(i); if (h != null && !h.optBoolean("auto") && !h.optBoolean("done")) left++; }
         LinearLayout head = ui.row(8); head.setGravity(Gravity.CENTER_VERTICAL);
