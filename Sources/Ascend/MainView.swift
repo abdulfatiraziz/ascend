@@ -231,21 +231,21 @@ struct MainView: View {
         }
     }
     private var header: some View {
-        // Title and countdown share one baseline, with matching kickers above them.
-        HStack(alignment: .lastTextBaseline, spacing: 28) {
+        // Title, Eyes only and countdown line up on the middle of the big title line; the kickers sit level above.
+        HStack(alignment: .titleMiddle, spacing: 28) {
             VStack(alignment: .leading, spacing: 7) {
                 Kicker(kicker)
                 Text(screen == .today ? "The Brief." : screen == .goals ? "The blueprint." : screen == .routine ? "Find your rhythm." : screen == .patterns ? "Connect the dots." : screen == .meals ? "Eat with intent." : screen == .meds ? "Take it as prescribed." : screen == .notes ? "Remember what matters." : screen == .photos ? "See the change." : screen == .screenTime ? "Own your attention." : screen == .body ? "Build strength. See change." : screen == .health ? "Know your rhythm." : screen == .urges ? "Notice the pattern." : screen == .dossier ? "The Dossier." : "The long game.")
-                    .font(.bt(size: 36, weight: .semibold)).tracking(-1.5).lineLimit(1).minimumScaleFactor(0.8)
+                    .font(.bt(size: 36, weight: .semibold)).tracking(-1.5).lineLimit(1).minimumScaleFactor(0.8).alignmentGuide(.titleMiddle) { $0[VerticalAlignment.center] }
             }
             Spacer()
             Button { setEyesOnly(true) } label: { Label("Eyes only", systemImage: "eye.slash").font(.bt(size: 11)).padding(8) }
-                .buttonStyle(.plain).background(Ink.panel, in: RoundedRectangle(cornerRadius: 7)).keyboardShortcut("e", modifiers: [.command, .shift]).help("Eyes only · ⌘⇧E · hides everything until you open it again")
+                .buttonStyle(.plain).background(Ink.panel, in: RoundedRectangle(cornerRadius: 7)).keyboardShortcut("e", modifiers: [.command, .shift]).help("Eyes only · ⌘⇧E · hides everything until you open it again").alignmentGuide(.titleMiddle) { $0[VerticalAlignment.center] }
             if let next = store.missions.missions.filter({ $0.due >= store.today }).min(by: { $0.due < $1.due }) {
                 let left = store.engine.days(from: store.today, through: next.due).count - 1
                 VStack(alignment: .trailing, spacing: 7) {
                     Kicker("Mission \(next.id) · \(next.codename) · \(dateText(next.due, engine: store.engine))").lineLimit(1)
-                    Text("\(left) days").font(.bt(size: 36, weight: .medium)).tracking(-1)
+                    Text("\(left) days").font(.bt(size: 36, weight: .medium)).tracking(-1).alignmentGuide(.titleMiddle) { $0[VerticalAlignment.center] }
                 }.help("The next mission deadline: \(next.title)")
             }
         }
@@ -388,4 +388,10 @@ struct MedMomentsStrip: View {
         let c = store.engine.calendar, d = Date(timeIntervalSince1970: t)
         return HealthReport.clock(c.component(.hour, from: d) * 60 + c.component(.minute, from: d)).uppercased()
     }
+}
+
+extension VerticalAlignment {
+    private enum TitleMiddle: AlignmentID { static func defaultValue(in d: ViewDimensions) -> CGFloat { d[VerticalAlignment.center] } }
+    /// The middle of the big page title, shared by the header pieces.
+    static let titleMiddle = VerticalAlignment(TitleMiddle.self)
 }
