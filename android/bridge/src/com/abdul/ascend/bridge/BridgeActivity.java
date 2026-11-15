@@ -1160,6 +1160,12 @@ public final class BridgeActivity extends Activity {
         col.addView(ui.kicker(w.optString("name") + (kind.equals("cardio") && w.has("minutes") ? " · " + fmt(w.optDouble("minutes")) + " min" : "")));
         JSONArray list = w.optJSONArray("exercises");
         if (kind.equals("cardio") || list == null || list.length() == 0) {
+            if (kind.equals("cardio") && !w.optString("detail").isEmpty()) {
+                LinearLayout card = ui.card(6);
+                card.addView(ui.text(w.optString("detail"), 16, Ui.TEXT, 600));
+                if (w.has("minutes")) card.addView(ui.mono(fmt(w.optDouble("minutes")) + " min", 13, Ui.ACCENT_TEXT));
+                col.addView(card);
+            }
             col.addView(ui.small(kind.equals("cardio") ? "Cardio day. Your watch records it; nothing to enter here." : "No exercises in today’s session yet. Add them on the Mac → Body."));
             return holder[0];
         }
@@ -1183,7 +1189,10 @@ public final class BridgeActivity extends Activity {
             JSONObject s = last.optJSONObject(i);
             lastText.append(i == 0 ? setLabel(s, timed) : ", " + (s.optDouble("weight") == last.optJSONObject(0).optDouble("weight") ? String.valueOf(s.optInt("reps")) : setLabel(s, timed)));
         }
-        card.addView(ui.small(last.length() == 0 ? "First time: pick a weight you can do for " + minR + " clean reps." : "Last time: " + lastText));
+        boolean assisted = e.optBoolean("assisted");
+        String first = e.has("start") ? "Start at " + fmt(e.optDouble("start")) + " kg" + (assisted ? " assist" : "") + ", your last known weight."
+            : "First time: pick a weight you can do for " + minR + " clean reps.";
+        card.addView(ui.small(last.length() == 0 ? first : "Last time: " + lastText + (assisted ? " (kg = assist)" : "")));
         // The planned sets, plus one open cell after the last logged set so an extra set is always possible.
         int total = Math.min(Math.max(e.optInt("sets"), today.length() + 1), 20);
         List<View> cells = new ArrayList<>();
@@ -1218,6 +1227,8 @@ public final class BridgeActivity extends Activity {
         kg.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL); kg.setHint("kg");
         reps.setInputType(android.text.InputType.TYPE_CLASS_NUMBER); reps.setHint(timed ? "seconds" : "reps");
         if (seed != null) { kg.setText(fmt(seed.optDouble("weight")).replace(",", "")); reps.setText(String.valueOf(seed.optInt("reps"))); }
+        else if (e.has("start")) kg.setText(fmt(e.optDouble("start")).replace(",", ""));
+        if (e.optBoolean("assisted")) kg.setHint("kg assist");
         LinearLayout row = ui.row(12); ui.pad(row, 20, 8, 20, 0);
         row.addView(kg, new LinearLayout.LayoutParams(0, Ui.WRAP, 1)); row.addView(ui.text("×", 16, Ui.MUTED, 500)); row.addView(reps, new LinearLayout.LayoutParams(0, Ui.WRAP, 1));
         dialog().setTitle(e.optString("name") + " · set " + (index + 1)).setView(row)
