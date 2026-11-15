@@ -25,12 +25,30 @@ public struct MissionTarget: Codable, Identifiable, Equatable, Sendable {
     /// The last visit you picked, and a booked next visit if you set one (yyyy-MM-dd).
     public var lastVisit: String?
     public var nextVisit: String?
+    /// A repeat reminder counted in weeks (grooming): same last/next dates as a visit, never scored.
+    public var everyWeeks: Int?
+    /// Dated targets (meet-ups, dates): the days you planned one (yyyy-MM-dd). The month's count fills
+    /// itself once a day has passed; nothing to type.
+    public var plannedDays: [String]?
 
     public init(_ id: String, _ title: String, unit: String = "", start: Double? = nil, target: Double, current: Double? = nil,
-                auto: String? = nil, due: String? = nil, planStart: String? = nil, geometric: Bool = false, checklist: Bool = false, lower: Bool = false, everyMonths: Int? = nil, detail: String = "") {
+                auto: String? = nil, due: String? = nil, planStart: String? = nil, geometric: Bool = false, checklist: Bool = false, lower: Bool = false, everyMonths: Int? = nil, everyWeeks: Int? = nil, dated: Bool = false, detail: String = "") {
         self.id = id; self.title = title; self.detail = detail; self.unit = unit; self.start = start; self.target = target
         self.current = current; self.auto = auto; self.due = due; self.planStart = planStart; self.geometric = geometric; self.checklist = checklist; self.lower = lower; self.everyMonths = everyMonths
+        self.everyWeeks = everyWeeks; self.plannedDays = dated ? [] : nil
     }
+
+    /// A repeating visit or reminder with last/next dates.
+    public var isVisit: Bool { everyMonths != nil || everyWeeks != nil }
+    /// Filled by adding the dates you plan.
+    public var isDated: Bool { plannedDays != nil }
+
+    /// Planned days in `today`'s month that have already come (today counts).
+    public func datedValue(today: String) -> Double {
+        Double((plannedDays ?? []).filter { $0.prefix(7) == today.prefix(7) && $0 <= today }.count)
+    }
+    /// The next planned day from today on, if any.
+    public func nextPlanned(today: String) -> String? { (plannedDays ?? []).filter { $0 >= today }.min() }
 
     public var lowerIsBetter: Bool { lower || (start ?? target) > target }
 
@@ -54,7 +72,7 @@ public struct MissionTarget: Codable, Identifiable, Equatable, Sendable {
     /// Value with its unit, e.g. "$3,000", "77.8 kg", "5/7", "21%".
     public func format(_ value: Double?) -> String {
         guard let v = value else { return "—" }
-        if everyMonths != nil { return v >= 1 ? "Up to date" : "Overdue" }
+        if isVisit { return v >= 1 ? "Up to date" : "Overdue" }
         if checklist { return v >= 1 ? "Done" : "Not yet" }
         let n = v.rounded() == v || abs(v) >= 100 ? Int(v.rounded()).formatted() : String(format: abs(v) < 10 ? "%.2f" : "%.1f", v).replacingOccurrences(of: #"\.?0+$"#, with: "", options: .regularExpression)
         switch unit {
@@ -145,13 +163,15 @@ public enum Missions {
                     MissionTarget("c.call", "A stranger doesn't ask where you're from", target: 1, current: 0, checklist: true),
                 ]),
             MissionFile(id: "D", codename: "Presence", title: "Style & people", due: "2027-12-31",
-                brief: "How the room sees you: a capsule wardrobe, sharp grooming, a close circle, dating, family.",
+                brief: "How the room sees you: a capsule wardrobe, sharp grooming, a close circle, dating. Nothing here is logged daily.",
                 targets: [
                     MissionTarget("d.wardrobe", "Capsule pieces owned", target: 12, auto: "wardrobe", detail: "Counted from the Dossier's wardrobe."),
-                    MissionTarget("d.grooming", "Grooming routine days this week", unit: "/7", target: 6),
-                    MissionTarget("d.circle", "Close-circle meet-ups this month", target: 4),
-                    MissionTarget("d.dates", "Dates this month", target: 2),
-                    MissionTarget("d.family", "Family calls this week", target: 2),
+                    MissionTarget("d.grooming", "Grooming: haircut & trim", target: 1, everyWeeks: 3,
+                                  detail: "A reminder, not a score. Pick the day you went; the next one is set 3 weeks later, or pick a booked date."),
+                    MissionTarget("d.circle", "Close-circle meet-ups this month", target: 4, dated: true,
+                                  detail: "Add the date when you plan one; it counts once the day comes."),
+                    MissionTarget("d.dates", "Dates this month", target: 2, dated: true,
+                                  detail: "Add the date when you plan one; it counts once the day comes."),
                 ]),
             MissionFile(id: "E", codename: "Field Craft", title: "Hard skills", due: "2027-12-31",
                 brief: "Capable outdoors: water, trail, saddle, range, track. Log a session only on the day it happens.",
@@ -171,11 +191,13 @@ public enum Missions {
     public static func merged(_ saved: [MissionFile]) -> [MissionFile] {
         let typed = Dictionary(saved.flatMap(\.targets).map { ($0.id, $0.current) }, uniquingKeysWith: { a, _ in a })
         let visits = Dictionary(saved.flatMap(\.targets).map { ($0.id, ($0.lastVisit, $0.nextVisit)) }, uniquingKeysWith: { a, _ in a })
+        let planned = Dictionary(saved.flatMap(\.targets).compactMap { t in t.plannedDays.map { (t.id, $0) } }, uniquingKeysWith: { a, _ in a })
         return Missions.defaults.map { def in
             var m = def
             for i in m.targets.indices {
                 if let v = typed[m.targets[i].id] { m.targets[i].current = v }
-                if m.targets[i].everyMonths != nil, let d = visits[m.targets[i].id] { m.targets[i].lastVisit = d.0; m.targets[i].nextVisit = d.1 }
+                if m.targets[i].isVisit, let d = visits[m.targets[i].id] { m.targets[i].lastVisit = d.0; m.targets[i].nextVisit = d.1 }
+                if m.targets[i].isDated, let d = planned[m.targets[i].id] { m.targets[i].plannedDays = d }
             }
             return m
         }
@@ -185,7 +207,7 @@ public enum Missions {
     public static func orders(_ missions: [MissionFile], value: (MissionTarget) -> Double?, today: String, limit: Int = 3) -> [MissionOrder] {
         var behind: [MissionOrder] = [], missing: [MissionOrder] = []
         for m in missions {
-            for t in m.targets where !t.checklist && t.everyMonths == nil {
+            for t in m.targets where !t.checklist && !t.isVisit && !t.isDated {
                 guard let v = value(t) else {
                     missing.append(MissionOrder(missionID: m.id, target: t, value: nil, need: nil, severity: 0))
                     continue
@@ -205,7 +227,7 @@ public enum Missions {
 
     /// One word for a mission's state: BEHIND when any order is from it, ON PLAN when anything is measured, else NO DATA.
     public static func status(_ m: MissionFile, value: (MissionTarget) -> Double?, today: String) -> MissionStatus {
-        let measured = m.targets.filter { !$0.checklist && $0.everyMonths == nil && value($0) != nil }
+        let measured = m.targets.filter { !$0.checklist && !$0.isVisit && !$0.isDated && value($0) != nil }
         if measured.isEmpty { return .noData }
         let behind = orders([m], value: value, today: today, limit: 99).contains { $0.value != nil }
         return behind ? .behind : .onPlan
@@ -216,7 +238,11 @@ public enum Missions {
         for m in missions {
             lines.append("\(m.id) · \(m.codename) — \(m.title), due \(m.due). \(m.brief)")
             for t in m.targets {
-                if t.everyMonths != nil {
+                if t.isDated {
+                    lines.append("- \(t.title): \(t.plannedDays?.count ?? 0) planned dates on record, goal \(t.format(t.target)) a month")
+                    continue
+                }
+                if t.isVisit {
                     lines.append("- \(t.title): last visit \(t.lastVisit ?? "not logged"), next \(t.nextVisitDay ?? "not set")")
                     continue
                 }
@@ -245,7 +271,7 @@ public enum MissionStatus: String, Sendable { case onPlan = "On plan", behind = 
 
 /// How a target gets its number: synced from a device or log, worked out by the app, or typed by you.
 public enum TargetKind: String, CaseIterable, Sendable {
-    case synced = "Syncs automatically", calculated = "Calculated", manual = "You log"
+    case synced = "Syncs automatically", calculated = "Calculated", dated = "Add a date", reminder = "Reminders", manual = "You log"
 }
 
 /// One word for one target.
@@ -253,7 +279,8 @@ public enum TargetState: String, Sendable { case done = "Done", onPlan = "On pla
 
 extension MissionTarget {
     public var kind: TargetKind {
-        switch auto { case nil: .manual; case "ffmi": .calculated; default: .synced }
+        if isDated { return .dated }; if isVisit { return .reminder }
+        return switch auto { case nil: .manual; case "ffmi": .calculated; default: .synced }
     }
     /// Where a synced or calculated number comes from.
     public var source: String {
@@ -271,15 +298,17 @@ extension MissionTarget {
     /// How often to type a manual number.
     public var cadence: String {
         if let n = everyMonths { return n == 1 ? "Every month" : "Every \(n) months" }
+        if let n = everyWeeks { return n == 1 ? "Every week" : "Every \(n) weeks" }
         return Missions.cadence[id] ?? "When it changes"
     }
 
     /// The next visit: a booked date if it comes after the last visit, else the last visit plus the interval.
     public var nextVisitDay: String? {
         if let b = nextVisit, b > (lastVisit ?? "") { return b }
-        guard let n = everyMonths, let l = lastVisit, let d = Self.date(l) else { return nil }
+        guard let l = lastVisit, let d = Self.date(l) else { return nil }
         var cal = Calendar(identifier: .gregorian); cal.timeZone = TimeZone(identifier: "UTC")!
-        guard let next = cal.date(byAdding: .month, value: n, to: d) else { return nil }
+        let step: (Calendar.Component, Int)? = everyMonths.map { (.month, $0) } ?? everyWeeks.map { (.day, $0 * 7) }
+        guard let step, let next = cal.date(byAdding: step.0, value: step.1, to: d) else { return nil }
         let f = DateFormatter(); f.calendar = cal; f.timeZone = cal.timeZone; f.dateFormat = "yyyy-MM-dd"
         return f.string(from: next)
     }
@@ -288,7 +317,11 @@ extension MissionTarget {
     public func visitValue(today: String) -> Double? { nextVisitDay.map { $0 < today ? 0 : 1 } }
 
     public func state(_ value: Double?, today: String) -> TargetState {
-        if everyMonths != nil {
+        if isDated {
+            if datedValue(today: today) >= target { return .done }
+            return nextPlanned(today: today).map { $0.prefix(7) == today.prefix(7) } == true ? .scheduled : .notYet
+        }
+        if isVisit {
             guard let next = nextVisitDay else { return .notLogged }
             return next < today ? .overdue : .scheduled
         }
@@ -309,7 +342,7 @@ extension Missions {
         "a.bodyfat": "Monthly",
         "b.income": "Monthly", "b.savings": "Monthly", "b.fund": "Monthly",
         "c.score": "Sundays", "c.shadow": "Weekly", "c.vo": "Once", "c.call": "Once",
-        "d.grooming": "Weekly", "d.circle": "Monthly", "d.dates": "Monthly", "d.family": "Weekly",
+        "d.circle": "Monthly", "d.dates": "Monthly",
         "e.swim": "When you test", "e.ride": "After each lesson", "e.range": "After each session", "e.track": "After each track day",
     ]
 }

@@ -266,11 +266,11 @@ struct MissionSheet: View {
     private func group(_ kind: TargetKind, _ list: [MissionTarget]) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .firstTextBaseline) {
-                Image(systemName: kind == .synced ? "arrow.triangle.2.circlepath" : kind == .calculated ? "function" : "pencil")
+                Image(systemName: kind == .synced ? "arrow.triangle.2.circlepath" : kind == .calculated ? "function" : kind == .dated ? "calendar" : kind == .reminder ? "bell" : "pencil")
                     .font(.bt(size: 11)).foregroundStyle(Ink.accent)
                 Text(kind.rawValue.uppercased()).font(.bt(size: 10, design: .monospaced)).tracking(2).foregroundStyle(Ink.accent)
                 Spacer()
-                Text(kind == .synced ? "Nothing to do" : kind == .calculated ? "Worked out for you" : "Type the number, press return")
+                Text(kind == .synced ? "Nothing to do" : kind == .calculated ? "Worked out for you" : kind == .dated ? "Add the date when you plan one" : kind == .reminder ? "Pick a date; the next one sets itself" : "Type the number, press return")
                     .font(.bt(size: 10)).foregroundStyle(Ink.muted)
             }.padding(.bottom, 8)
             Line()
@@ -287,10 +287,14 @@ struct MissionSheet: View {
         return HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(t.title).font(.bt(size: 13, weight: .medium)).foregroundStyle(Ink.ivory)
-                Text(t.kind == .manual ? t.cadence : t.source).font(.bt(size: 10)).foregroundStyle(Ink.muted)
+                Text(t.isDated ? datedLine(t) : t.kind == .manual || t.isVisit ? t.cadence : t.source).font(.bt(size: 10)).foregroundStyle(Ink.muted)
+                if t.isDated { plannedChips(t) }
             }
             Spacer(minLength: 8)
-            if t.everyMonths != nil {
+            if t.isDated {
+                PlanDate { missions.setPlanned(t.id, day: $0, on: true) }
+                Text("\(Int(v ?? 0))").font(.bt(size: 13, design: .monospaced)).foregroundStyle(Ink.ivory).frame(width: 24, alignment: .trailing)
+            } else if t.isVisit {
                 VisitDate(label: "Last", day: t.lastVisit, suggested: nil) { missions.setVisit(t.id, last: .some($0)) }
                 VisitDate(label: "Next", day: t.nextVisitDay, suggested: t.nextVisit == nil ? t.nextVisitDay : nil) { missions.setVisit(t.id, next: .some($0)) }
             } else if t.kind == .manual {
@@ -311,7 +315,7 @@ struct MissionSheet: View {
             } else {
                 Text(t.format(v)).font(.bt(size: 13, design: .monospaced)).foregroundStyle(Ink.ivory)
             }
-            if t.everyMonths == nil { Text(t.checklist ? "" : "→ \(t.format(t.target))").font(.bt(size: 11, design: .monospaced)).foregroundStyle(Ink.goldDim).frame(width: 92, alignment: .leading) }
+            if !t.isVisit { Text(t.checklist ? "" : "→ \(t.format(t.target))").font(.bt(size: 11, design: .monospaced)).foregroundStyle(Ink.goldDim).frame(width: 92, alignment: .leading) }
             Text(state.rawValue.uppercased())
                 .font(.bt(size: 9, design: .monospaced)).tracking(1.2)
                 .foregroundStyle(state == .done || state == .onPlan || state == .scheduled ? Ink.onTrack : state == .behind || state == .overdue ? Ink.watch : Ink.muted)
@@ -326,6 +330,28 @@ struct MissionSheet: View {
         var parts = [t.detail]
         if let plan = t.planned(on: today) { parts.append("On plan today: \(t.format((plan * 10).rounded() / 10)).") }
         return parts.filter { !$0.isEmpty }.joined(separator: " ")
+    }
+    private func datedLine(_ t: MissionTarget) -> String {
+        t.nextPlanned(today: today).map { "Next: " + shortDay($0) } ?? "Nothing planned yet"
+    }
+    private func shortDay(_ key: String) -> String {
+        guard let d = MissionFacts.dayFormatter.date(from: key) else { return key }
+        let f = DateFormatter(); f.dateFormat = "d MMM"; return f.string(from: d)
+    }
+    /// This month's and upcoming planned days; click one to remove it.
+    @ViewBuilder private func plannedChips(_ t: MissionTarget) -> some View {
+        let days = (t.plannedDays ?? []).filter { $0.prefix(7) >= today.prefix(7) }
+        if !days.isEmpty {
+            HStack(spacing: 5) {
+                ForEach(days, id: \.self) { day in
+                    Button { missions.setPlanned(t.id, day: day, on: false) } label: {
+                        HStack(spacing: 3) { Text(shortDay(day)); Image(systemName: "xmark").font(.system(size: 7, weight: .semibold)) }
+                            .font(.bt(size: 10)).foregroundStyle(day <= today ? Ink.ivory : Ink.muted)
+                            .padding(.horizontal, 7).padding(.vertical, 2).overlay(Capsule().stroke(Ink.line))
+                    }.buttonStyle(.plain).help("Remove \(shortDay(day))")
+                }
+            }.padding(.top, 3)
+        }
     }
     private func plain(_ v: Double) -> String { v.rounded() == v ? String(Int(v)) : String(v) }
 
@@ -397,4 +423,26 @@ struct VisitDate: View {
             }
         }.frame(width: 104, alignment: .leading)
     }
+}
+
+/// Pick a day and add it to a dated target (a planned meet-up or date).
+struct PlanDate: View {
+    let add: (String) -> Void
+    @State private var day = Date()
+    var body: some View {
+        HStack(spacing: 6) {
+            DatePicker("", selection: $day, displayedComponents: .date)
+                .labelsHidden().datePickerStyle(.field)
+                .environment(\.timeZone, MissionFacts.dayFormatter.timeZone)
+            Button("Add") { add(MissionFacts.dayFormatter.string(from: day)) }
+                .buttonStyle(.borderless).font(.bt(size: 11)).foregroundStyle(Ink.lamp)
+        }.frame(width: 150, alignment: .trailing)
+    }
+}
+
+extension MissionFacts {
+    /// yyyy-MM-dd in UTC, matching the visit dates.
+    static let dayFormatter: DateFormatter = {
+        let f = DateFormatter(); f.calendar = Calendar(identifier: .gregorian); f.timeZone = TimeZone(identifier: "UTC")!; f.dateFormat = "yyyy-MM-dd"; return f
+    }()
 }

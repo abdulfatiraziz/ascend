@@ -30,6 +30,18 @@ final class MissionStore: ObservableObject {
         save()
     }
 
+    /// Adds or removes a planned day (yyyy-MM-dd) on a dated target.
+    func setPlanned(_ targetID: String, day: String, on: Bool) {
+        for m in missions.indices {
+            if let t = missions[m].targets.firstIndex(where: { $0.id == targetID }) {
+                var days = Set(missions[m].targets[t].plannedDays ?? [])
+                if on { days.insert(day) } else { days.remove(day) }
+                missions[m].targets[t].plannedDays = days.sorted()
+            }
+        }
+        save()
+    }
+
     /// Sets a visit's last day or booked next day (yyyy-MM-dd, nil clears it).
     func setVisit(_ targetID: String, last: String?? = .none, next: String?? = .none) {
         for m in missions.indices {
@@ -60,7 +72,8 @@ struct MissionFacts {
     var latestKg: Double? { store.bodyMeasurements.archive.records.max { $0.date < $1.date }?.kilograms }
 
     func value(_ t: MissionTarget) -> Double? {
-        if t.everyMonths != nil { return t.visitValue(today: Self.todayKey) }
+        if t.isVisit { return t.visitValue(today: Self.todayKey) }
+        if t.isDated { return t.datedValue(today: Self.todayKey) }
         return auto(t) ?? t.current
     }
     static var todayKey: String {

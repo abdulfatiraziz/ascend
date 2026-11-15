@@ -12,6 +12,27 @@ func runConditionChecks() -> (count: Int, failures: Int) {
     }
     let engine = TrackerEngine(document: TrackerDocument.seeded(today: "2026-11-15"))
 
+    check("Style & people: no family calls, grooming repeats every 3 weeks, meet-ups and dates fill from planned days") {
+        let d = Missions.defaults.first { $0.id == "D" }!
+        try expect(d.title == "Style & people" && !d.targets.contains { $0.id == "d.family" }, "family calls removed, name kept")
+        var groom = d.targets.first { $0.id == "d.grooming" }!
+        try expect(groom.isVisit && groom.cadence == "Every 3 weeks")
+        groom.lastVisit = "2026-11-01"
+        try expect(groom.nextVisitDay == "2026-11-22", "3 weeks after the last one")
+        var dates = d.targets.first { $0.id == "d.dates" }!
+        try expect(dates.isDated && dates.kind == .dated && dates.datedValue(today: "2026-11-15") == 0)
+        dates.plannedDays = ["2026-10-30", "2026-11-08", "2026-11-15", "2026-11-28"]
+        try expect(dates.datedValue(today: "2026-11-15") == 2, "this month, up to today")
+        try expect(dates.nextPlanned(today: "2026-11-16") == "2026-11-28")
+        try expect(dates.state(2, today: "2026-11-15") == .done)
+        dates.plannedDays = ["2026-11-28"]
+        try expect(dates.state(0, today: "2026-11-15") == .scheduled)
+        try expect(!Missions.orders(Missions.defaults, value: { _ in nil }, today: "2026-11-15", limit: 99).contains { $0.missionID == "D" && $0.target.id != "d.wardrobe" },
+                   "only the wardrobe can be an order; nothing in D asks to be logged")
+        var saved = Missions.defaults
+        saved[3].targets[2].plannedDays = ["2026-11-20"]
+        try expect(Missions.merged(saved)[3].targets[2].plannedDays == ["2026-11-20"], "planned days survive a reload")
+    }
     check("Health opens on today with data, else the last full day within three days") {
         try expect(Condition.reportDay(today: "2026-11-15", engine: engine) { $0 == "2026-11-15" } == "2026-11-15")
         try expect(Condition.reportDay(today: "2026-11-15", engine: engine) { $0 == "2026-11-14" } == "2026-11-14")
