@@ -1299,7 +1299,7 @@ public final class BridgeActivity extends Activity {
         LinearLayout row = ui.row(10); row.setGravity(Gravity.CENTER_VERTICAL);
         LinearLayout text = ui.column(4);
         text.addView(ui.oneLine(ui.kicker(kicker)));
-        TextView t = serif(title, 30); t.setMaxLines(2);
+        TextView t = serif(title, title.length() > 22 ? 25 : 30); t.setMaxLines(2);
         text.addView(t);
         row.addView(text, new LinearLayout.LayoutParams(0, Ui.WRAP, 1));
         if (b != null && b.has("daysLeft")) {
