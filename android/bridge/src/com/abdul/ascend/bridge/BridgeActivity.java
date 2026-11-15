@@ -50,7 +50,7 @@ public final class BridgeActivity extends Activity {
     static String subLabel(Screen s) { return s == Screen.SCREEN_TIME ? "Screen time" : s.name().charAt(0) + s.name().substring(1).toLowerCase(Locale.ROOT); }
     static final String LOCAL_NETWORK = "android.permission.ACCESS_LOCAL_NETWORK";
     static final int REQ_HEALTH = 7, REQ_NETWORK = 8, REQ_CAMERA = 11, REQ_PICK = 12, REQ_NOTIFY = 13, REQ_BACKGROUND = 14, REQ_LOCATION = 15, REQ_BACKGROUND_LOCATION = 16, REQ_SPOT_FINE = 17;
-    static final String VERSION = "0.9.6";
+    static final String VERSION = "0.9.7";
 
     SyncEngine engine;
     Ui ui;
@@ -105,7 +105,38 @@ public final class BridgeActivity extends Activity {
         SyncJob.schedule(this, background && engine.backgroundAllowed());
         SpotReceiver.register(this);
         render();
+        if (prefs.getBoolean("eyesOnly", false)) sealEyes();
         if ("com.abdul.ascend.bridge.EXERCISE_DEMOS".equals(getIntent().getAction())) openExerciseDemos();
+    }
+
+    // MARK: Eyes only
+    EyesOnlyView eyes;
+    /** Seals the app behind the vault, as on the Mac. It stays sealed after the app closes, until the fingerprint or PIN opens it. */
+    void sealEyes() {
+        if (eyes != null) return;
+        prefs.edit().putBoolean("eyesOnly", true).apply();
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);   // no preview in Recents, no screenshots of the data
+        eyes = new EyesOnlyView(this, ui, this::askToOpen, this::openEyes);
+        eyes.setElevation(ui.dp(60));
+        root.addView(eyes, new FrameLayout.LayoutParams(Ui.MATCH, Ui.MATCH));
+        eyes.post(eyes::seal);
+    }
+    void openEyes() {
+        if (eyes == null) return;
+        prefs.edit().putBoolean("eyesOnly", false).apply();
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SECURE);
+        root.removeView(eyes); eyes = null;
+    }
+    /** The phone's own fingerprint sheet, with the PIN as the fallback. A phone with no screen lock just opens. */
+    void askToOpen() {
+        int how = android.hardware.biometrics.BiometricManager.Authenticators.BIOMETRIC_STRONG | android.hardware.biometrics.BiometricManager.Authenticators.DEVICE_CREDENTIAL;
+        if (getSystemService(android.hardware.biometrics.BiometricManager.class).canAuthenticate(how) != android.hardware.biometrics.BiometricManager.BIOMETRIC_SUCCESS) { if (eyes != null) eyes.cleared(); return; }
+        new android.hardware.biometrics.BiometricPrompt.Builder(this).setTitle("Open Ascend").setSubtitle("Eyes only").setAllowedAuthenticators(how).build()
+            .authenticate(new android.os.CancellationSignal(), getMainExecutor(), new android.hardware.biometrics.BiometricPrompt.AuthenticationCallback() {
+                @Override public void onAuthenticationSucceeded(android.hardware.biometrics.BiometricPrompt.AuthenticationResult r) { if (eyes != null) eyes.cleared(); }
+                @Override public void onAuthenticationFailed() { if (eyes != null) eyes.denied(); }
+                @Override public void onAuthenticationError(int code, CharSequence msg) { if (eyes != null) eyes.cancelled(); }
+            });
     }
     @Override protected void onNewIntent(Intent intent) { super.onNewIntent(intent); setIntent(intent); if ("com.abdul.ascend.bridge.EXERCISE_DEMOS".equals(intent.getAction())) openExerciseDemos(); }
     @Override protected void onSaveInstanceState(Bundle out) {
@@ -1353,6 +1384,7 @@ public final class BridgeActivity extends Activity {
             TextView l = ui.kicker("days"); l.setGravity(Gravity.END); d.addView(l);
             row.addView(d);
         }
+        row.addView(circleButton("ic_eye_off", "Eyes only", v -> sealEyes()));
         row.addView(circleButton("ic_gear", "Settings", v -> show(Screen.SETTINGS)));
         col.addView(row);
         Screen[] subs = GROUPS[Math.max(0, group(screen))];
