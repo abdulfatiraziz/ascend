@@ -42,4 +42,11 @@ public extension TrackerEngine {
         tally.cleanDays = max(0, days(from: from, through: today).count - 1)
         return tally
     }
+    /// The last 8 days of urges for the phone, newest first, at most 40. No coordinates leave the Mac this way.
+    func phoneUrgeLines(today: String) -> [PhoneUrgeLine] {
+        let from = adding(-7, to: today)
+        return document.urgeLogs.filter { let d = key($0.timestamp); return d >= from && d <= today }
+            .sorted { $0.timestamp > $1.timestamp }.prefix(40)
+            .map { PhoneUrgeLine(id: $0.id.uuidString.lowercased(), at: $0.timestamp.timeIntervalSince1970, outcome: $0.outcome.rawValue, spot: $0.spot, trigger: $0.triggerLabel) }
+    }
 }

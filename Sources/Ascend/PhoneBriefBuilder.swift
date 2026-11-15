@@ -111,6 +111,7 @@ extension TrackerStore {
                                                     title: !name.isEmpty ? name : (m.note.isEmpty ? "Meal" : m.note),
                                                     kcal: v.kcal, protein: v.protein, carbs: v.carbs, fat: v.fat, confirmed: m.confirmed)
                            })
+        b.urges = engine.phoneUrgeLines(today: today)
         return b
     }
 }

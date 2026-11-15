@@ -50,7 +50,7 @@ public final class BridgeActivity extends Activity {
     static String subLabel(Screen s) { return s == Screen.SCREEN_TIME ? "Screen time" : s.name().charAt(0) + s.name().substring(1).toLowerCase(Locale.ROOT); }
     static final String LOCAL_NETWORK = "android.permission.ACCESS_LOCAL_NETWORK";
     static final int REQ_HEALTH = 7, REQ_NETWORK = 8, REQ_CAMERA = 11, REQ_PICK = 12, REQ_NOTIFY = 13, REQ_BACKGROUND = 14, REQ_LOCATION = 15, REQ_BACKGROUND_LOCATION = 16, REQ_SPOT_FINE = 17;
-    static final String VERSION = "0.9.8";
+    static final String VERSION = "0.9.9";
 
     SyncEngine engine;
     Ui ui;
@@ -752,13 +752,40 @@ public final class BridgeActivity extends Activity {
     }
 
     // MARK: Urges
+    /** Field log › Urges. Spot visits come first, waiting for a yes or no; then the counts; then every recent urge and whether it reached the Mac. */
     View urges() {
         ViewGroup[] holder = new ViewGroup[1];
         LinearLayout col = page(holder, true);
         col.addView(tabHead());
-        LinearLayout choices = ui.row(10);
-        choices.addView(urgeTile("Let it pass", true)); choices.addView(urgeTile("Acted on it", false));
-        col.addView(choices);
+        col.addView(syncPill(), new LinearLayout.LayoutParams(Ui.WRAP, ui.dp(36)));
+        List<UrgeRow> rows = urgeRows();
+        List<UrgeRow> open = new ArrayList<>();
+        for (UrgeRow r : rows) if (r.visit()) open.add(r);
+
+        LinearLayout ask = ui.card(12);
+        LinearLayout head = ui.row(8);
+        head.addView(ui.kicker("To approve"), new LinearLayout.LayoutParams(0, Ui.WRAP, 1));
+        if (!open.isEmpty()) head.addView(ui.mono(open.size() + (open.size() == 1 ? " visit" : " visits"), 12, Ui.ACCENT_TEXT));
+        ask.addView(head);
+        if (open.isEmpty()) ask.addView(ui.small("Nothing waiting. When you arrive at a saved spot, Ascend asks once; if you don't answer then, the visit waits here."));
+        for (UrgeRow r : open) {
+            LinearLayout item = ui.column(10);
+            item.setBackground(ui.round(Ui.PANEL2, 16, Ui.LINE, 1)); ui.pad(item, 14, 14, 14, 14);
+            LinearLayout top = ui.row(10);
+            top.addView(ui.badge("ic_urge", Ui.ACCENT_SOFT, Ui.ACCENT, 34, 18));
+            LinearLayout words = ui.column(2);
+            words.addView(ui.oneLine(ui.text("Arrived at " + (r.spot == null ? "a spot" : r.spot), 16, Ui.TEXT, 600)));
+            words.addView(ui.small(dayLabel(r.at) + " · " + clock12(r.at) + " · " + syncLabel(r)));
+            top.addView(words, new LinearLayout.LayoutParams(0, Ui.WRAP, 1));
+            item.addView(top);
+            LinearLayout buttons = ui.row(10);
+            buttons.addView(ui.pill("Let it pass", v -> approveVisit(r, "Let it pass")), new LinearLayout.LayoutParams(0, ui.dp(44), 1));
+            buttons.addView(ui.outline("Acted on it", v -> approveVisit(r, "Acted on it")), new LinearLayout.LayoutParams(0, ui.dp(44), 1));
+            item.addView(buttons);
+            ask.addView(item);
+        }
+        col.addView(ask);
+
         JSONObject c = engine.urgeCounts();
         if (c.length() > 0) {
             col.addView(ui.grid(10,
@@ -771,37 +798,112 @@ public final class BridgeActivity extends Activity {
             streak.addView(ui.small(days == 0 ? "A fresh start from here." : "Keep noticing; every pass counts."));
             col.addView(streak);
         } else col.addView(ui.small("Your counts appear after the first sync."));
-        JSONArray history = urgeHistory();
-        if (history.length() > 0) {
-            LinearLayout recent = ui.column(0);
-            recent.addView(ui.text("Recent on this phone", 15, Ui.TEXT, 600));
-            for (int i = 0; i < Math.min(history.length(), 6); i++) {
-                JSONObject h = history.optJSONObject(i);
-                LinearLayout row = ui.row(12); ui.pad(row, 0, 10, 0, 10);
-                row.addView(ui.mono(clock(h.optLong("at")), 14, Ui.MUTED), new LinearLayout.LayoutParams(ui.dp(52), Ui.WRAP));
-                boolean acted = h.optString("outcome").equals("Acted on it");
-                row.addView(ui.text(h.optString("outcome"), 14, acted ? Ui.ORANGE : Ui.TEXT, 400), new LinearLayout.LayoutParams(0, Ui.WRAP, 1));
-                LocalDate day = Instant.ofEpochMilli(h.optLong("at")).atZone(ZoneId.systemDefault()).toLocalDate();
-                row.addView(ui.small(day.equals(LocalDate.now()) ? "Today" : day.equals(LocalDate.now().minusDays(1)) ? "Yesterday" : day.toString()));
+
+        if (!rows.isEmpty()) {
+            LinearLayout recent = ui.card(0);
+            LinearLayout rh = ui.row(8);
+            rh.addView(ui.kicker("Recent"), new LinearLayout.LayoutParams(0, Ui.WRAP, 1));
+            int waiting = engine.queuedUrges().length;
+            rh.addView(ui.mono(waiting > 0 ? waiting + " to send" : macList() != null ? "all on your Mac" : "", 12, waiting > 0 ? Ui.ACCENT_TEXT : Ui.GREEN));
+            recent.addView(rh);
+            for (int i = 0; i < Math.min(rows.size(), 12); i++) {
+                UrgeRow r = rows.get(i);
+                LinearLayout row = ui.row(12); ui.pad(row, 0, 12, 0, 12);
+                row.addView(ui.mono(clock12(r.at), 13, Ui.MUTED), new LinearLayout.LayoutParams(ui.dp(66), Ui.WRAP));
+                LinearLayout words = ui.column(2);
+                boolean acted = "Acted on it".equals(r.outcome);
+                String what = r.visit() ? "Visit, not answered yet" : "Not recorded".equals(r.outcome) ? "No outcome" : r.outcome;
+                words.addView(ui.text(what, 14, acted ? Ui.ORANGE : r.visit() ? Ui.MUTED : Ui.TEXT, r.visit() ? 400 : 500));
+                String where = r.spot != null ? r.spot : r.trigger != null ? r.trigger : "";
+                words.addView(ui.small(dayLabel(r.at) + (where.isEmpty() ? "" : " · " + where)));
+                row.addView(words, new LinearLayout.LayoutParams(0, Ui.WRAP, 1));
+                row.addView(syncTag(r));
+                if (i > 0) { View rule = new View(this); rule.setBackgroundColor(Ui.LINE); recent.addView(rule, new LinearLayout.LayoutParams(Ui.MATCH, 1)); }
                 recent.addView(row);
             }
             col.addView(recent);
         }
-        int waiting = engine.queuedUrges().length;
-        if (waiting > 0) { TextView w = ui.small(waiting + (waiting == 1 ? " urge" : " urges") + " waiting to send"); w.setGravity(Gravity.CENTER); col.addView(w); }
+        col.addView(ui.secondary("Log an urge yourself", v -> logUrge(null)));
         return holder[0];
     }
-    View urgeTile(String outcome, boolean pass) {
-        LinearLayout tile = ui.column(0);
-        tile.setBackground(pass ? ui.round(Ui.ACCENT_SOFT, 20, 0x99D9B46E, 1.5f) : ui.round(Ui.PANEL, 20, 0x1FFFFFFF, 1));
-        ui.pad(tile, 16, 16, 16, 16);
-        tile.addView(pass ? ui.badge("ic_check", Ui.ACCENT, Ui.ON_ACCENT, 36, 20) : ui.badge("ic_urge", Ui.PANEL2, Ui.ORANGE, 36, 20));
-        View gap = new View(this); tile.addView(gap, new LinearLayout.LayoutParams(1, 0, 1));
-        tile.addView(ui.text(outcome, 17, Ui.TEXT, 600));
-        // A fixed height: with a flexible one, the spacer above stretched the tile to the whole page.
-        tile.setLayoutParams(new LinearLayout.LayoutParams(0, ui.dp(120), 1)); tile.setContentDescription(outcome);
-        tile.setOnClickListener(Ui.tap(v -> logUrge(outcome)));
-        return tile;
+
+    /** One urge as the phone knows it: the Mac's copy, updated by anything this phone still has waiting to send. */
+    static final class UrgeRow {
+        String id, outcome, spot, trigger; long at; boolean onMac, waiting;
+        boolean visit() { return spot != null && "Not recorded".equals(outcome); }
+    }
+    /** The Mac's urges from its last reply (8 days), or null before a Mac that sends them has synced. */
+    JSONArray macList() { JSONObject b = engine.today().optJSONObject("brief"); return b == null ? null : b.optJSONArray("urges"); }
+    List<UrgeRow> urgeRows() {
+        Map<String, UrgeRow> byID = new LinkedHashMap<>();
+        JSONArray mac = macList();
+        if (mac != null) for (int i = 0; i < mac.length(); i++) {
+            JSONObject u = mac.optJSONObject(i); if (u == null) continue;
+            UrgeRow r = new UrgeRow();
+            r.id = u.optString("id").toLowerCase(Locale.ROOT); r.at = (long) (u.optDouble("at") * 1000); r.outcome = u.optString("outcome");
+            r.spot = u.isNull("spot") || u.optString("spot").isEmpty() ? null : u.optString("spot");
+            r.trigger = u.isNull("trigger") || u.optString("trigger").isEmpty() ? null : u.optString("trigger");
+            r.onMac = true; byID.put(r.id, r);
+        }
+        for (File f : engine.queuedUrges()) {
+            try {
+                JSONObject u = SyncEngine.readJSON(f);
+                String id = u.optString("id").toLowerCase(Locale.ROOT);
+                UrgeRow r = byID.containsKey(id) ? byID.get(id) : new UrgeRow();
+                r.id = id; r.at = u.optLong("takenAt") * 1000; r.outcome = u.optString("outcome", "Not recorded");
+                if (u.has("spot") && !u.optString("spot").isEmpty()) r.spot = u.optString("spot");
+                if (u.has("trigger") && !u.optString("trigger").isEmpty()) r.trigger = u.optString("trigger");
+                r.waiting = true; byID.put(id, r);
+            } catch (Exception ignored) {}
+        }
+        List<UrgeRow> rows = new ArrayList<>(byID.values());
+        if (mac == null) {
+            // Before the Mac sends its list: what this phone logged, without IDs, so no sync state to show.
+            JSONArray h = urgeHistory();
+            for (int i = 0; i < h.length(); i++) {
+                JSONObject e = h.optJSONObject(i); if (e == null) continue;
+                UrgeRow r = new UrgeRow(); r.at = e.optLong("at"); r.outcome = e.optString("outcome");
+                boolean dup = false;
+                for (UrgeRow q : rows) if (Math.abs(q.at - r.at) < 60000 && q.outcome.equals(r.outcome)) dup = true;
+                if (!dup) rows.add(r);
+            }
+        }
+        rows.sort((a, b) -> Long.compare(b.at, a.at));
+        return rows;
+    }
+    String syncLabel(UrgeRow r) { return r.waiting ? "waiting to send" : r.onMac ? "on your Mac" : "on this phone"; }
+    View syncTag(UrgeRow r) {
+        LinearLayout tag = ui.row(6);
+        int color = r.waiting ? Ui.ACCENT : r.onMac ? Ui.GREEN : Ui.FAINT;
+        View dot = new View(this); dot.setBackground(ui.round(color, 3, 0, 0));
+        tag.addView(dot, new LinearLayout.LayoutParams(ui.dp(6), ui.dp(6)));
+        tag.addView(ui.text(r.waiting ? "To send" : r.onMac ? "On Mac" : r.id == null ? "Phone" : "—", 12, r.waiting ? Ui.ACCENT_TEXT : r.onMac ? Ui.GREEN : Ui.FAINT, 500));
+        return tag;
+    }
+    static String dayLabel(long millis) {
+        LocalDate day = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalDate(), now = LocalDate.now();
+        if (day.equals(now)) return "Today";
+        if (day.equals(now.minusDays(1))) return "Yesterday";
+        return day.getDayOfWeek().getDisplayName(java.time.format.TextStyle.SHORT, Locale.ENGLISH) + " " + day.getDayOfMonth();
+    }
+    /** Answers a spot visit. Same ID as the visit, so the Mac turns its unanswered visit into this outcome; nothing new is logged. */
+    void approveVisit(UrgeRow r, String outcome) {
+        try {
+            File f = new File(engine.urgesDir(), r.id + ".json");
+            if (f.exists() || prefs.contains("visit|" + r.id)) SpotReceiver.answer(this, r.id, outcome);
+            else {
+                JSONObject u = new JSONObject().put("id", r.id).put("takenAt", r.at / 1000).put("outcome", outcome).put("note", "");
+                if (r.spot != null) u.put("spot", r.spot);
+                writeJSON(f, u);
+                getSystemService(android.app.NotificationManager.class).cancel(r.id.hashCode());
+                JSONArray history = urgeHistory(), next = new JSONArray().put(new JSONObject().put("at", r.at).put("outcome", outcome));
+                for (int i = 0; i < Math.min(history.length(), 19); i++) next.put(history.get(i));
+                prefs.edit().putString("urgeHistory", next.toString()).apply();
+            }
+            toast(outcome.equals("Let it pass") ? "Let it pass · saved" : "Acted on it · saved");
+        } catch (Exception e) { toast("Couldn't save that answer."); }
+        render();
+        sync(false, true);
     }
     JSONArray urgeHistory() { try { return new JSONArray(prefs.getString("urgeHistory", "[]")); } catch (JSONException e) { return new JSONArray(); } }
     void styleChip(Button b, boolean on) {

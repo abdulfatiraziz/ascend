@@ -139,6 +139,7 @@ func runPhoneLogChecks() -> (count: Int, failures: Int) {
         b.routine = [PhoneRoutineItem(time: "4:00 pm", title: "Lunch", detail: "560 kcal planned", status: "in 1 h 53", kind: "meal", done: false, current: false)]
         b.notes = [PhoneNote(kind: "Plan", title: "Diet plan", body: "Goal", date: "4 Nov", pinned: true)]
         b.clearance = PhoneClearance(level: 1, next: "Next", week: "Gym 2/3", marks: ["I"], ranks: ["Recruit"], rewards: ["Set a reward"])
+        b.urges = [PhoneUrgeLine(id: "a1", at: 1_763_200_000, outcome: "Not recorded", spot: "Spot 1")]
         b.tracking = [PhoneGlance(title: "Steps", state: "going", value: "5,558 / 10,000", note: nil, ratio: 0.56)]
         b.score = PhoneScore(completed: 3, scheduled: 12, line: "done today · 75% is the mission · 6 to go")
         b.food = PhoneFood(kcal: 560, protein: 42, carbs: 61, fat: 14, kcalLimit: 2050, proteinGoal: 150, pending: 1,

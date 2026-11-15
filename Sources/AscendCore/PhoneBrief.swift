@@ -32,7 +32,22 @@ public struct PhoneBrief: Codable, Equatable, Sendable {
     public var tracking: [PhoneGlance]? = nil
     public var score: PhoneScore? = nil
     public var food: PhoneFood? = nil
+    /// Field log › Urges: the Mac's urges from the last 8 days, newest first, so the phone shows what reached the Mac
+    /// and which spot visits still wait for an answer. Spot names only, never coordinates.
+    public var urges: [PhoneUrgeLine]? = nil
     public init() {}
+}
+public struct PhoneUrgeLine: Codable, Equatable, Sendable {
+    public var id: String
+    /// Seconds since 1970.
+    public var at: Double
+    /// An `UrgeOutcome` raw value; "Not recorded" with a spot is a visit waiting for an answer.
+    public var outcome: String
+    public var spot: String?
+    public var trigger: String?
+    public init(id: String, at: Double, outcome: String, spot: String? = nil, trigger: String? = nil) {
+        self.id = id; self.at = at; self.outcome = outcome; self.spot = spot; self.trigger = trigger
+    }
 }
 public struct PhoneMission: Codable, Equatable, Sendable {
     public var id: String, codename: String, title: String, due: String
