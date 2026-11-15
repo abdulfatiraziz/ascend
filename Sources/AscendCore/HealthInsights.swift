@@ -131,6 +131,8 @@ public struct PhoneToday: Codable, Equatable, Sendable {
     /// Filled by the Mac app when it replies, from sources outside tracker.json or the current time.
     public var now: PhoneNow? = nil
     public var workout: PhoneWorkout? = nil
+    /// Today and the next six days of the training plan.
+    public var week: [PhonePlanDay]? = nil
     public var urgesActedToday: Int? = nil
     public var urgesActedWeekAverage: Double? = nil
     public var spotVisitsUnanswered: Int? = nil

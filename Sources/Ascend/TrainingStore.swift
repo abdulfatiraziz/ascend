@@ -47,6 +47,7 @@ extension TrackerStore {
     var t = document.phoneToday(today: today)
     t.now = document.phoneNow(at: now)
     t.workout = training.archive.phoneWorkout(now: now, calendar: engine.calendar)
+    t.week = training.archive.phoneWeek(now: now, calendar: engine.calendar)
     let urges = document.urgeCounts(at: now)
     t.urgesActedToday = urges.actedToday
     t.urgesActedWeekAverage = urges.actedWeekAverage.map { ($0 * 10).rounded() / 10 }

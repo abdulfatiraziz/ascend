@@ -86,8 +86,28 @@ public struct PhoneWorkout: Codable, Equatable, Sendable {
     public var detail: String?
     public var exercises: [PhoneWorkoutExercise]
 }
+/// One day of the next seven in the training plan, for the phone's Body screen. No workout = a rest day.
+public struct PhonePlanDay: Codable, Equatable, Sendable {
+    /// "Mon".
+    public var day: String
+    /// "2026-11-16".
+    public var date: String
+    public var workout: PhoneWorkout?
+    public init(day: String, date: String, workout: PhoneWorkout?) { self.day = day; self.date = date; self.workout = workout }
+}
 
 extension TrainingArchive {
+    /// Today and the next six days of the plan, so a rest day still shows what's coming.
+    public func phoneWeek(now: Date, calendar: Calendar) -> [PhonePlanDay] {
+        let f = DateFormatter(); f.calendar = calendar; f.timeZone = calendar.timeZone; f.locale = Locale(identifier: "en_US_POSIX")
+        let start = calendar.startOfDay(for: now)
+        return (0..<7).compactMap { i in
+            guard let day = calendar.date(byAdding: .day, value: i, to: start) else { return nil }
+            f.dateFormat = "EEE"; let label = f.string(from: day)
+            f.dateFormat = "yyyy-MM-dd"
+            return PhonePlanDay(day: label, date: f.string(from: day), workout: i == 0 ? phoneWorkout(now: now, calendar: calendar) : phoneWorkout(now: day, calendar: calendar))
+        }
+    }
     public func phoneWorkout(now: Date, calendar: Calendar) -> PhoneWorkout? {
         guard let session = today(now, calendar: calendar), session.kind != .rest else { return nil }
         let start = calendar.startOfDay(for: now)

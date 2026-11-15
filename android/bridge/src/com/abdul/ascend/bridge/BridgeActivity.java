@@ -50,7 +50,7 @@ public final class BridgeActivity extends Activity {
     static String subLabel(Screen s) { return s == Screen.SCREEN_TIME ? "Screen time" : s.name().charAt(0) + s.name().substring(1).toLowerCase(Locale.ROOT); }
     static final String LOCAL_NETWORK = "android.permission.ACCESS_LOCAL_NETWORK";
     static final int REQ_HEALTH = 7, REQ_NETWORK = 8, REQ_CAMERA = 11, REQ_PICK = 12, REQ_NOTIFY = 13, REQ_BACKGROUND = 14, REQ_LOCATION = 15, REQ_BACKGROUND_LOCATION = 16, REQ_SPOT_FINE = 17;
-    static final String VERSION = "0.9.10";
+    static final String VERSION = "0.9.11";
 
     SyncEngine engine;
     Ui ui;
@@ -1333,11 +1333,21 @@ public final class BridgeActivity extends Activity {
         col.addView(tabHead());
         col.addView(weightCard());
         JSONObject w = todayFresh().optJSONObject("workout");
+        JSONArray week = todayFresh().optJSONArray("week");
         if (w == null) {
-            LinearLayout card = ui.card(8);
-            card.addView(ui.text("No gym session planned today", 16, Ui.TEXT, 600));
-            card.addView(ui.small("Your training plan lives in Ascend on the Mac → Body. Sessions planned for today show here with last time’s weights. Sync to refresh."));
+            JSONObject next = null;
+            if (week != null) for (int i = 1; i < week.length() && next == null; i++) {
+                JSONObject d = week.optJSONObject(i);
+                if (d != null && d.optJSONObject("workout") != null) next = d;
+            }
+            LinearLayout card = ui.card(6);
+            card.addView(ui.kicker("Today"));
+            card.addView(ui.text("Rest day", 18, Ui.TEXT, 600));
+            card.addView(ui.small(week == null ? "Your training plan lives in Ascend on the Mac → Body. Sync to see this week's sessions."
+                : next == null ? "Nothing planned in the next 7 days. Add sessions on the Mac → Body." : "No gym today. Recovery is part of the plan."));
             col.addView(card);
+            if (next != null) col.addView(planPreview(next));
+            if (week != null) col.addView(weekStrip(week));
             col.addView(ui.secondary("Workout artwork · offline", v -> openExerciseDemos()));
             return holder[0];
         }
@@ -1355,7 +1365,78 @@ public final class BridgeActivity extends Activity {
             return holder[0];
         }
         for (int i = 0; i < list.length(); i++) col.addView(exerciseCard(list.optJSONObject(i)));
+        if (week != null) col.addView(weekStrip(week));
         return holder[0];
+    }
+    /** The next planned session, read-only: what to do and what you lifted last time. Sets are entered on the day. */
+    View planPreview(JSONObject day) {
+        JSONObject w = day.optJSONObject("workout");
+        LinearLayout card = ui.card(10);
+        LinearLayout head = ui.row(8);
+        head.addView(ui.kicker("Next · " + dayName(day)), new LinearLayout.LayoutParams(0, Ui.WRAP, 1));
+        if (w.has("minutes")) head.addView(ui.mono(fmt(w.optDouble("minutes")) + " min", 12, Ui.ACCENT_TEXT));
+        card.addView(head);
+        card.addView(serif(w.optString("name"), 24));
+        JSONArray list = w.optJSONArray("exercises");
+        if ("cardio".equals(w.optString("kind")) || list == null || list.length() == 0) {
+            card.addView(ui.small("cardio".equals(w.optString("kind")) ? (w.optString("detail").isEmpty() ? "Cardio. Your watch records it." : w.optString("detail")) : "No exercises in this session yet. Add them on the Mac → Body."));
+            return card;
+        }
+        for (int i = 0; i < list.length(); i++) {
+            JSONObject e = list.optJSONObject(i);
+            boolean timed = e.optBoolean("timed");
+            int minR = e.optInt("minReps"), maxR = e.optInt("maxReps");
+            if (i > 0) { View rule = new View(this); rule.setBackgroundColor(Ui.LINE); card.addView(rule, new LinearLayout.LayoutParams(Ui.MATCH, 1)); }
+            LinearLayout row = ui.row(10);
+            LinearLayout words = ui.column(2);
+            words.addView(ui.oneLine(ui.text(e.optString("name"), 15, Ui.TEXT, 600)));
+            JSONArray last = e.optJSONArray("last");
+            boolean assisted = e.optBoolean("assisted");
+            words.addView(ui.oneLine(ui.small(last != null && last.length() > 0 ? "Last: " + setsText(last, timed) + (assisted ? " (assist)" : "")
+                : e.has("start") ? "Start at " + fmt(e.optDouble("start")) + " kg" + (assisted ? " assist" : "") : "First time")));
+            row.addView(words, new LinearLayout.LayoutParams(0, Ui.WRAP, 1));
+            row.addView(ui.mono(e.optInt("sets") + " × " + (minR == maxR ? String.valueOf(minR) : minR + "–" + maxR) + (timed ? " s" : ""), 12, Ui.MUTED));
+            card.addView(row);
+        }
+        card.addView(ui.small("You enter sets here on the day."));
+        return card;
+    }
+    String setsText(JSONArray sets, boolean timed) {
+        StringBuilder b = new StringBuilder();
+        for (int i = 0; i < sets.length(); i++) {
+            JSONObject x = sets.optJSONObject(i);
+            b.append(i == 0 ? setLabel(x, timed) : ", " + (x.optDouble("weight") == sets.optJSONObject(0).optDouble("weight") ? String.valueOf(x.optInt("reps")) : setLabel(x, timed)));
+        }
+        return b.toString();
+    }
+    static String dayName(JSONObject day) {
+        try {
+            LocalDate d = LocalDate.parse(day.optString("date"));
+            if (d.equals(LocalDate.now().plusDays(1))) return "Tomorrow";
+            return day.optString("day") + " " + d.getDayOfMonth();
+        } catch (Exception e) { return day.optString("day"); }
+    }
+    /** Seven columns, today first: the session name, or Rest. */
+    View weekStrip(JSONArray week) {
+        LinearLayout card = ui.card(10);
+        card.addView(ui.kicker("This week"));
+        LinearLayout row = ui.row(6);
+        for (int i = 0; i < week.length(); i++) {
+            JSONObject d = week.optJSONObject(i); if (d == null) continue;
+            JSONObject w = d.optJSONObject("workout");
+            LinearLayout cell = ui.column(4); cell.setGravity(Gravity.CENTER_HORIZONTAL); ui.pad(cell, 2, 10, 2, 10);
+            cell.setBackground(i == 0 ? ui.round(Ui.ACCENT_SOFT, 12, Ui.ACCENT, 1) : ui.round(w != null ? Ui.PANEL2 : 0, 12, 0, 0));
+            TextView day = ui.mono(i == 0 ? "TODAY" : d.optString("day").toUpperCase(Locale.ROOT), 10, i == 0 ? Ui.LAMP : Ui.MUTED); day.setGravity(Gravity.CENTER);
+            cell.addView(day);
+            View dot = new View(this); dot.setBackground(ui.round(w == null ? Ui.FAINT : "cardio".equals(w.optString("kind")) ? Ui.GREEN : Ui.ACCENT, 4, 0, 0));
+            cell.addView(dot, new LinearLayout.LayoutParams(ui.dp(8), ui.dp(8)));
+            TextView name = ui.text(w == null ? "Rest" : w.optString("name"), 11, w == null ? Ui.FAINT : Ui.TEXT, w == null ? 400 : 600);
+            name.setGravity(Gravity.CENTER); name.setMaxLines(2); name.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            cell.addView(name);
+            row.addView(cell, new LinearLayout.LayoutParams(0, Ui.WRAP, 1));
+        }
+        card.addView(row);
+        return card;
     }
     View weightCard() {
         JSONObject t = todayFresh();

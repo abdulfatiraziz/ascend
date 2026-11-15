@@ -79,6 +79,13 @@ func runPhoneLogChecks() -> (count: Int, failures: Int) {
         try expect(pull?.start == 26 && pull?.assisted == true && pull?.last.isEmpty == true)
         var c = TrainingArchive(); var walk = TrainingSession(); walk.weekday = s.weekday; walk.kind = .cardio; walk.name = "Incline walk"; walk.minutes = 45; walk.incline = 15; walk.speed = 3; c.plan = [walk]
         try expect(c.phoneWorkout(now: now, calendar: cal)?.detail == "Incline treadmill · incline 15 · speed 3")
+        // The week: today plus six days; a future day shows last time's sets and nothing logged yet.
+        let tomorrow = now.addingTimeInterval(86400)
+        var legs = TrainingSession(); legs.weekday = cal.component(.weekday, from: tomorrow); legs.name = "Legs"; legs.exercises = [e.id]
+        a.plan.append(legs)
+        let week = a.phoneWeek(now: now, calendar: cal)
+        try expect(week.count == 7 && week[0].workout?.name == "Push" && week[1].workout?.name == "Legs" && week[2].workout == nil)
+        try expect(week[1].workout?.exercises.first?.today.isEmpty == true && week[1].workout?.exercises.first?.last.map(\.reps) == [10, 8])
         try rejects { try a.applyPhoneSet(exerciseID: UUID(), index: 0, set: TrainingSet(weight: 10, reps: 5), date: now, calendar: cal) }
         try rejects { _ = try PhoneLogEntry(id: id, takenAt: now.timeIntervalSince1970, type: "set", exerciseID: e.id.uuidString, setIndex: 0, weight: 20, reps: 0).validated(now: now) }
     }
