@@ -11,7 +11,6 @@ struct GoalsView: View {
     var body: some View {
         ScrollView {
             MissionBoard(store: store, missions: store.missions, editor: $editor)
-            WeeksStrip(store: store).padding(.top, 22)
             if !oneOffs.isEmpty { milestones.padding(.top, 28) }
         }
     }
@@ -28,48 +27,6 @@ struct GoalsView: View {
                 Line()
             }
         }
-    }
-}
-/// The long game on one row: consistency for each week of the cycle. Read only.
-struct WeeksStrip: View {
-    @ObservedObject var store: TrackerStore
-    private var weeks: [[String]] {
-        let days = store.engine.days(from: store.document.cycle.start, through: store.document.cycle.end)
-        return stride(from: 0, to: days.count, by: 7).map { Array(days[$0..<min($0 + 7, days.count)]) }
-    }
-    var body: some View {
-        let e = store.engine, today = store.today, target = store.document.cycle.target
-        let closed = e.closedScore(today: today)
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .firstTextBaseline) {
-                CardTitle("The long game · week by week")
-                Spacer()
-                (Text("Overall ") + Text(closed.percentLabel).foregroundColor(Ink.ivory) + Text(" · aim \(Int(target * 100))%"))
-                    .font(.bt(size: 12)).foregroundStyle(Ink.muted)
-            }
-            HStack(spacing: 8) {
-                ForEach(weeks.indices, id: \.self) { i in
-                    let range = weeks[i]
-                    let future = range.first! > today
-                    let current = !future && range.last! >= today
-                    let score = e.score(from: range.first!, through: min(range.last!, e.adding(-1, to: today)))
-                    let ratio = score.scheduled > 0 ? score.ratio : nil
-                    VStack(spacing: 7) {
-                        Text("W\(String(format: "%02d", i + 1))").font(.bt(size: 9.5, design: .monospaced)).tracking(1.2).foregroundStyle(current ? Ink.accent : Ink.muted)
-                        Text(future || ratio == nil ? "—" : score.percentLabel).font(.bt(size: 14, weight: .medium))
-                            .foregroundStyle(future ? Ink.muted.opacity(0.5) : (ratio ?? 0) >= target ? Ink.onTrack : Ink.ivory)
-                        Capsule().fill(Ink.line).frame(height: 3)
-                            .overlay(alignment: .leading) { GeometryReader { g in Capsule().fill((ratio ?? 0) >= target ? Ink.onTrack : Ink.accent).frame(width: g.size.width * min(1, (ratio ?? 0))) } }
-                            .frame(height: 3).opacity(future ? 0 : 1)
-                    }
-                    .frame(maxWidth: .infinity).padding(.vertical, 12).padding(.horizontal, 8)
-                    .background(current ? Ink.accent.opacity(0.08) : .clear, in: RoundedRectangle(cornerRadius: 8))
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(current ? Ink.accent.opacity(0.7) : Ink.line))
-                    .opacity(future ? 0.55 : 1)
-                    .accessibilityElement(children: .combine)
-                }
-            }
-        }.panel(padding: 22)
     }
 }
 struct MenuBarPanel: View {
