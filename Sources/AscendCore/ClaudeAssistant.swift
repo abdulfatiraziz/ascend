@@ -177,9 +177,7 @@ public enum ClaudeAssistant {
         }
         if result["is_error"] as? Bool == true || result["structured_output"] == nil {
             let detail = String(((result["result"] as? String) ?? (result["subtype"] as? String) ?? "Unknown error").prefix(400))
-            let hint = detail.localizedCaseInsensitiveContains("login") || detail.localizedCaseInsensitiveContains("logged in")
-                ? "\nOpen Terminal, run `claude --personal` and sign in, then retry." : ""
-            throw ValidationError(message: "Claude: \(detail)\(hint)")
+            throw ValidationError(message: "Claude: \(detail)" + (ClaudeSignIn.needed(detail) ? ClaudeSignIn.hint : ""))
         }
         guard let data = try? JSONSerialization.data(withJSONObject: result["structured_output"]!) else {
             throw ValidationError(message: "Claude returned an unreadable reply. Nothing was changed. Please retry.")
@@ -319,6 +317,33 @@ public enum ClaudeAssistant {
             "actions": ["type": "array", "items": ["type": "object", "properties": fields, "required": ["type"], "additionalProperties": false]]],
             "required": ["message", "actions"], "additionalProperties": false]
         return String(data: try! JSONSerialization.data(withJSONObject: schema, options: [.sortedKeys]), encoding: .utf8)!
+    }
+}
+
+/// Signing the personal Claude profile in from the app, without Terminal: `claude auth login` opens
+/// Claude's sign-in page in the browser and finishes once it is approved there.
+public enum ClaudeSignIn {
+    public static let arguments = ["auth", "login", "--claudeai"]
+    public static let statusArguments = ["auth", "status"]
+    public static let hint = "\nSign in to Claude from Ascend, then retry."
+    /// Shown in place of Claude Code's own wording, which points at Terminal commands.
+    public static let message = "Claude is signed out. Sign in and Ascend tries again by itself."
+    /// True for Claude Code's signed-out and expired-sign-in errors.
+    public static func needed(_ message: String) -> Bool {
+        let text = message.lowercased()
+        return ["not logged in", "failed to authenticate", "auth login", "/login", "sign in to claude", "oauth token has expired"].contains { text.contains($0) }
+    }
+    public struct Status: Equatable, Sendable {
+        public var signedIn: Bool
+        public var expires: Date?
+        public init(signedIn: Bool, expires: Date?) { self.signedIn = signedIn; self.expires = expires }
+    }
+    /// Reads `claude auth status`, which prints JSON with `loggedIn` and `loginExpiresAt`.
+    public static func status(_ output: Data) -> Status? {
+        guard let json = try? JSONSerialization.jsonObject(with: output) as? [String: Any], let signedIn = json["loggedIn"] as? Bool else { return nil }
+        let precise = ISO8601DateFormatter(); precise.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let expires = (json["loginExpiresAt"] as? String).flatMap { precise.date(from: $0) ?? ISO8601DateFormatter().date(from: $0) }
+        return Status(signedIn: signedIn, expires: signedIn ? expires : nil)
     }
 }
 

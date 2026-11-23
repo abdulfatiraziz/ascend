@@ -127,7 +127,7 @@ private struct MealCard: View {
                     }
                 }
                 if let error = meal.error {
-                    HStack { Text(error).font(.bt(size: 11)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true); Button("Retry") { meals.retry(meal.id) }.font(.bt(size: 11)) }
+                    ClaudeErrorLine(error: error, service: store.claudeSignIn) { meals.retry(meal.id) }
                 }
                 Picker("Meal type", selection: Binding(get: { meal.dietKind ?? .standard }, set: { store.setMealDietKind(meal.id, kind: $0) })) { ForEach(MealDietKind.allCases, id: \.self) { Text($0.label).tag($0) } }.pickerStyle(.segmented).frame(maxWidth: 360)
                 TextField("Note (for example: 2 rotis, dal, cooked in ghee)", text: $note).textFieldStyle(.roundedBorder).font(.bt(size: 12)).disabled(meal.confirmed)

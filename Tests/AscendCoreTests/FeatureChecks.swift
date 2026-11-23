@@ -523,13 +523,23 @@ func runFeatureChecks() async -> (count: Int, failures: Int) {
         try verify(ClaudeAssistant.sessionStarted(output.stdout, session: id) && !ClaudeAssistant.sessionStarted(output.stdout, session: UUID()))
         let failure = ClaudeProcessOutput(status: 1, stdout: Data(line(["type": "result", "subtype": "success", "is_error": true, "result": "Not logged in · Please run /login"]).utf8))
         do { _ = try ClaudeAssistant.decode(failure); throw FeatureFailure(message: "Expected rejection") }
-        catch let error as ValidationError { try verify(error.message.contains("Not logged in") && error.message.contains("claude --personal")) }
+        catch let error as ValidationError { try verify(error.message.contains("Not logged in") && error.message.contains("Sign in to Claude") && ClaudeSignIn.needed(error.message)) }
         try rejects { _ = try ClaudeAssistant.decode(ClaudeProcessOutput(status: 1, stdout: Data("garbage".utf8), stderr: Data("boom".utf8))) }
         try rejects { _ = try ClaudeAssistant.decode(ClaudeProcessOutput(status: 0, stdout: output.stdout, timedOut: true)) }
         let unknown = Data(line(["type": "result", "is_error": false, "structured_output": ["message": "x", "actions": [["type": "delete_all_data"]]]]).utf8)
         try rejects { _ = try ClaudeAssistant.decode(ClaudeProcessOutput(status: 0, stdout: unknown)) }
         let long = AssistantReply(message: String(repeating: "x", count: AssistantPlanner.maxMessageLength + 1), actions: [])
         try rejects { _ = try ClaudeAssistant.decode(try streamOutput(long)) }
+    }
+    check("Claude sign-in errors are recognised and auth status is read") {
+        let expired = "Failed to authenticate: this login reached its time limit and cannot be renewed. Run `claude auth login` to sign in again"
+        try verify(ClaudeSignIn.needed(expired) && ClaudeSignIn.needed("Not logged in · Please run /login") && ClaudeSignIn.needed("Claude: x" + ClaudeSignIn.hint))
+        try verify(!ClaudeSignIn.needed("Claude took too long to answer.") && !ClaudeSignIn.needed("Claude returned an unreadable reply."))
+        try verify(ClaudeSignIn.arguments == ["auth", "login", "--claudeai"])
+        let signedIn = ClaudeSignIn.status(Data(#"{"loggedIn": true, "authMethod": "claude.ai", "loginExpiresAt": "2026-12-20T22:51:28.069Z"}"#.utf8))
+        try verify(signedIn?.signedIn == true && abs((signedIn?.expires?.timeIntervalSince1970 ?? 0) - 1_797_807_088.069) < 0.01)
+        try verify(ClaudeSignIn.status(Data(#"{"loggedIn": false, "authMethod": "none", "loginExpiresAt": null}"#.utf8)) == .init(signedIn: false, expires: nil))
+        try verify(ClaudeSignIn.status(Data("Not logged in".utf8)) == nil)
     }
     check("chat archive titles, trims and survives a round trip; unreadable files are kept") {
         var archive = ChatArchive(), thread = ChatThread(model: .opus)

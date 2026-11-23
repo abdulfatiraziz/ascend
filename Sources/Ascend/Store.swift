@@ -16,6 +16,7 @@ import UniformTypeIdentifiers
     let meals: MealController
     let medsReader: MedController
     let photoReviews: PhotoReviewController
+    let claudeSignIn = ClaudeSignInService()
     let phoneLink: PhoneLinkService
     let macScreenTime: MacScreenTimeService
     let screenTime: ScreenTimeStore
@@ -91,7 +92,7 @@ import UniformTypeIdentifiers
         timer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.refreshDay() }
         }
-        assistant.bodySummary = { [weak self] in [self.map { MissionFacts(store: $0).summary }, self?.bodyAssistantSummary(), self?.lifestyle.lifestyle.assistantSummary].compactMap { $0 }.joined(separator: "\n\n") }; meals.store = self; phoneLink.store = self; medsReader.store = self; photoReviews.store = self; xiaomi.store = self
+        assistant.bodySummary = { [weak self] in [self.map { MissionFacts(store: $0).summary }, self?.bodyAssistantSummary(), self?.lifestyle.lifestyle.assistantSummary].compactMap { $0 }.joined(separator: "\n\n") }; meals.store = self; phoneLink.store = self; medsReader.store = self; photoReviews.store = self; xiaomi.store = self; claudeSignIn.store = self
         removeOrphanMealPhotos(); removeOrphanMedPhotos(); removeOrphanProgressPhotos()
         meals.estimatePending(); medsReader.resumePending()
         if !recoveryLocked { xiaomi.start(); drTrust.start(); macScreenTime.start() }
@@ -583,6 +584,13 @@ import UniformTypeIdentifiers
             doc.meds.inbox.removeAll { sent.contains($0.id) && !unsure.contains($0.id) }
             if doc.meds.batchPhotos(batch).isEmpty { doc.meds.batches.removeAll { $0.id == batch } }
         }
+    }
+    /// After signing Claude in from the app, re-runs the meal estimates and med readings that failed because it was signed out.
+    func retryAfterClaudeSignIn() {
+        let signedOut = { (error: String?) in error.map(ClaudeSignIn.needed) ?? false }
+        for meal in document.meals.entries where signedOut(meal.error) { meals.retry(meal.id) }
+        for batch in document.meds.batches where signedOut(batch.error) { medsReader.sortNow(batch.id) }
+        for medicine in document.meds.medicines where signedOut(medicine.error) { medsReader.reRead(medicine.id) }
     }
     func setMedBatchError(_ batch: UUID, _ error: String?) {
         change { doc in if let i = doc.meds.batches.firstIndex(where: { $0.id == batch }) { doc.meds.batches[i].error = error.map { String($0.prefix(600)) } } }

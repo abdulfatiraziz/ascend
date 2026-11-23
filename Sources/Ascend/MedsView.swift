@@ -126,7 +126,7 @@ struct MedsView: View {
                 ForEach(photos.prefix(8)) { PhotoThumbnail(url: store.medPhotoURL($0.photo), size: 44) }
                 VStack(alignment: .leading, spacing: 4) {
                     Text(sorting ? "Sorting \(photos.count) photos with Claude…" : cabinet.ready(batch) ? "\(photos.count) photos waiting to sort" : "\(photos.count) of \(batch.expected) photos received from your \(batch.source == "phone" ? "phone" : "Mac")").font(.bt(size: 12))
-                    if let error = batch.error { Text(error).font(.bt(size: 11)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true) }
+                    if let error = batch.error { ClaudeErrorLine(error: error, service: store.claudeSignIn) }
                 }
                 Spacer()
                 if sorting { ProgressView().controlSize(.small) }
@@ -198,7 +198,7 @@ private struct MedCard: View {
                 if reading { ProgressView().controlSize(.small) }
                 if !medicine.reading.isEmpty { Text(medicine.reading).font(.bt(size: 11)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true) }
                 if let error = medicine.error {
-                    HStack { Text(error).font(.bt(size: 11)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true); Button("Retry") { reader.reRead(medicine.id) }.font(.bt(size: 11)) }
+                    ClaudeErrorLine(error: error, service: store.claudeSignIn) { reader.reRead(medicine.id) }
                 }
                 Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 8) {
                     GridRow { field("Name", $draft.name); field("Strength", $draft.strength); field("Form", $draft.form) }
