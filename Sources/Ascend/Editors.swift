@@ -248,6 +248,7 @@ struct SettingsEditor: View {
             Line(); Kicker("Routine & assistant")
             HStack { Button("Set routine clock…") { store.pendingScreen = "RoutineSettings" }; Button("Claude settings…") { store.pendingScreen = "AISettings" } }.font(.bt(size: 12))
             Text("Routine and urge tracking stay local. Ask Ascend is optional and uses your personal Claude Code account.").font(.bt(size: 11)).foregroundStyle(Ink.muted)
+            ClaudeSignInPanel(service: store.claudeSignIn)
             Line(); Kicker("Health sources & devices")
             Text("Moved here from Health and Screen time. Your readings and history stay where they were.").font(.bt(size: 11)).foregroundStyle(Ink.muted)
             PhoneLinkPanel(link: store.phoneLink)

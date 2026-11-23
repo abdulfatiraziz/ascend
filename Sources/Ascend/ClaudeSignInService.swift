@@ -64,6 +64,29 @@ struct ClaudeErrorLine: View {
     }
 }
 
+/// The Claude sign-in row in Settings and Claude settings: state, until when, and the button.
+struct ClaudeSignInPanel: View {
+    @ObservedObject var service: ClaudeSignInService
+    private var status: String {
+        switch service.state {
+        case .signedIn(let expires): "Signed in" + (expires.map { " · until \($0.formatted(.dateTime.day().month(.abbreviated).year()))" } ?? "")
+        case .signedOut: "Signed out"
+        case .unknown: "Checking…"
+        case .waiting, .failed: ""
+        }
+    }
+    var body: some View {
+        FieldGroup(label: "Claude sign-in") {
+            HStack(spacing: 10) {
+                if !status.isEmpty { Text(status).font(.bt(size: 12)).foregroundStyle(service.state == .signedOut ? .orange : Ink.muted) }
+                ClaudeSignInButton(service: service, title: { if case .signedIn = service.state { return "Sign in again" }; return "Sign in to Claude" }())
+            }
+            Text("Meal and medicine photos are read with your personal Claude account. If it signs out, sign in here: Claude’s page opens in your browser, no Terminal needed.").font(.bt(size: 11)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
+        }
+        .onAppear { service.refresh() }
+    }
+}
+
 /// "Sign in to Claude", or the wait for the browser while Claude Code finishes signing in.
 struct ClaudeSignInButton: View {
     @ObservedObject var service: ClaudeSignInService

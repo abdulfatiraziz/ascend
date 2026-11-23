@@ -23,14 +23,6 @@ struct ClaudeSettingsEditor: View {
     @ObservedObject var signIn: ClaudeSignInService
     @Environment(\.dismiss) private var dismiss
     init(store: TrackerStore) { controller = store.assistant; signIn = store.claudeSignIn }
-    private var signInText: String {
-        switch signIn.state {
-        case .signedIn(let expires): "Signed in" + (expires.map { " · until \($0.formatted(.dateTime.day().month(.abbreviated).year()))" } ?? "")
-        case .signedOut: "Signed out"
-        case .unknown: "Checking…"
-        case .waiting, .failed: ""
-        }
-    }
     var body: some View {
         EditorShell(title: "Claude settings") {
             Text("Ask Ascend runs on your own Claude Code install and account, the same as `claude --personal` in Terminal. There is no API key to manage.").font(.bt(size: 12)).foregroundStyle(Ink.muted)
@@ -40,13 +32,7 @@ struct ClaudeSettingsEditor: View {
             FieldGroup(label: "Custom path (optional)") { TextField("Detected automatically", text: $controller.executableOverride).labelsHidden() }
             FieldGroup(label: "Claude profile folder") { TextField(ClaudeAssistant.defaultConfigDirectory, text: $controller.configDirectory).labelsHidden() }
             Text("~/.claude-personal is your personal account.").font(.bt(size: 11)).foregroundStyle(Ink.muted)
-            FieldGroup(label: "Sign-in") {
-                HStack(spacing: 10) {
-                    if !signInText.isEmpty { Text(signInText).font(.bt(size: 12)).foregroundStyle(signIn.state == .signedOut ? .orange : Ink.muted) }
-                    ClaudeSignInButton(service: signIn, title: { if case .signedIn = signIn.state { return "Sign in again" }; return "Sign in to Claude" }())
-                }
-            }
-            Text("Opens Claude’s sign-in page in your browser. Approve it with your personal account; no Terminal needed.").font(.bt(size: 11)).foregroundStyle(Ink.muted)
+            ClaudeSignInPanel(service: signIn)
             FieldGroup(label: "Model for new chats") {
                 Picker("Model for new chats", selection: $controller.defaultModel) { ForEach(ClaudeModel.allCases, id: \.self) { Text("\($0.label) · \($0.detail)").tag($0) } }.labelsHidden()
             }
@@ -65,6 +51,5 @@ struct ClaudeSettingsEditor: View {
             Line()
             Text("Chats are saved on this Mac in \(controller.workspace.path)/chats.json, outside tracker backups. Each chat is also a Claude Code session; use Copy Terminal command in a chat’s menu to continue it in Terminal. Usage counts toward your Claude plan.").font(.bt(size: 11)).foregroundStyle(Ink.muted).textSelection(.enabled)
         } actions: { HStack { Spacer(); PrimaryButton(label: "Done") { dismiss() } } }
-        .onAppear { signIn.refresh() }
     }
 }
