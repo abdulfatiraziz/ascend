@@ -385,17 +385,29 @@ struct MessageText: View {
                         Text(markdown(line))
                     }.padding(.leading, CGFloat(depth) * 18)
                 case .paragraph(let line): Text(markdown(line))
+                case .table(let rows): MessageTable(rows: rows)
                 }
             }
         }.font(.bt(size: 14)).lineSpacing(4).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
     }
-    enum Block { case heading(String), item(String, String, Int), paragraph(String) }
+    enum Block { case heading(String), item(String, String, Int), paragraph(String), table([[String]]) }
     private var blocks: [Block] {
-        var result: [Block] = [], paragraph: [String] = []
-        func flush() { if !paragraph.isEmpty { result.append(.paragraph(paragraph.joined(separator: "\n"))); paragraph = [] } }
+        var result: [Block] = [], paragraph: [String] = [], table: [[String]] = []
+        func flushTable() { if !table.isEmpty { result.append(.table(table)); table = [] } }
+        func flush() { flushTable(); if !paragraph.isEmpty { result.append(.paragraph(paragraph.joined(separator: "\n"))); paragraph = [] } }
         for raw in text.components(separatedBy: "\n") {
             let indent = raw.prefix { $0 == " " }.count, line = raw.trimmingCharacters(in: .whitespaces)
             if line.isEmpty { flush(); continue }
+            if line.hasPrefix("|") {
+                if !paragraph.isEmpty { result.append(.paragraph(paragraph.joined(separator: "\n"))); paragraph = [] }
+                var cells = line.split(separator: "|", omittingEmptySubsequences: false).map { $0.trimmingCharacters(in: .whitespaces) }
+                if cells.first == "" { cells.removeFirst() }
+                if cells.last == "" { cells.removeLast() }
+                // The |---|:--:| row under the header only marks alignment.
+                if !cells.isEmpty && !cells.allSatisfy({ !$0.isEmpty && $0.allSatisfy { "-: ".contains($0) } }) { table.append(cells) }
+                continue
+            }
+            flushTable()
             if line.hasPrefix("#") {
                 flush(); result.append(.heading(String(line.drop { $0 == "#" }).trimmingCharacters(in: .whitespaces)))
             } else if line.hasPrefix("- ") || line.hasPrefix("* ") || line.hasPrefix("• ") {
@@ -409,14 +421,39 @@ struct MessageText: View {
     }
 }
 
-/// Ascend's "A↗" mark in a small rounded tile; it pulses while Claude is thinking.
+/// A Markdown table from a reply: the first row is the header; short rows are padded so every row has the same cells.
+struct MessageTable: View {
+    var rows: [[String]]
+    var body: some View {
+        let width = rows.map(\.count).max() ?? 0
+        Grid(alignment: .leading, horizontalSpacing: 18, verticalSpacing: 7) {
+            ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
+                GridRow {
+                    ForEach(0..<width, id: \.self) { column in
+                        Text(markdown(column < row.count ? row[column] : ""))
+                            .font(.bt(size: index == 0 ? 11 : 13.5, weight: index == 0 ? .semibold : .regular))
+                            .foregroundStyle(index == 0 ? Ink.muted : .primary)
+                            .textCase(index == 0 ? .uppercase : nil)
+                    }
+                }
+                if index == 0 { Divider().gridCellUnsizedAxes(.horizontal) }
+            }
+        }
+        .padding(.horizontal, 14).padding(.vertical, 11)
+        .background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Ink.line))
+    }
+}
+
+/// Q's mark in a small rounded tile; it pulses while Claude is thinking.
 struct AscendMark: View {
     var size: CGFloat
     var pulsing = false
+    var label = "Q"
     @State private var dim = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
-        Text("A↗").font(.bt(size: size * 0.42, weight: .bold)).tracking(-size * 0.04).foregroundStyle(Ink.background)
+        Text(label).font(.bt(size: size * (label.count == 1 ? 0.5 : 0.42), weight: .bold)).tracking(-size * 0.04).foregroundStyle(Ink.background)
             .frame(width: size, height: size).background(Ink.accent, in: RoundedRectangle(cornerRadius: size * 0.3))
             .opacity(pulsing && dim ? 0.45 : 1)
             .onAppear {
