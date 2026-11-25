@@ -120,12 +120,13 @@ struct BriefFacts {
     var focusLine: String { weakest.map { "Today is about \(Self.focus[$0.area] ?? $0.area.lowercased())." } ?? "Hold the line." }
     var focusDetail: String { weakest?.detail ?? "Every mission on pace." }
 
-    // 01 · Body: weight toward 72 kg.
+    // 01 · Body: weight toward the Mind & body weight target.
     private var body: Mission {
         let records = store.bodyMeasurements.archive.records.sorted { $0.date < $1.date }
-        let goalKg = 72.0
+        let goalKg = store.missions.missions.flatMap(\.targets).first { $0.id == "a.weight" }?.target ?? 72
+        let goal = goalKg == goalKg.rounded() ? String(format: "%.0f", goalKg) : String(format: "%.1f", goalKg)
         guard let last = records.last else {
-            return Mission(number: "01", area: "Body", codename: "Op. Reveal", value: "—", unit: "KG → 72", progress: 0, detail: "No weigh-in yet. Step on the scale.", statusText: "No data", status: .none)
+            return Mission(number: "01", area: "Body", codename: "Op. Reveal", value: "—", unit: "KG → \(goal)", progress: 0, detail: "No weigh-in yet. Step on the scale.", statusText: "No data", status: .none)
         }
         let startDate = engine.date(store.document.cycle.start) ?? last.date
         let start = records.last { $0.date <= startDate } ?? records.first { $0.date >= startDate } ?? last
@@ -136,9 +137,9 @@ struct BriefFacts {
         let weeksLeft = Double(max(1, daysLeft)) / 7
         let needed = max(0, last.kilograms - goalKg) / weeksLeft
         let status: MissionStatus = perWeek.map { $0 >= needed * 0.9 ? .onTrack : $0 >= needed * 0.5 ? .watch : .offTrack } ?? .none
-        let detail = "72 kg by \(dateText(store.document.cycle.end, engine: engine, pattern: "d MMM")). " + (lost >= 0.05 ? "Down \(String(format: "%.1f", lost)) kg this cycle." : "Needs \(String(format: "%.2f", needed)) kg a week.")
+        let detail = "\(goal) kg by \(dateText(store.document.cycle.end, engine: engine, pattern: "d MMM")). " + (lost >= 0.05 ? "Down \(String(format: "%.1f", lost)) kg this cycle." : "Needs \(String(format: "%.2f", needed)) kg a week.")
         let statusText = perWeek.map { (status == .onTrack ? "On pace" : "Behind") + " · −" + String(format: "%.2f", max(0, $0)) + "/wk" } ?? "Need 2 weeks of weigh-ins"
-        return Mission(number: "01", area: "Body", codename: "Op. Reveal", value: String(format: "%.1f", last.kilograms), unit: "KG → 72", progress: progress, detail: detail, statusText: statusText, status: status)
+        return Mission(number: "01", area: "Body", codename: "Op. Reveal", value: String(format: "%.1f", last.kilograms), unit: "KG → \(goal)", progress: progress, detail: detail, statusText: statusText, status: status)
     }
 
     // 02 · Sleep: nights asleep by 1 am, last 7.

@@ -109,7 +109,7 @@ public struct MissionFile: Codable, Identifiable, Equatable, Sendable {
 }
 
 public enum Missions {
-    public static let heightM = 1.80
+    public static let heightM = 1.80   // example; the app uses the height saved on Body
     public static let birthday = "2001-06-01"
 
     /// Fat-free mass index: lean mass ÷ height².
@@ -187,17 +187,22 @@ public enum Missions {
         ]
     }
 
-    /// Current definitions (titles, targets, plans) from the code, with every value typed into the saved file kept.
+    /// Which targets exist and how each is measured come from the code; your plan comes from the saved file:
+    /// mission titles and briefs, each target's name, numbers, dates and note, and every value typed in.
+    /// The code's numbers are only examples for a fresh install, so a saved plan is never replaced by them.
     public static func merged(_ saved: [MissionFile]) -> [MissionFile] {
-        let typed = Dictionary(saved.flatMap(\.targets).map { ($0.id, $0.current) }, uniquingKeysWith: { a, _ in a })
-        let visits = Dictionary(saved.flatMap(\.targets).map { ($0.id, ($0.lastVisit, $0.nextVisit)) }, uniquingKeysWith: { a, _ in a })
-        let planned = Dictionary(saved.flatMap(\.targets).compactMap { t in t.plannedDays.map { (t.id, $0) } }, uniquingKeysWith: { a, _ in a })
+        let files = Dictionary(saved.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        let targets = Dictionary(saved.flatMap(\.targets).map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
         return Missions.defaults.map { def in
             var m = def
+            if let s = files[m.id] { m.title = s.title; m.brief = s.brief; m.due = s.due }
             for i in m.targets.indices {
-                if let v = typed[m.targets[i].id] { m.targets[i].current = v }
-                if m.targets[i].isVisit, let d = visits[m.targets[i].id] { m.targets[i].lastVisit = d.0; m.targets[i].nextVisit = d.1 }
-                if m.targets[i].isDated, let d = planned[m.targets[i].id] { m.targets[i].plannedDays = d }
+                guard let s = targets[m.targets[i].id] else { continue }
+                m.targets[i].title = s.title; m.targets[i].detail = s.detail; m.targets[i].unit = s.unit
+                m.targets[i].start = s.start; m.targets[i].target = s.target; m.targets[i].current = s.current
+                m.targets[i].due = s.due; m.targets[i].planStart = s.planStart
+                if m.targets[i].isVisit { m.targets[i].lastVisit = s.lastVisit; m.targets[i].nextVisit = s.nextVisit }
+                if m.targets[i].isDated, let d = s.plannedDays { m.targets[i].plannedDays = d }
             }
             return m
         }

@@ -93,7 +93,8 @@ struct MissionFacts {
         case "ffmi":
             let bf = store.missions.missions.flatMap(\.targets).first { $0.id == "a.bodyfat" }?.current
             guard let kg = latestKg, let bf else { return nil }
-            return (Missions.ffmi(kg: kg, bodyFatPercent: bf) * 10).rounded() / 10
+            let heightM = store.training.archive.heightCM.map { $0 / 100 } ?? Missions.heightM
+            return (Missions.ffmi(kg: kg, bodyFatPercent: bf, heightM: heightM) * 10).rounded() / 10
         case "sleep":
             let s = WeekFacts(store: store).sleep(last7)
             return s.known == 0 ? nil : Double(s.byOne)

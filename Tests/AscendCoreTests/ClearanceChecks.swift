@@ -139,14 +139,15 @@ func runClearanceChecks() -> (count: Int, failures: Int) {
         try expect(Missions.status(b, value: { $0.id == "b.income" ? 3100 : nil }, today: "2026-11-20") == .onPlan)
         try expect(Missions.status(b, value: { $0.id == "b.income" ? 3000 : nil }, today: "2027-06-01") == .behind)
     }
-    check("A saved missions file gains new targets and keeps typed values") {
+    check("A saved missions file gains new targets and keeps its own plan and typed values") {
         var old = Missions.defaults
         old[0].targets.removeAll { $0.id == "a.gym" }
         old[1].targets[0].current = 3100
         let m = Missions.merged(old)
-        old[0].targets[0].title = "Old name"
+        old[0].targets[0].title = "My weight"; old[0].targets[0].start = 90; old[0].targets[0].target = 80; old[1].title = "My income"
         let m2 = Missions.merged(old)
-        try expect(m2[0].targets.contains { $0.id == "a.gym" } && m2[1].targets[0].current == 3100 && m2[0].targets[0].title == "Weight")
+        try expect(m2[0].targets.contains { $0.id == "a.gym" } && m2[1].targets[0].current == 3100 && m2[0].targets[0].title == "My weight")
+        try expect(m2[0].targets[0].start == 90 && m2[0].targets[0].target == 80 && m2[1].title == "My income", "a saved plan is never replaced by the examples")
         try expect(m[1].targets[0].current == 3100)
         try expect(Missions.merged(m) == m)
     }
