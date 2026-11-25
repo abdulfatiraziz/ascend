@@ -21,6 +21,10 @@ import AscendCore
     @Published var defaultModel: ClaudeModel { didSet { defaults.set(defaultModel.rawValue, forKey: "claude.defaultModel") } }
     @Published var defaultEffort: ClaudeEffort { didSet { defaults.set(defaultEffort.rawValue, forKey: "claude.defaultEffort") } }
     @Published var shareHistory: Bool { didSet { defaults.set(shareHistory, forKey: "claude.shareHistory") } }
+    /// Copies all Ascend data (sanitized, read-only) into the chat workspace before each message so Claude can search it.
+    @Published var fullDataAccess: Bool {
+        didSet { defaults.set(fullDataAccess, forKey: "claude.fullDataAccess"); if !fullDataAccess { ClaudeDataSnapshot.remove(in: workspace) } }
+    }
     let workspace: URL
     private let archiveURL: URL
     private let launcher: any ClaudeLauncher
@@ -39,6 +43,7 @@ import AscendCore
         let effort = defaults.string(forKey: "claude.defaultEffort").flatMap(ClaudeEffort.init(rawValue:)) ?? ClaudeAssistant.defaultEffort
         defaultEffort = effort; draftEffort = effort
         shareHistory = defaults.object(forKey: "claude.shareHistory") as? Bool ?? true
+        fullDataAccess = defaults.object(forKey: "claude.fullDataAccess") as? Bool ?? true
         let loaded = ChatArchive.load(from: archiveURL)
         archive = loaded.archive; error = loaded.notice
         currentID = archive.sorted.first?.id
@@ -145,11 +150,18 @@ import AscendCore
             environment: ClaudeAssistant.environment(base: ProcessInfo.processInfo.environment, configDirectory: configDirectory),
             directory: workspace, input: input)
         working = true
-        let token = generation
+        let token = generation, full = fullDataAccess, folder = workspace
+        let zone = TimeZone(identifier: document.timeZoneID) ?? .current
         task = Task { [weak self] in
             guard let self else { return }
             do {
                 try FileManager.default.createDirectory(at: workspace, withIntermediateDirectories: true)
+                if full {
+                    try await Task.detached(priority: .userInitiated) {
+                        try ClaudeDataSnapshot.write(from: folder.deletingLastPathComponent(), to: folder, timeZone: zone)
+                    }.value
+                } else { ClaudeDataSnapshot.remove(in: folder) }
+                guard generation == token else { return }
                 let output = try await launcher.run(invocation)
                 guard generation == token else { return }
                 if ClaudeAssistant.sessionStarted(output.stdout, session: id) { archive.update(id) { $0.sessionStarted = true } }

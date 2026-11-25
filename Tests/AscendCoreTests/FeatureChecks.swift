@@ -423,7 +423,7 @@ func runFeatureChecks() async -> (count: Int, failures: Int) {
         try rejects { _ = try ClaudeAssistant.prompt(String(repeating: "x", count: ClaudeAssistant.maxPromptLength + 1), document: original, today: day, shareHistory: false) }
         _ = try ClaudeAssistant.prompt(String(repeating: "x", count: ClaudeAssistant.maxPromptLength), document: original, today: day, shareHistory: false)
     }
-    check("Claude CLI arguments pick the model, session and no tools") {
+    check("Claude CLI arguments pick the model, session and read-only plus web tools") {
         let id = UUID()
         let first = ClaudeAssistant.arguments(model: .opus, session: id, resume: false)
         let next = ClaudeAssistant.arguments(model: .haiku, session: id, resume: true)
@@ -432,7 +432,9 @@ func runFeatureChecks() async -> (count: Int, failures: Int) {
         try verify(first.prefix(1) == ["-p"] && value(first, "--model") == "claude-opus-5-5" && value(first, "--session-id") == id.uuidString.lowercased())
         try verify(value(next, "--resume") == id.uuidString.lowercased() && value(next, "--model") == "claude-haiku-5-5" && !next.contains("--session-id"))
         try verify(test.contains("--no-session-persistence") && !test.contains("--resume") && !test.contains("--session-id"))
-        try verify(value(first, "--tools") == "" && first.contains("--strict-mcp-config") && value(first, "--setting-sources") == "")
+        try verify(value(first, "--tools") == "Read,Grep,Glob,WebSearch,WebFetch" && value(first, "--allowedTools") == "WebSearch,WebFetch")
+        try verify(value(first, "--permission-mode") == "dontAsk" && first.contains("--strict-mcp-config") && value(first, "--setting-sources") == "")
+        try verify(![first, next, test].contains { args in ["Bash", "Edit", "Write"].contains { value(args, "--tools")!.contains($0) } })
         let schema = try JSONSerialization.jsonObject(with: Data(value(first, "--json-schema")!.utf8)) as! [String: Any]
         try verify((schema["required"] as! [String]) == ["message", "actions"])
         try verify(ClaudeModel.allCases.count == 4 && ClaudeAssistant.defaultModel == .sonnet)
@@ -440,6 +442,46 @@ func runFeatureChecks() async -> (count: Int, failures: Int) {
         let high = ClaudeAssistant.arguments(model: .opus, effort: .xhigh, session: id, resume: true)
         try verify(value(high, "--effort") == "xhigh" && ClaudeEffort.allCases.map(\.rawValue) == ["low", "medium", "high", "xhigh", "max"])
         try verify([first, next, test].allSatisfy { value($0, "--input-format") == "stream-json" && value($0, "--output-format") == "stream-json" })
+    }
+    check("Claude's data copy drops locations, secrets and private notes, and adds readable times") {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("ascend-snapshot-\(UUID().uuidString)")
+        let source = root.appendingPathComponent("source"), workspace = root.appendingPathComponent("Claude")
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: workspace, withIntermediateDirectories: true)
+        let tracker: [String: Any] = ["timeZoneID": "Asia/Kolkata",
+            "urgeLogs": [["id": "u1", "timestamp": 817283462.0, "latitude": 12.97, "longitude": 77.59, "spot": "Desk", "note": "URGE_NOTE"]],
+            "notes": ["notes": [["title": "SHARED_NOTE", "shareWithClaude": true], ["title": "PRIVATE_NOTE", "shareWithClaude": false]]],
+            "cloud": ["accessToken": "TOKEN_VALUE", "kept": 1]]
+        try JSONSerialization.data(withJSONObject: tracker).write(to: source.appendingPathComponent("tracker.json"))
+        let health: [String: Any] = ["records": (0..<3).map { ["metric": "steps", "start": 1795583100 + $0 * 60, "value": 100] }]
+        try JSONSerialization.data(withJSONObject: health).write(to: source.appendingPathComponent("health.json"))
+        try Data("not json".utf8).write(to: source.appendingPathComponent("training.json"))
+        let folder = try ClaudeDataSnapshot.write(from: source, to: workspace, timeZone: TimeZone(identifier: "Asia/Kolkata")!)
+        let trackerText = try String(contentsOf: folder.appendingPathComponent("tracker.json"), encoding: .utf8)
+        try verify(!trackerText.contains("12.97") && !trackerText.contains("77.59") && !trackerText.contains("TOKEN_VALUE") && !trackerText.contains("PRIVATE_NOTE"))
+        try verify(trackerText.contains("SHARED_NOTE") && trackerText.contains("URGE_NOTE") && trackerText.contains("\"spot\":\"Desk\"") && trackerText.contains("\"kept\": 1"))
+        try verify(trackerText.contains("\"timestampLocal\":\"2026-11-25") || trackerText.contains("\"timestampLocal\":\"2026-11-24"))
+        _ = try JSONSerialization.jsonObject(with: Data(trackerText.utf8))
+        let healthText = try String(contentsOf: folder.appendingPathComponent("health.json"), encoding: .utf8)
+        let healthJSON = try JSONSerialization.jsonObject(with: Data(healthText.utf8)) as! [String: Any]
+        try verify((healthJSON["records"] as! [Any]).count == 3 && healthText.split(separator: "\n").count >= 5 && healthText.contains("startLocal"))
+        try verify(!FileManager.default.fileExists(atPath: folder.appendingPathComponent("training.json").path))
+        let readme = try String(contentsOf: folder.appendingPathComponent("README.md"), encoding: .utf8)
+        try verify(readme.contains("tracker.json") && readme.contains("health.json") && !readme.contains("training.json"))
+        let readmeURL = folder.appendingPathComponent("README.md")
+        let firstWrite = try FileManager.default.attributesOfItem(atPath: readmeURL.path)[.modificationDate] as! Date
+        _ = try ClaudeDataSnapshot.write(from: source, to: workspace, timeZone: .current)
+        let secondWrite = try FileManager.default.attributesOfItem(atPath: readmeURL.path)[.modificationDate] as! Date
+        try verify(secondWrite == firstWrite)
+        try JSONSerialization.data(withJSONObject: ["note": "CHANGED_MARKER"]).write(to: source.appendingPathComponent("tracker.json"))
+        try FileManager.default.setAttributes([.modificationDate: firstWrite.addingTimeInterval(5)], ofItemAtPath: source.appendingPathComponent("tracker.json").path)
+        _ = try ClaudeDataSnapshot.write(from: source, to: workspace, timeZone: .current)
+        let refreshed = try String(contentsOf: folder.appendingPathComponent("tracker.json"), encoding: .utf8)
+        try verify(refreshed.contains("CHANGED_MARKER"))
+        let entries = try FileManager.default.contentsOfDirectory(atPath: workspace.path); try verify(entries == ["data"])
+        ClaudeDataSnapshot.remove(in: workspace)
+        try verify(!FileManager.default.fileExists(atPath: folder.path))
     }
     check("chat photos are downscaled, keep transparency as PNG and reject non-images") {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent("ascend-photos-\(UUID().uuidString)")

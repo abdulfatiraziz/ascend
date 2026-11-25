@@ -245,8 +245,16 @@ The chat also offers Undo after an AI edit.
 Each message sends your text plus your goals, habits, schedules, targets, routine windows
 and current cycle to Anthropic through Claude Code. With **Share recent check-ins, progress
 and habit notes** on (the default), it also sends cycle progress, the last 14 days of
-check-ins and rest days, and habit notes. Urge records, health records and the wellbeing
-journal are never sent. Photos are sent only with the message you attach them to.
+check-ins and rest days, and habit notes. Photos are sent only with the message you attach them to.
+
+With **Let Claude search all my Ascend data** on (the default), Ascend writes a read-only copy of
+all your data into the chat's folder before each message: the full check-in history, meals,
+medicines, notes you share with Claude, urges, journal, watch health records, training, body
+measurements and screen time. Location coordinates, anything that looks like a password or token,
+and notes you keep from Claude are left out. Claude searches it with Claude Code's Read, Grep and
+Glob tools, which can't reach anything outside that folder, and it can search the web. It has no
+shell and can't edit files: plan changes still come back as proposals you review. Turn the option
+off to remove the copy; then urge records, health records and the journal are never sent.
 Claude Code keeps earlier turns of the chat, including photos, in its session.
 
 Nothing is sent until you send a message. Usage counts toward your Claude plan.
