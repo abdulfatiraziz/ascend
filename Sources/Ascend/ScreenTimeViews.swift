@@ -136,13 +136,13 @@ struct ScreenTimeView: View {
         }.environment(\.timeZone,zone).environment(\.calendar,phoneCalendar)
     }
     private func status(_ status:String)->String {
-        switch status { case "disabled":"Screen-time sharing is paused on the phone. Earlier history is retained.";case "denied":"Usage access is not allowed. Enable it for Ascend Bridge in Android Settings, then sync.";default:"The phone could not read usage events. Unlock it and sync again. Earlier history is retained." }
+        switch status { case "disabled":"Screen-time sharing is paused on the phone. Earlier history is retained.";case "denied":"Usage access is not allowed. Enable it for Cipher Bridge in Android Settings, then sync.";default:"The phone could not read usage events. Unlock it and sync again. Earlier history is retained." }
     }
     private var setup:some View {
         VStack(alignment:.leading,spacing:14) {
             Image(systemName:"hourglass").font(.bt(size:36)).foregroundStyle(Ink.accent)
             Text("Bring your phone usage into view.").font(.bt(size:22,weight:.medium))
-            Text("1. Update Ascend Bridge on your phone.\n2. Open Bridge → Settings → Share screen time with Mac.\n3. Allow Usage access in Android Settings, return to Bridge and tap Sync now.\n4. Optionally enable Screen time in background for hourly Wi-Fi sync.")
+            Text("1. Update Cipher Bridge on your phone.\n2. Open Bridge → Settings → Share screen time with Mac.\n3. Allow Usage access in Android Settings, return to Bridge and tap Sync now.\n4. Optionally enable Screen time in background for hourly Wi-Fi sync.")
                 .font(.bt(size:13)).lineSpacing(6).foregroundStyle(Ink.muted)
             Text("Only usage summaries are shared with your paired Mac. This is separate from Health Connect permissions.").font(.bt(size:11)).foregroundStyle(Ink.muted)
         }.frame(maxWidth:.infinity,alignment:.leading).panel(padding:26)

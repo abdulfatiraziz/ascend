@@ -200,7 +200,7 @@ private struct SleepCard: View {
                 }
             } else {
                 Mono("LAST NIGHT")
-                Text("No sleep recorded for this date. Sleep comes from Mi Fitness through Ascend Bridge.").font(.bt(size: 12)).foregroundStyle(Ink.muted)
+                Text("No sleep recorded for this date. Sleep comes from Mi Fitness through Cipher Bridge.").font(.bt(size: 12)).foregroundStyle(Ink.muted)
             }
         }.healthCard()
     }

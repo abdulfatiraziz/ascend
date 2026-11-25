@@ -50,7 +50,7 @@ public final class BridgeActivity extends Activity {
     static String subLabel(Screen s) { return s == Screen.SCREEN_TIME ? "Screen time" : s.name().charAt(0) + s.name().substring(1).toLowerCase(Locale.ROOT); }
     static final String LOCAL_NETWORK = "android.permission.ACCESS_LOCAL_NETWORK";
     static final int REQ_HEALTH = 7, REQ_NETWORK = 8, REQ_CAMERA = 11, REQ_PICK = 12, REQ_NOTIFY = 13, REQ_BACKGROUND = 14, REQ_LOCATION = 15, REQ_BACKGROUND_LOCATION = 16, REQ_SPOT_FINE = 17;
-    static final String VERSION = "0.9.11";
+    static final String VERSION = "0.10.0";
 
     SyncEngine engine;
     Ui ui;
@@ -144,7 +144,7 @@ public final class BridgeActivity extends Activity {
     void askToOpen() {
         int how = android.hardware.biometrics.BiometricManager.Authenticators.BIOMETRIC_STRONG | android.hardware.biometrics.BiometricManager.Authenticators.DEVICE_CREDENTIAL;
         if (getSystemService(android.hardware.biometrics.BiometricManager.class).canAuthenticate(how) != android.hardware.biometrics.BiometricManager.BIOMETRIC_SUCCESS) { if (eyes != null) eyes.cleared(); return; }
-        new android.hardware.biometrics.BiometricPrompt.Builder(this).setTitle("Open Ascend").setSubtitle("Eyes only").setAllowedAuthenticators(how).build()
+        new android.hardware.biometrics.BiometricPrompt.Builder(this).setTitle("Open Cipher").setSubtitle("Eyes only").setAllowedAuthenticators(how).build()
             .authenticate(new android.os.CancellationSignal(), getMainExecutor(), new android.hardware.biometrics.BiometricPrompt.AuthenticationCallback() {
                 @Override public void onAuthenticationSucceeded(android.hardware.biometrics.BiometricPrompt.AuthenticationResult r) { if (eyes != null) eyes.cleared(); }
                 @Override public void onAuthenticationFailed() { if (eyes != null) eyes.denied(); }
@@ -345,7 +345,7 @@ public final class BridgeActivity extends Activity {
         LinearLayout card = ui.card(10);
         card.setBackground(ui.round(Ui.PANEL, 18, 0x59D9B46E, 1));
         card.addView(ui.text("Connect to your Mac", 17, Ui.TEXT, 600));
-        card.addView(ui.body("1. On the Mac, open Ascend → Health → Pair phone.\n2. Tap Pair with Mac and check the 6-digit code matches.\n3. Choose which health data to share."));
+        card.addView(ui.body("1. On the Mac, open Cipher → Health → Pair phone.\n2. Tap Pair with Mac and check the 6-digit code matches.\n3. Choose which health data to share."));
         card.addView(ui.primary("Pair with Mac", v -> withNetwork(this::pair, null)), Ui.wide());
         card.addView(ui.secondary("Choose health data", v -> requestPermissions(SyncEngine.healthPermissions(), REQ_HEALTH)), Ui.wide());
         return card;
@@ -767,7 +767,7 @@ public final class BridgeActivity extends Activity {
         head.addView(ui.kicker("To approve"), new LinearLayout.LayoutParams(0, Ui.WRAP, 1));
         if (!open.isEmpty()) head.addView(ui.mono(open.size() + (open.size() == 1 ? " visit" : " visits"), 12, Ui.ACCENT_TEXT));
         ask.addView(head);
-        if (open.isEmpty()) ask.addView(ui.small("Nothing waiting. When you arrive at a saved spot, Ascend asks once; if you don't answer then, the visit waits here."));
+        if (open.isEmpty()) ask.addView(ui.small("Nothing waiting. When you arrive at a saved spot, Cipher asks once; if you don't answer then, the visit waits here."));
         for (UrgeRow r : open) {
             LinearLayout item = ui.column(10);
             item.setBackground(ui.round(Ui.PANEL2, 16, Ui.LINE, 1)); ui.pad(item, 14, 14, 14, 14);
@@ -943,6 +943,8 @@ public final class BridgeActivity extends Activity {
             if (!d.isEmpty()) f.addView(ui.small(d));
             col.addView(f);
         }
+        JSONObject daily = b == null ? null : b.optJSONObject("dailyMemo");
+        if (daily != null) col.addView(dailyMemoCard(daily, b.optString("dailyMemoDate")));
         // Phone-only: the one-tap logs. Weight, steps, sleep and screen time arrive on their own; urges come from spot visits (Field log › Urges).
         col.addView(ui.grid(8,
             logTile("ic_meal", "Meal", false, v -> { photoMode = "meal"; takePhoto(); }),
@@ -1045,7 +1047,7 @@ public final class BridgeActivity extends Activity {
     View trackingCard(JSONObject b) {
         LinearLayout card = ui.card(0);
         LinearLayout head = ui.row(8); head.setGravity(Gravity.CENTER_VERTICAL); ui.pad(head, 0, 0, 0, 6);
-        TextView k = ui.kicker("Ascend is tracking"); k.setTextColor(Ui.ACCENT);
+        TextView k = ui.kicker("Cipher is tracking"); k.setTextColor(Ui.ACCENT);
         head.addView(k, new LinearLayout.LayoutParams(0, Ui.WRAP, 1));
         head.addView(ui.text("Nothing to tap here", 12, Ui.MUTED, 500));
         card.addView(head);
@@ -1294,7 +1296,7 @@ public final class BridgeActivity extends Activity {
         catch (JSONException e) { toast("Couldn’t save the spot."); return; }
         if (checkSelfPermission(android.Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             dialog().setTitle("Check-ins at your spots")
-                .setMessage("To ask “Quick check-in?” when you arrive, Android needs location set to “Allow all the time” for Ascend Bridge. Android watches the spot itself, so it costs very little battery.")
+                .setMessage("To ask “Quick check-in?” when you arrive, Android needs location set to “Allow all the time” for Cipher Bridge. Android watches the spot itself, so it costs very little battery.")
                 .setPositiveButton("Continue", (d, w) -> askSpotPermissions())
                 .setNegativeButton("Not now", null).show();
         }
@@ -1306,7 +1308,7 @@ public final class BridgeActivity extends Activity {
         boolean watching = SpotReceiver.canWatch(this);
         card.addView(ui.small(spots.length() == 0 ? "Save a spot from the Urge sheet. Arriving there asks a neutral “Quick check-in?”; no answer is kept as a visit."
             : watching ? "Watching " + spots.length() + (spots.length() == 1 ? " spot" : " spots") + " · within " + (int) SpotReceiver.RADIUS_METRES + " m · stays on this phone and your Mac"
-            : "Not watching: set location to “Allow all the time” for Ascend Bridge."));
+            : "Not watching: set location to “Allow all the time” for Cipher Bridge."));
         for (int i = 0; i < spots.length(); i++) {
             JSONObject s = spots.optJSONObject(i);
             LinearLayout row = ui.row(10);
@@ -1343,7 +1345,7 @@ public final class BridgeActivity extends Activity {
             LinearLayout card = ui.card(6);
             card.addView(ui.kicker("Today"));
             card.addView(ui.text("Rest day", 18, Ui.TEXT, 600));
-            card.addView(ui.small(week == null ? "Your training plan lives in Ascend on the Mac → Body. Sync to see this week's sessions."
+            card.addView(ui.small(week == null ? "Your training plan lives in Cipher on the Mac → Body. Sync to see this week's sessions."
                 : next == null ? "Nothing planned in the next 7 days. Add sessions on the Mac → Body." : "No gym today. Recovery is part of the plan."));
             col.addView(card);
             if (next != null) col.addView(planPreview(next));
@@ -1539,7 +1541,7 @@ public final class BridgeActivity extends Activity {
     View noBrief() {
         LinearLayout card = ui.card(6);
         card.addView(ui.text("Sync to fill this in", 16, Ui.TEXT, 600));
-        card.addView(ui.small("This page comes from Ascend on your Mac. Tap the sync pill on Brief › Today when you're on the same Wi-Fi."));
+        card.addView(ui.small("This page comes from Cipher on your Mac. Tap the sync pill on Brief › Today when you're on the same Wi-Fi."));
         return card;
     }
     /** The Mac's page head: kicker, serif title and countdown, then the open tab's sub-tabs as pills. */
@@ -1867,7 +1869,7 @@ public final class BridgeActivity extends Activity {
         if (b == null) { col.addView(noBrief()); return holder[0]; }
         TextView k = ui.kicker("Plans, decisions and reflections worth keeping"); col.addView(k);
         JSONArray notes = b.optJSONArray("notes");
-        if (notes == null || notes.length() == 0) col.addView(ui.small("No notes yet. Write them on the Mac → Field log → Notes, or save a chat with Ask Ascend."));
+        if (notes == null || notes.length() == 0) col.addView(ui.small("No notes yet. Write them on the Mac → Field log → Notes, or save a chat with Q."));
         for (int i = 0; notes != null && i < notes.length(); i++) {
             JSONObject n = notes.optJSONObject(i);
             LinearLayout card = ui.card(6);
@@ -1960,6 +1962,55 @@ public final class BridgeActivity extends Activity {
         col.addView(ui.small("Placeholders are marked. Edit any line on the Mac → Dossier; it stays on your devices."));
         return holder[0];
     }
+    /** M's daily memo, on paper like the Mac's Today: yesterday, the goals, and up to three orders. Tap to fold. */
+    View dailyMemoCard(JSONObject memo, String date) {
+        int paper = 0xFFF1E8D4, ink = 0xFF1D2A24, soft = 0xB31D2A24, red = 0xFF9E2B33, green = 0xFF2F6B4A;
+        LinearLayout card = ui.column(10); ui.pad(card, 18, 18, 18, 18);
+        card.setBackground(ui.round(paper, 12, 0, 0));
+        LinearLayout head = ui.row(8);
+        TextView k = ui.kicker("Memorandum · from M · daily"); k.setTextColor(soft);
+        head.addView(k, new LinearLayout.LayoutParams(0, Ui.WRAP, 1));
+        head.addView(ui.mono(date, 10, soft));
+        card.addView(head);
+        View rule = new View(this); rule.setBackgroundColor(0x401D2A24); card.addView(rule, new LinearLayout.LayoutParams(Ui.MATCH, 1));
+        TextView open = ui.text("007. " + memo.optString("opening"), 18, ink, 500); open.setTypeface(Ui.serif(500), android.graphics.Typeface.ITALIC);
+        card.addView(open);
+        LinearLayout body = ui.column(10);
+        for (String[] part : new String[][]{{"yesterday", "Yesterday"}, {"goals", "Goals"}}) {
+            JSONArray lines = memo.optJSONArray(part[0]);
+            if (lines == null || lines.length() == 0) continue;
+            TextView pk = ui.kicker(part[1]); pk.setTextColor(soft); body.addView(pk);
+            for (int i = 0; i < lines.length(); i++) {
+                JSONObject l = lines.optJSONObject(i);
+                LinearLayout r = ui.row(8); r.setGravity(Gravity.TOP);
+                View dot = new View(this);
+                int color = !l.has("good") || l.isNull("good") ? 0x4D1D2A24 : l.optBoolean("good") ? green : red;
+                dot.setBackground(ui.round(color, 4, 0, 0));
+                LinearLayout.LayoutParams dp = new LinearLayout.LayoutParams(ui.dp(7), ui.dp(7)); dp.topMargin = ui.dp(6); r.addView(dot, dp);
+                TextView t = ui.text(l.optString("label") + "  " + l.optString("text"), 13, ink, 400);
+                r.addView(t, new LinearLayout.LayoutParams(0, Ui.WRAP, 1));
+                body.addView(r);
+            }
+        }
+        JSONArray orders = memo.optJSONArray("orders");
+        if (orders != null && orders.length() > 0) {
+            TextView tk = ui.kicker("Today"); tk.setTextColor(red); body.addView(tk);
+            for (int i = 0; i < orders.length(); i++) {
+                LinearLayout r = ui.row(10); r.setGravity(Gravity.TOP);
+                r.addView(ui.mono((i + 1) + ".", 13, red));
+                TextView o = ui.text(orders.optString(i), 16, ink, 600); o.setTypeface(Ui.serif(600));
+                r.addView(o, new LinearLayout.LayoutParams(0, Ui.WRAP, 1));
+                body.addView(r);
+            }
+        }
+        card.addView(body);
+        LinearLayout foot = ui.row(8); foot.setGravity(Gravity.CENTER_VERTICAL);
+        foot.addView(ui.mono("Urges stay in Field log", 9, soft), new LinearLayout.LayoutParams(0, Ui.WRAP, 1));
+        TextView m = ui.text("— M", 16, ink, 500); m.setTypeface(Ui.serif(500), android.graphics.Typeface.ITALIC); foot.addView(m);
+        card.addView(foot);
+        card.setOnClickListener(Ui.tap(x -> body.setVisibility(body.getVisibility() == View.GONE ? View.VISIBLE : View.GONE)));
+        return card;
+    }
     /** M's weekly memorandum, on paper like the Mac. */
     View memoCard(JSONObject memo) {
         int paper = 0xFFF1E8D4, ink = 0xFF1D2A24, red = 0xFF9E2B33;
@@ -2003,7 +2054,7 @@ public final class BridgeActivity extends Activity {
             if (!message.isEmpty()) mac.addView(ui.small(String.join(" · ", message.split("\n"))));
             mac.addView(ui.grid(10, ui.primary(syncing ? "Syncing…" : "Sync now", v -> sync(true, false)), ui.danger("Forget Mac", v -> forget())));
         } else {
-            mac.addView(ui.body("Not paired. On the Mac, open Ascend → Health → Pair phone, then tap Pair with Mac."));
+            mac.addView(ui.body("Not paired. On the Mac, open Cipher → Health → Pair phone, then tap Pair with Mac."));
             mac.addView(ui.primary("Pair with Mac", v -> withNetwork(this::pair, null)), Ui.wide());
         }
         col.addView(mac);
@@ -2050,13 +2101,13 @@ public final class BridgeActivity extends Activity {
             prefs.edit().putBoolean("eyesLockOnLeave", on).apply(); setRecentsScreenshotEnabled(!on);
         }));
         sync.addView(toggle("Sync when I open the app", "Quietly sends anything waiting", prefs.getBoolean("autoSync", true), on -> prefs.edit().putBoolean("autoSync", on).apply()));
-        sync.addView(toggle("Medicine reminders", remindersOn() ? "At each prescribed time, with a Taken button" : "Notifications are off for Ascend Bridge", remindersOn(), on -> enableReminders()));
+        sync.addView(toggle("Medicine reminders", remindersOn() ? "At each prescribed time, with a Taken button" : "Notifications are off for Cipher Bridge", remindersOn(), on -> enableReminders()));
         col.addView(sync);
         LinearLayout privacy = ui.column(8); ui.pad(privacy, 4, 4, 4, 0);
         privacy.addView(ui.kicker("Privacy"));
         privacy.addView(ui.small("Reads the Mi Fitness records you allow and never writes health data. Optional screen-time sharing reads usage summaries only after you enable Usage access. Photos are resized and stripped of location. Everything goes straight to your Mac over Wi-Fi, encrypted with the key from pairing. No account, cloud or developer options."));
         col.addView(privacy);
-        TextView version = ui.small("Ascend Bridge " + VERSION); version.setGravity(Gravity.CENTER); version.setTextSize(11);
+        TextView version = ui.small("Cipher Bridge " + VERSION); version.setGravity(Gravity.CENTER); version.setTextSize(11);
         col.addView(version);
         return holder[0];
     }
@@ -2086,13 +2137,13 @@ public final class BridgeActivity extends Activity {
         if (!SyncEngine.RUNNING.compareAndSet(false, true)) { if (!quiet) toast("Already syncing…"); return; }
         syncing = true; render();
         withNetwork(() -> engine.discover(list -> chooseTarget(list, quiet, target -> {
-            if (target == null) { finishSync(quiet ? null : "Couldn’t find " + engine.macName() + " on this Wi-Fi. Open Ascend on the Mac and try again."); return; }
+            if (target == null) { finishSync(quiet ? null : "Couldn’t find " + engine.macName() + " on this Wi-Fi. Open Cipher on the Mac and try again."); return; }
             if (health && engine.allowedCount() > 0 && readableForeground()) {
                 getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
                 engine.readHealth(this::readableForeground, (snapshot, problem) ->
                     network.execute(() -> finishSync(engine.sendAll(target, snapshot, problem == null ? "" : problem + "\n"))));
             } else network.execute(() -> finishSync(engine.sendAll(target, null, "")));
-        })), () -> finishSync("Ascend Bridge needs local network access to reach your Mac. Allow it in Settings → Apps → Ascend Bridge."));
+        })), () -> finishSync("Cipher Bridge needs local network access to reach your Mac. Allow it in Settings → Apps → Cipher Bridge."));
     }
     void chooseTarget(List<SyncEngine.Target> list, boolean quiet, Consumer<SyncEngine.Target> chosen) {
         SyncEngine.Target preferred = engine.preferred(list);
@@ -2131,11 +2182,11 @@ public final class BridgeActivity extends Activity {
             Runnable action = afterNetwork, denied = networkDenied; afterNetwork = null; networkDenied = null;
             if (ok && action != null) action.run();
             else if (denied != null) denied.run();
-            else toast("Ascend Bridge needs local network access to reach your Mac. Allow it in Settings → Apps → Ascend Bridge.");
+            else toast("Cipher Bridge needs local network access to reach your Mac. Allow it in Settings → Apps → Cipher Bridge.");
         } else if (code == REQ_BACKGROUND) {
             prefs.edit().putBoolean("backgroundSync", ok).apply();
             boolean scheduled = SyncJob.schedule(this, ok);
-            toast(!ok ? "Background sync needs “Access data in the background” for Ascend Bridge in Health Connect."
+            toast(!ok ? "Background sync needs “Access data in the background” for Cipher Bridge in Health Connect."
                 : scheduled ? "Background sync on: every hour on Wi-Fi when your Mac is reachable." : "Android didn’t allow the background job. Try again later.");
         } else if (code == REQ_LOCATION) {
             File file = pendingLocation; pendingLocation = null;
@@ -2159,9 +2210,9 @@ public final class BridgeActivity extends Activity {
     // MARK: Pairing
     void pair() {
         if (!SyncEngine.RUNNING.compareAndSet(false, true)) { toast("Busy syncing. Try again in a moment."); return; }
-        toast("Looking for Ascend on your Wi-Fi…");
+        toast("Looking for Cipher on your Wi-Fi…");
         engine.discover(list -> {
-            if (list.isEmpty()) { SyncEngine.RUNNING.set(false); toast("No Mac found. Open Ascend on your Mac and keep both devices on the same Wi-Fi."); return; }
+            if (list.isEmpty()) { SyncEngine.RUNNING.set(false); toast("No Mac found. Open Cipher on your Mac and keep both devices on the same Wi-Fi."); return; }
             if (list.size() == 1) { network.execute(() -> pairWith(list.get(0))); return; }
             String[] names = list.stream().map(t -> t.name).toArray(String[]::new);
             dialog().setTitle("Choose your Mac").setItems(names, (d, i) -> network.execute(() -> pairWith(list.get(i))))
@@ -2199,7 +2250,7 @@ public final class BridgeActivity extends Activity {
             finishPairing(pairingCancelled ? "Pairing cancelled." : "Pairing timed out. Try again.");
         } catch (Exception e) {
             runUi(() -> { if (shown[0] != null) shown[0].dismiss(); });
-            finishPairing("Couldn’t reach your Mac. Keep Ascend open on the Mac and both devices on the same Wi-Fi.");
+            finishPairing("Couldn’t reach your Mac. Keep Cipher open on the Mac and both devices on the same Wi-Fi.");
         }
     }
     void finishPairing(String message) { runUi(() -> { SyncEngine.RUNNING.set(false); toast(message); render(); }); }

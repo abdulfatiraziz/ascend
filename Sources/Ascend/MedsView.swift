@@ -16,7 +16,7 @@ struct MedsView: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 6) {
                         Kicker("Photos → Claude sorts and reads → your review")
-                        Text("Snap every side of your medicines in Ascend Bridge, in any order, or drop photos here. Add the schedule your doctor gave you; the phone reminds you and you tap Taken.").font(.bt(size: 12)).foregroundStyle(Ink.muted)
+                        Text("Snap every side of your medicines in Cipher Bridge, in any order, or drop photos here. Add the schedule your doctor gave you; the phone reminds you and you tap Taken.").font(.bt(size: 12)).foregroundStyle(Ink.muted)
                     }
                     Spacer()
                     Button("Add by name") { _ = store.newMedicine() }.font(.bt(size: 12))
@@ -34,7 +34,7 @@ struct MedsView: View {
                 if active.isEmpty && review.isEmpty && cabinet.inbox.isEmpty {
                     VStack(alignment: .leading, spacing: 10) {
                         Text("No medicines yet.").font(.bt(size: 18, weight: .semibold))
-                        Text("On your phone: Ascend Bridge → Add medicines, photograph the front, back and strip of each one, tap Done. Claude groups the photos and reads the labels; you check each card and add the schedule.").font(.bt(size: 12)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
+                        Text("On your phone: Cipher Bridge → Add medicines, photograph the front, back and strip of each one, tap Done. Claude groups the photos and reads the labels; you check each card and add the schedule.").font(.bt(size: 12)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
                     }.frame(maxWidth: .infinity, alignment: .leading).panel()
                 }
                 ForEach(active) { MedCard(store: store, reader: reader, medicine: $0) }

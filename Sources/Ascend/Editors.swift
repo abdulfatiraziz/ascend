@@ -228,6 +228,8 @@ struct SettingsEditor: View {
     private var dirty: Bool { title != store.document.cycle.title || store.engine.key(start) != store.document.cycle.start || store.engine.key(end) != store.document.cycle.end || target != store.document.cycle.target }
     var body: some View {
         EditorShell(title: "Your space", dirty: dirty) {
+            FieldGroup(label: "Startup · saves immediately") { LoginItemToggle() }
+            Line()
             FieldGroup(label: "Avatar appearance · saves immediately") {
                 Picker("Avatar appearance", selection: Binding(get: { store.document.avatarFinish }, set: { store.finish($0) })) {
                     Text("Follow progress").tag("Progress")
@@ -256,7 +258,7 @@ struct SettingsEditor: View {
             if !store.document.health.errors.isEmpty {
                 VStack(alignment: .leading, spacing: 7) { Kicker("Some types could not refresh"); ForEach(store.document.health.errors.keys.sorted(), id: \.self) { key in Text("\(HealthMetric(rawValue: key)?.title ?? key): \(store.document.health.errors[key] ?? "")").font(.bt(size: 12)).foregroundStyle(Ink.watch) } }
             }
-            Text("Heart rate, SpO2, stress and resting heart rate come from the Mi Fitness cloud; sleep, steps, calories and workouts from Health Connect via Ascend Bridge. Stored on this Mac; Q reads a copy only while “Let Claude search all my Cipher data” is on. Sleep and step habits fill from these readings; a value you type yourself is kept.")
+            Text("Heart rate, SpO2, stress and resting heart rate come from the Mi Fitness cloud; sleep, steps, calories and workouts from Health Connect via Cipher Bridge. Stored on this Mac; Q reads a copy only while “Let Claude search all my Cipher data” is on. Sleep and step habits fill from these readings; a value you type yourself is kept.")
                 .font(.bt(size: 11)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
             MacScreenTimePanel(service: store.macScreenTime)
             if !store.screenTime.archive.devices.isEmpty { Button("Export screen-time backup…") { store.screenTime.export() }.font(.bt(size: 12)) }

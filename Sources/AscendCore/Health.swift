@@ -156,7 +156,7 @@ public struct HealthArchive: Codable, Equatable, Sendable {
         try snapshot.validate(expectedRequestID: expectedRequestID, now: now)
         var result = self
         let readable = Set(HealthMetric.phone.filter { snapshot.permissions[$0.rawValue] == true && snapshot.errors[$0.rawValue] == nil })
-        guard !readable.isEmpty else { throw ValidationError(message: "No watch data could be read. Choose permissions in Ascend Bridge on your phone, keep it open, then sync again.") }
+        guard !readable.isEmpty else { throw ValidationError(message: "No watch data could be read. Choose permissions in Cipher Bridge on your phone, keep it open, then sync again.") }
         // Mi Fitness sends only workout heart rate to Health Connect; the cloud has every reading, so it wins while connected.
         let owned = cloudSync == nil ? readable : readable.subtracting(HealthMetric.cloud)
         // Replace only successfully queried types in the refreshed window. Keep older history,

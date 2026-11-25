@@ -194,7 +194,7 @@ public struct Lifestyle: Codable, Equatable, Sendable {
             p(.wardrobe, "Midnight-blue dinner jacket", "Tailored once the cut is done.", "After the cut"),
             p(.wardrobe, "Linen shirt, sand", "For the trip abroad.", "Want"),
             p(.qBranch, "Redmi Watch Move", "Heart rate, stress, SpO₂, sleep.", "Owned"),
-            p(.qBranch, "Pixel phone · Ascend Bridge", "Logs, urges, steps and sleep.", "Owned"),
+            p(.qBranch, "Pixel phone · Cipher Bridge", "Logs, urges, steps and sleep.", "Owned"),
             p(.qBranch, "Smart scale", "Weight and body fat each morning.", "Owned"),
             p(.qBranch, "A dress watch", "Steel, simple dial. Pick the one.", "Want"),
             p(.garage, "The dream car", "Pick it: the one you'd drive to the casino.", "Dream"),
@@ -267,7 +267,7 @@ public enum Debrief {
             let avg = w.averageOnsetMinute.map { ", average \(clock($0))" } ?? ""
             let line = "Asleep by 1 am on \(w.nightsByOne) of \(w.nightsKnown) nights\(avg)."
             w.nightsByOne >= 5 ? wins.append(line) : misses.append(line)
-        } else { misses.append("No sleep synced. Open Ascend Bridge daily.") }
+        } else { misses.append("No sleep synced. Open Cipher Bridge daily.") }
         // Weight
         var weightDelta: Double?
         if let a = w.kgStart, let b = w.kgEnd {
@@ -327,8 +327,8 @@ public struct DailyMemoFacts: Equatable, Sendable {
     }
 }
 
-public struct DailyMemo: Equatable, Sendable {
-    public struct Line: Equatable, Sendable {
+public struct DailyMemo: Codable, Equatable, Sendable {
+    public struct Line: Codable, Equatable, Sendable {
         public var label: String, text: String, good: Bool?
         public init(label: String, text: String, good: Bool?) { self.label = label; self.text = text; self.good = good }
     }
@@ -359,7 +359,7 @@ public struct DailyMemo: Equatable, Sendable {
         if let s = f.sleepMinutes {
             let onset = f.onsetMinute.map { ", asleep at \(Debrief.clock($0))" } ?? ""
             y.append(Line(label: "Sleep", text: "\(hours(s))\(onset).", good: s >= 420 && (f.onsetMinute ?? 0) <= 1500))
-        } else { y.append(Line(label: "Sleep", text: "Last night hasn't synced yet. Open Ascend Bridge.", good: nil)) }
+        } else { y.append(Line(label: "Sleep", text: "Last night hasn't synced yet. Open Cipher Bridge.", good: nil)) }
         if let s = f.steps { y.append(Line(label: "Steps", text: whole(s) + (s >= 7000 ? "." : ". The floor is 7,000."), good: s >= 7000)) }
         if let k = f.kcal {
             var text = "\(whole(k)) kcal" + (f.kcalLimit.map { " of \(whole($0))" } ?? "")

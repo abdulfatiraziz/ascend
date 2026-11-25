@@ -2,7 +2,7 @@
 # Runs the Android link code (LinkCrypto, LinkClient) on the bundled JDK against the real Mac link server.
 set -euo pipefail
 cd "${0:A:h:h}"
-jdk="$PWD/build/tools/jdk-21.0.12.1+1/Contents/Home"
+jdk=$(print -l "$PWD"/build/tools/jdk-21*/Contents/Home(N) | tail -1)
 classes="${TMPDIR:-/private/tmp/}ascend-link-interop"
 rm -rf "$classes"; mkdir -p "$classes"
 "$jdk/bin/javac" -d "$classes" \

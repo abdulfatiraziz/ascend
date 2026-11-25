@@ -35,6 +35,9 @@ public struct PhoneBrief: Codable, Equatable, Sendable {
     /// Field log › Urges: the Mac's urges from the last 8 days, newest first, so the phone shows what reached the Mac
     /// and which spot visits still wait for an answer. Spot names only, never coordinates.
     public var urges: [PhoneUrgeLine]? = nil
+    /// Brief › Today: M's daily memo (yesterday, goals, today's orders) and the date it is for, e.g. "WED 25 NOV". Never mentions urges.
+    public var dailyMemo: DailyMemo? = nil
+    public var dailyMemoDate: String? = nil
     public init() {}
 }
 public struct PhoneUrgeLine: Codable, Equatable, Sendable {

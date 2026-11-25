@@ -55,7 +55,7 @@ to fill them in later. Outcomes use neutral wording: **Let it pass** or **Acted 
 never automatically changes a habit check-in.
 
 The top of Urges counts **let pass** and **acted on** for today, the last 7 days and this cycle,
-plus the days since you last acted on one. On the phone, Ascend Bridge (0.3.0+) has **Let it pass**
+plus the days since you last acted on one. On the phone, Cipher Bridge (0.3.0+) has **Let it pass**
 and **Acted on it** buttons with optional intensity, trigger and note. The urge saves on the phone
 and sends straight away; if the Mac can't be reached it goes with the next sync. The phone shows the
 same counts, refreshed whenever it reaches the Mac.
@@ -81,8 +81,8 @@ All comparisons run locally. [Complete Patterns guide](PATTERNS.md).
 ## Health and watch data
 
 Open **Health** to connect your Android phone over Wi-Fi. Use **Install phone app…**
-to install or update Ascend Bridge from a QR code, then **Pair phone…** and confirm the
-matching 6-digit code. After that, Ascend Bridge syncs when you open it (or tap the sync pill on
+to install or update Cipher Bridge from a QR code, then **Pair phone…** and confirm the
+matching 6-digit code. After that, Cipher Bridge syncs when you open it (or tap the sync pill on
 Today), and hourly in the background if you turn that on in its Settings; Cipher must
 be open on the Mac and both devices on the same Wi-Fi. No
 developer options are needed. [Complete setup and limitations](HEALTH-SYNC.md).
@@ -109,7 +109,7 @@ calories does not log food intake. Each sync creates a backup and offers Undo.
 
 ## Meals
 
-Take meal photos in Ascend Bridge (camera or photo picker) with an optional note,
+Take meal photos in Cipher Bridge (camera or photo picker) with an optional note,
 then Sync to Mac, or drag photos onto **Meals** on the Mac. Claude estimates each
 meal's calories and macros as a range. Adjust the numbers and click **Confirm meal**;
 confirmed meals set that day's Calorie target and Protein target check-ins. The
@@ -127,7 +127,7 @@ No health records are invented when access or a metric is unavailable.
 
 ## Medicines
 
-In Ascend Bridge (0.4.0+), tap **Add medicines (photos)** and photograph or pick every
+In Cipher Bridge (0.4.0+), tap **Add medicines (photos)** and photograph or pick every
 side of every medicine (front, back, strip, leaflet) in any order, up to 20 photos, then
 **Done**. The batch goes to the Mac, where Claude groups the photos by medicine and reads
 name, active ingredients, strength, form and a general category. Photos it can't place

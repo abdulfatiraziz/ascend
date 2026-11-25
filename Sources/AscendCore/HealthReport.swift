@@ -165,7 +165,7 @@ public extension HealthArchive {
     }
 
     private func headline(_ r: HealthReport) -> (String, String) {
-        guard r.hasData else { return ("No watch data for this day yet.", "Sync your watch in Mi Fitness, then open Ascend Bridge or wait for the hourly cloud sync.") }
+        guard r.hasData else { return ("No watch data for this day yet.", "Sync your watch in Mi Fitness, then open Cipher Bridge or wait for the hourly cloud sync.") }
         let short = r.asleepMinutes.map { $0 < r.planMinutes * 0.9 } ?? false
         let title: String
         switch r.recovery?.label {

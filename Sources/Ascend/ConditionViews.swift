@@ -584,7 +584,7 @@ struct ConditionScreenTimeView: View {
                 } else {
                     VStack(alignment: .leading, spacing: 10) {
                         Text("No phone screen time yet.").font(.bt(size: 20, weight: .semibold))
-                        Text("Open Ascend Bridge on your phone → Settings → Share screen time with Mac, allow Usage access, then tap Sync now. Pairing lives in Settings.").font(.bt(size: 12)).foregroundStyle(Ink.muted)
+                        Text("Open Cipher Bridge on your phone → Settings → Share screen time with Mac, allow Usage access, then tap Sync now. Pairing lives in Settings.").font(.bt(size: 12)).foregroundStyle(Ink.muted)
                         Button("Open Settings") { store.pendingScreen = "Settings" }
                     }.conditionCard()
                     thisMac

@@ -155,7 +155,7 @@ struct BriefFacts {
             if minute <= 25 * 60 { onTime += 1 }
         }
         guard known > 0 else {
-            return Mission(number: "02", area: "Sleep", codename: "Midnight", value: "—", unit: "NIGHTS", progress: 0, detail: "No sleep synced this week. Open Ascend Bridge.", statusText: "No data", status: .none)
+            return Mission(number: "02", area: "Sleep", codename: "Midnight", value: "—", unit: "NIGHTS", progress: 0, detail: "No sleep synced this week. Open Cipher Bridge.", statusText: "No data", status: .none)
         }
         let avg = onsets.reduce(0, +) / onsets.count
         let status: MissionStatus = onTime >= 5 ? .onTrack : onTime >= 3 ? .watch : .offTrack

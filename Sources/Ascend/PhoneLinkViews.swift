@@ -12,7 +12,7 @@ struct PhoneLinkPanel: View {
                 Image(systemName: link.listening ? "wifi" : "wifi.exclamationmark").foregroundStyle(link.listening ? Ink.accent : .orange)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(link.status).font(.bt(size: 12))
-                    Text(link.phones.isEmpty ? "No phone paired yet." : "Open Ascend Bridge and tap Sync to Mac. Health data and meal photos arrive here.").font(.bt(size: 11)).foregroundStyle(Ink.muted)
+                    Text(link.phones.isEmpty ? "No phone paired yet." : "Open Cipher Bridge and tap Sync to Mac. Health data and meal photos arrive here.").font(.bt(size: 11)).foregroundStyle(Ink.muted)
                 }
                 Spacer()
                 Button("Pair phone…") { link.openPairing() }.disabled(!link.listening || link.pairingOpen)
@@ -49,7 +49,7 @@ struct PhoneLinkPanel: View {
             } else {
                 HStack {
                     ProgressView().controlSize(.small)
-                    Text("Waiting for your phone. Open Ascend Bridge and tap Pair with Mac. Both devices must be on the same Wi-Fi.").font(.bt(size: 12)).fixedSize(horizontal: false, vertical: true)
+                    Text("Waiting for your phone. Open Cipher Bridge and tap Pair with Mac. Both devices must be on the same Wi-Fi.").font(.bt(size: 12)).fixedSize(horizontal: false, vertical: true)
                     Spacer()
                     Button("Cancel") { link.cancelPairing() }.font(.bt(size: 11))
                 }
@@ -61,12 +61,12 @@ struct InstallPhoneAppSheet: View {
     @ObservedObject var link: PhoneLinkService
     @Environment(\.dismiss) private var dismiss
     var body: some View {
-        EditorShell(title: "Install Ascend Bridge") {
+        EditorShell(title: "Install Cipher Bridge") {
             if let url = link.downloadURL {
                 HStack(alignment: .top, spacing: 18) {
                     if let qr = link.qrCode(for: url) { Image(nsImage: qr).interpolation(.none).resizable().frame(width: 170, height: 170).background(.white).clipShape(RoundedRectangle(cornerRadius: 8)) }
                     VStack(alignment: .leading, spacing: 10) {
-                        Text("1. Point your Pixel’s camera at the code and open the link.\n2. Download the app, then allow your browser to install it when asked.\n3. Tap Update (or Install). Your Health Connect permissions are kept.\n4. Open Ascend Bridge → Pair with Mac.").font(.bt(size: 12)).fixedSize(horizontal: false, vertical: true)
+                        Text("1. Point your Pixel’s camera at the code and open the link.\n2. Download the app, then allow your browser to install it when asked.\n3. Tap Update (or Install). Your Health Connect permissions are kept.\n4. Open Cipher Bridge → Pair with Mac.").font(.bt(size: 12)).fixedSize(horizontal: false, vertical: true)
                         Text(url.absoluteString).font(.bt(size: 11, design: .monospaced)).foregroundStyle(Ink.muted).textSelection(.enabled)
                     }
                 }

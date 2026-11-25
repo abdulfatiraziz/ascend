@@ -2,7 +2,7 @@
 
 Ascend can import the data Mi Fitness writes to Android Health Connect, plus meal
 photos you take on the phone. The path is watch → Mi Fitness → Health Connect →
-Ascend Bridge → your Wi-Fi → Ascend on Mac. Developer options and USB debugging are
+Cipher Bridge → your Wi-Fi → Ascend on Mac. Developer options and USB debugging are
 not needed; Bridge 0.2 replaced the earlier Android-debugging transfer.
 Only the Mi Fitness source (`com.xiaomi.wearable`) is queried. Source device
 metadata may be absent, so the Mac labels this data Mi Fitness rather than
@@ -13,15 +13,15 @@ assuming every record was measured by a particular watch model.
 1. Sync your watch in Mi Fitness and enable its Health Connect sharing.
 2. Keep the phone and Mac on the same Wi-Fi, with Ascend open on the Mac. The first
    time, macOS may ask to let Ascend use the local network; allow it.
-3. Install or update Ascend Bridge: on the Mac open **Health → Install phone app…**,
+3. Install or update Cipher Bridge: on the Mac open **Health → Install phone app…**,
    point the Pixel camera at the QR code, download the APK and allow your browser to
    install it. An update keeps the phone's existing Health Connect permissions.
-4. In Ascend Bridge tap **Choose health permissions** and select only the read access
+4. In Cipher Bridge tap **Choose health permissions** and select only the read access
    you want. Ascend cannot approve this on your behalf.
-5. On the Mac click **Pair phone…**. In Ascend Bridge tap **Pair with Mac**. Check
+5. On the Mac click **Pair phone…**. In Cipher Bridge tap **Pair with Mac**. Check
    that both screens show the same 6-digit code, then click **Codes match · Pair** on
    the Mac. Pairing happens once.
-6. Open Ascend Bridge: it syncs quietly when it opens (at most every 10 minutes),
+6. Open Cipher Bridge: it syncs quietly when it opens (at most every 10 minutes),
    or tap the "Synced … ago" pill on Today. Health data and anything queued (meal
    and medicine photos, urges, doses) are sent together, and the Mac replies with
    today's progress, urge counts and upcoming doses.
@@ -114,7 +114,7 @@ automatic context, as are urge logs.
 
 ## Meal photos
 
-In Ascend Bridge, **Take meal photo** opens the system camera and **Choose meal
+In Cipher Bridge, **Take meal photo** opens the system camera and **Choose meal
 photos** opens the system photo picker, so the app needs no camera or storage
 permission. Add an optional note such as "2 rotis, dal, cooked in ghee". The phone
 resizes each photo to at most 1568 px, turns it upright and re-encodes it, which
@@ -135,7 +135,7 @@ The Steps card distinguishes absent Mi Fitness data from zero. Use its **?**
 button for permission, refresh-error and selected-date guidance. Steps visible
 inside Mi Fitness must also be written to Health Connect. In Android Health
 Connect, browse Steps entries and confirm Mi Fitness is the source, then keep
-Ascend Bridge visible and sync from the Mac. The notification shade can cover
+Cipher Bridge visible and sync from the Mac. The notification shade can cover
 the bridge and pause reads even while its activity is open.
 
 The companion checks source-filtered raw step record counts before fetching

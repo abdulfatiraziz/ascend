@@ -27,8 +27,8 @@ public final class ExerciseDemoActivity extends Activity {
         player.setWebViewClient(new WebViewClient(){@Override public boolean shouldOverrideUrlLoading(WebView view,String url){return true;}});
         root.addView(player,new LinearLayout.LayoutParams(-1,0,1));
         play=new Button(this);play.setText("Subtle GIF motion: off");play.setOnClickListener(v->{playing=!playing;showDemo();});root.addView(play);
-        TextView credits=new TextView(this);credits.setText("AI-generated artwork for Ascend. No personal photos used.\nDecorative GIF motion gently moves the illustration, not the exercise. Not a form demonstration. Motion is off by default.");credits.setTextColor(0xffaaa5b5);credits.setTextSize(11);root.addView(credits);
-        Button back=new Button(this);back.setText("Back to Ascend");back.setOnClickListener(v->finish());root.addView(back);
+        TextView credits=new TextView(this);credits.setText("AI-generated artwork for Cipher. No personal photos used.\nDecorative GIF motion gently moves the illustration, not the exercise. Not a form demonstration. Motion is off by default.");credits.setTextColor(0xffaaa5b5);credits.setTextSize(11);root.addView(credits);
+        Button back=new Button(this);back.setText("Back to Cipher");back.setOnClickListener(v->finish());root.addView(back);
         setContentView(root);
         try {
             JSONArray list=new JSONArray(read("catalog.json"));

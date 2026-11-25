@@ -30,6 +30,8 @@ extension TrackerStore {
         b.focus = brief.focusLine
         b.focusDetail = brief.focusDetail
         b.daysLeft = brief.daysLeft
+        b.dailyMemo = DailyMemo.compose(DailyMemoFacts(store: self))
+        b.dailyMemoDate = dateText(today, engine: engine, pattern: "EEE d MMM").uppercased()
 
         // Brief › Routine
         let r = RoutineFacts(store: self, now: now)

@@ -15,7 +15,7 @@ struct MealsView: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 6) {
                         Kicker(store.autoConfirmMeals ? "Photo → Claude estimate → logged" : "Photo → Claude estimate → your review")
-                        Text("Snap meals in Ascend Bridge or drop photos here. Confirmed meals set your Calorie and Protein check-ins for that day.").font(.bt(size: 12)).foregroundStyle(Ink.muted)
+                        Text("Snap meals in Cipher Bridge or drop photos here. Confirmed meals set your Calorie and Protein check-ins for that day.").font(.bt(size: 12)).foregroundStyle(Ink.muted)
                         Toggle("Approve estimates automatically", isOn: Binding(get: { store.autoConfirmMeals }, set: { store.autoConfirmMeals = $0 }))
                             .toggleStyle(.switch).controlSize(.mini).font(.bt(size: 11)).help("When on, a meal is confirmed as soon as Claude's estimate arrives. Use Edit on a meal to adjust it.")
                     }
@@ -31,7 +31,7 @@ struct MealsView: View {
                 if entries.isEmpty {
                     VStack(alignment: .leading, spacing: 10) {
                         Text("No meals for this day.").font(.bt(size: 18, weight: .semibold))
-                        Text("On your phone: open Ascend Bridge → Take meal photo, add a short note like “2 rotis, dal”, then Sync to Mac on the same Wi-Fi. Or drag a food photo onto this window.").font(.bt(size: 12)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
+                        Text("On your phone: open Cipher Bridge → Take meal photo, add a short note like “2 rotis, dal”, then Sync to Mac on the same Wi-Fi. Or drag a food photo onto this window.").font(.bt(size: 12)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
                     }.frame(maxWidth: .infinity, alignment: .leading).panel()
                 }
                 ForEach(entries) { MealCard(store: store, meals: meals, meal: $0) }

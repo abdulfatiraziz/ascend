@@ -231,7 +231,7 @@ struct TodayGlanceCard: View {
                 Spacer(minLength: 8)
                 if let sync = syncWarning {
                     Text(sync).font(.bt(size: 10.5, design: .monospaced)).foregroundStyle(Ink.watch).lineLimit(1)
-                        .help("Sleep and steps come from the phone. Open Ascend Bridge on the Pixel to sync.")
+                        .help("Sleep and steps come from the phone. Open Cipher Bridge on the Pixel to sync.")
                 }
             }.padding(.top, 14)
         }.panel(padding: 22)

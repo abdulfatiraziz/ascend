@@ -251,7 +251,7 @@ final class SyncEngine {
                     JSONObject screen = ScreenTimeCollector.snapshot(context);
                     JSONObject reply=send(target,"/v1/screentime",envelope("screentime").put("screenTime",screen));
                     summary.append(reply.optString("message","Screen time sent")).append('\n');
-                } catch (Exception e) { summary.append("Screen time could not sync. Other items continue; update Ascend on the Mac if needed.\n"); }
+                } catch (Exception e) { summary.append("Screen time could not sync. Other items continue; update Cipher on the Mac if needed.\n"); }
             }
             int meals = 0;
             for (File meta : queuedMeals()) {
@@ -327,7 +327,7 @@ final class SyncEngine {
         } catch (LinkError e) {
             summary.append(e.getMessage());
         } catch (Exception e) {
-            summary.append("Couldn’t reach your Mac. Keep Ascend open on the Mac and both devices on the same Wi-Fi, then try again.");
+            summary.append("Couldn’t reach your Mac. Keep Cipher open on the Mac and both devices on the same Wi-Fi, then try again.");
         }
         String result = summary.toString().trim();
         SharedPreferences.Editor edit = prefs.edit().putString("lastSyncMessage", result);

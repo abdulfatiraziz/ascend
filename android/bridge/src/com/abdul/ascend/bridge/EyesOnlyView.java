@@ -99,7 +99,7 @@ final class EyesOnlyView extends FrameLayout {
         stamp.setTextSize(denied ? 17 : 21);
         stamp.setTextColor(color); left.color = color; right.color = color; left.invalidate(); right.invalidate();
         glyph.setImageDrawable(ui.icon(cleared ? "ic_lock_open" : "ic_fingerprint", denied ? Ui.RED : cleared ? Ui.LAMP : Ui.ACCENT));
-        title.setText(cleared ? "Welcome back, Abdul." : "Ascend is sealed.");
+        title.setText(cleared ? "Welcome back, Abdul." : "Cipher is sealed.");
         body.setText(denied ? "Not recognised. Try again." : "Numbers, photos and logs are hidden until your fingerprint or phone PIN opens it.");
         body.setTextColor(denied ? Ui.RED : Ui.MUTED);
         card.setBackground(ui.round(Ui.PANEL, 16, ((cleared ? Ui.LAMP : Ui.ACCENT) & 0x00FFFFFF) | 0x59000000, 1));

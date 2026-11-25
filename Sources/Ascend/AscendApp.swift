@@ -5,7 +5,7 @@ import AppKit
     @StateObject private var store = TrackerStore()
     /// Ascend is dark-only. preferredColorScheme doesn't reach the menu bar window's AppKit controls
     /// (segmented pickers, scrollers, plain buttons), so set the app's appearance itself.
-    init() { NSApplication.shared.appearance = NSAppearance(named: .darkAqua); Typeface.register() }
+    init() { NSApplication.shared.appearance = NSAppearance(named: .darkAqua); Typeface.register(); LoginItem.applyDefault() }
     // Isolated sample launches can verify fixed window sizes without touching live UI preferences.
     private func sampleDimension(_ key:String,fallback:Double,minimum:Double)->Double {
         guard ProcessInfo.processInfo.environment["ASCEND_DATA_DIR"] != nil,

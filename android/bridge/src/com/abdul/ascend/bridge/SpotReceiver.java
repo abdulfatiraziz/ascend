@@ -132,7 +132,7 @@ public final class SpotReceiver extends BroadcastReceiver {
         ch.setDescription("A quick check-in when you arrive at a saved spot");
         m.createNotificationChannel(ch);
         PendingIntent open = PendingIntent.getActivity(c, urgeID.hashCode(), new Intent(c, BridgeActivity.class).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP), PendingIntent.FLAG_IMMUTABLE);
-        Notification publicVersion = new Notification.Builder(c, CHANNEL).setSmallIcon(android.R.drawable.ic_popup_reminder).setContentTitle("Ascend").build();
+        Notification publicVersion = new Notification.Builder(c, CHANNEL).setSmallIcon(android.R.drawable.ic_popup_reminder).setContentTitle("Cipher").build();
         Notification n = new Notification.Builder(c, CHANNEL).setSmallIcon(android.R.drawable.ic_popup_reminder)
             .setContentTitle("Quick check-in?").setContentText("One tap.")
             .setVisibility(Notification.VISIBILITY_PRIVATE).setPublicVersion(publicVersion)

@@ -271,13 +271,13 @@ public actor PhoneLinkHub {
     }
     private func authenticated(_ request: LinkRequest) async -> LinkResponse {
         guard let phoneID = request.headers["x-ascend-phone"]?.lowercased(), let raw = keyStore.key(for: phoneID) else {
-            return .error(401, "This phone isn’t paired with \(macName). Pair again from Ascend Bridge.")
+            return .error(401, "This phone isn’t paired with \(macName). Pair again from Cipher Bridge.")
         }
         let key = SymmetricKey(data: raw)
         guard let plain = try? PhoneLinkCrypto.open(request.body, key: key) else { return .error(401, "The Mac couldn’t verify this phone. Pair again.") }
         let envelope: LinkEnvelope
         do { envelope = try JSONDecoder().decode(LinkEnvelope.self, from: plain) }
-        catch { return sealed(["ok": false, "message": "The Mac couldn’t read this data. Update Ascend Bridge."], key: key) }
+        catch { return sealed(["ok": false, "message": "The Mac couldn’t read this data. Update Cipher Bridge."], key: key) }
         let kind = String(request.path.dropFirst(4)), now = clock()
         guard envelope.kind == kind, UUID(uuidString: envelope.id) != nil, abs(now.timeIntervalSince1970 - envelope.sentAt) <= 600 else {
             return sealed(["ok": false, "message": "Request rejected. Check that the phone and Mac clocks are correct."], key: key)
