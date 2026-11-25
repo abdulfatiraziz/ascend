@@ -50,7 +50,7 @@ public final class BridgeActivity extends Activity {
     static String subLabel(Screen s) { return s == Screen.SCREEN_TIME ? "Screen time" : s.name().charAt(0) + s.name().substring(1).toLowerCase(Locale.ROOT); }
     static final String LOCAL_NETWORK = "android.permission.ACCESS_LOCAL_NETWORK";
     static final int REQ_HEALTH = 7, REQ_NETWORK = 8, REQ_CAMERA = 11, REQ_PICK = 12, REQ_NOTIFY = 13, REQ_BACKGROUND = 14, REQ_LOCATION = 15, REQ_BACKGROUND_LOCATION = 16, REQ_SPOT_FINE = 17;
-    static final String VERSION = "0.10.1";
+    static final String VERSION = "0.10.2";
 
     SyncEngine engine;
     Ui ui;
@@ -183,6 +183,9 @@ public final class BridgeActivity extends Activity {
     void show(Screen s) { screen = s; int g = group(s); if (g >= 0) lastInTab[g] = s; render(); }
     /** The screen on display, so a refresh of the same screen (after a tap or a log) keeps where you had scrolled to. */
     Screen shown;
+    /** A page waiting to be scrolled back, and to where. A tap re-renders twice in a row (the log, then the sync starting),
+     *  and the second render must carry this position rather than read the not-yet-laid-out page's 0. */
+    ScrollView restoring; int restoreY;
     static ScrollView firstScroll(View v) {
         if (v instanceof ScrollView) return (ScrollView) v;
         if (v instanceof ViewGroup) { ViewGroup g = (ViewGroup) v; for (int i = 0; i < g.getChildCount(); i++) { ScrollView s = firstScroll(g.getChildAt(i)); if (s != null) return s; } }
@@ -191,7 +194,8 @@ public final class BridgeActivity extends Activity {
     void render() {
         if (root == null) return;
         ScrollView old = screen == shown && content.getChildCount() > 0 ? firstScroll(content.getChildAt(0)) : null;
-        int keepY = old == null ? 0 : old.getScrollY();
+        int keepY = old == null ? 0 : old == restoring ? restoreY : old.getScrollY();
+        restoring = null;
         content.removeAllViews();
         View page;
         switch (screen) {
@@ -214,8 +218,13 @@ public final class BridgeActivity extends Activity {
         ScrollView fresh = keepY > 0 ? firstScroll(page) : null;
         if (fresh != null) {
             // Restore once the new page is laid out; before that the scroll range is zero and the position would be lost.
+            restoring = fresh; restoreY = keepY;
             fresh.getViewTreeObserver().addOnGlobalLayoutListener(new android.view.ViewTreeObserver.OnGlobalLayoutListener() {
-                @Override public void onGlobalLayout() { fresh.getViewTreeObserver().removeOnGlobalLayoutListener(this); fresh.scrollTo(0, keepY); }
+                @Override public void onGlobalLayout() {
+                    fresh.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+                    if (restoring != fresh) return;
+                    fresh.scrollTo(0, keepY); restoring = null;
+                }
             });
         }
         boolean tabs = group(screen) >= 0;
