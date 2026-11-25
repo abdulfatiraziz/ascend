@@ -50,7 +50,7 @@ public final class BridgeActivity extends Activity {
     static String subLabel(Screen s) { return s == Screen.SCREEN_TIME ? "Screen time" : s.name().charAt(0) + s.name().substring(1).toLowerCase(Locale.ROOT); }
     static final String LOCAL_NETWORK = "android.permission.ACCESS_LOCAL_NETWORK";
     static final int REQ_HEALTH = 7, REQ_NETWORK = 8, REQ_CAMERA = 11, REQ_PICK = 12, REQ_NOTIFY = 13, REQ_BACKGROUND = 14, REQ_LOCATION = 15, REQ_BACKGROUND_LOCATION = 16, REQ_SPOT_FINE = 17;
-    static final String VERSION = "0.10.3";
+    static final String VERSION = "0.11.0";
 
     SyncEngine engine;
     Ui ui;
@@ -975,7 +975,7 @@ public final class BridgeActivity extends Activity {
         if (daily != null) col.addView(dailyMemoCard(daily, b.optString("dailyMemoDate")));
         // Phone-only: the one-tap logs. Weight, steps, sleep and screen time arrive on their own; urges come from spot visits (Field log › Urges).
         col.addView(ui.grid(8,
-            logTile("ic_meal", "Meal", false, v -> { photoMode = "meal"; takePhoto(); }),
+            logTile("ic_meal", "Meal", false, v -> show(Screen.MEALS)),
             logTile("ic_pill", "Meds", false, v -> show(Screen.MEDS)),
             logTile("ic_dumbbell", "Workout", false, v -> show(Screen.BODY))));
         if (t.length() > 0) col.addView(foodCard(t, b == null ? null : b.optJSONObject("food")));
@@ -1362,8 +1362,11 @@ public final class BridgeActivity extends Activity {
         LinearLayout col = page(holder, true);
         col.addView(tabHead());
         col.addView(weightCard());
-        JSONObject w = todayFresh().optJSONObject("workout");
-        JSONArray week = todayFresh().optJSONArray("week");
+        JSONObject t = todayFresh(), planned = t.optJSONObject("workout");
+        JSONArray week = t.optJSONArray("week");
+        List<JSONObject> choices = workoutChoices(t);
+        JSONObject w = pickedWorkout(choices, planned);
+        if (!choices.isEmpty()) col.addView(sessionPicker(choices, w, planned));
         if (w == null) {
             JSONObject next = null;
             if (week != null) for (int i = 1; i < week.length() && next == null; i++) {
@@ -1372,11 +1375,12 @@ public final class BridgeActivity extends Activity {
             }
             LinearLayout card = ui.card(6);
             card.addView(ui.kicker("Today"));
-            card.addView(ui.text("Rest day", 18, Ui.TEXT, 600));
+            card.addView(ui.text(planned == null ? "Rest day" : "Nothing picked", 18, Ui.TEXT, 600));
             card.addView(ui.small(week == null ? "Your training plan lives in Cipher on the Mac → Body. Sync to see this week's sessions."
+                : !choices.isEmpty() ? (planned == null ? "No gym planned today. Training anyway? Pick what you're working above." : "Pick what you're working above.")
                 : next == null ? "Nothing planned in the next 7 days. Add sessions on the Mac → Body." : "No gym today. Recovery is part of the plan."));
             col.addView(card);
-            if (next != null) col.addView(planPreview(next));
+            if (next != null && choices.size() <= 1) col.addView(planPreview(next));
             if (week != null) col.addView(weekStrip(week));
             col.addView(ui.secondary("Workout artwork · offline", v -> openExerciseDemos()));
             return holder[0];
@@ -1391,12 +1395,60 @@ public final class BridgeActivity extends Activity {
                 if (w.has("minutes")) card.addView(ui.mono(fmt(w.optDouble("minutes")) + " min", 13, Ui.ACCENT_TEXT));
                 col.addView(card);
             }
-            col.addView(ui.small(kind.equals("cardio") ? "Cardio day. Your watch records it; nothing to enter here." : "No exercises in today’s session yet. Add them on the Mac → Body."));
+            col.addView(ui.small(kind.equals("cardio") ? "Cardio. Your watch records it; nothing to enter here." : "No exercises in this session yet. Add them on the Mac → Body."));
+            if (week != null) col.addView(weekStrip(week));
             return holder[0];
         }
         for (int i = 0; i < list.length(); i++) col.addView(exerciseCard(list.optJSONObject(i)));
         if (week != null) col.addView(weekStrip(week));
         return holder[0];
+    }
+    /** The sessions you can train today: every session in the plan (Macs that send them), else just today's planned one. */
+    List<JSONObject> workoutChoices(JSONObject t) {
+        List<JSONObject> out = new ArrayList<>();
+        JSONArray all = t.optJSONArray("sessions");
+        for (int i = 0; all != null && i < all.length(); i++) if (all.optJSONObject(i) != null) out.add(all.optJSONObject(i));
+        if (out.isEmpty() && t.optJSONObject("workout") != null) out.add(t.optJSONObject("workout"));
+        return out;
+    }
+    static String workoutKey(JSONObject w) { return w.optString("id", w.optString("name")); }
+    static boolean sameWorkout(JSONObject a, JSONObject b) {
+        if (a == null || b == null) return false;
+        return a.has("id") && b.has("id") ? a.optString("id").equals(b.optString("id")) : a.optString("name").equals(b.optString("name"));
+    }
+    /** What you picked today; else a session you've already logged sets in today; else the weekday's planned session; else nothing. */
+    JSONObject pickedWorkout(List<JSONObject> choices, JSONObject planned) {
+        String pick = prefs.getString("workoutPick", ""), today = LocalDate.now().toString();
+        if (pick.startsWith(today + "|")) {
+            String key = pick.substring(today.length() + 1);
+            if (key.isEmpty()) return null;
+            for (JSONObject c : choices) if (workoutKey(c).equals(key)) return c;
+        }
+        for (JSONObject c : choices) {
+            JSONArray ex = c.optJSONArray("exercises");
+            for (int i = 0; ex != null && i < ex.length(); i++) { JSONArray td = ex.optJSONObject(i).optJSONArray("today"); if (td != null && td.length() > 0) return c; }
+        }
+        for (JSONObject c : choices) if (sameWorkout(c, planned)) return c;
+        return planned;
+    }
+    /** "What are you training?": one chip per session, the weekday's planned one marked. Tapping the picked one again clears it. */
+    View sessionPicker(List<JSONObject> choices, JSONObject picked, JSONObject planned) {
+        LinearLayout card = ui.card(8);
+        card.addView(ui.kicker("What are you training?"));
+        HorizontalScrollView scroll = new HorizontalScrollView(this); scroll.setHorizontalScrollBarEnabled(false);
+        LinearLayout row = ui.row(8);
+        String today = LocalDate.now().toString();
+        for (JSONObject c : choices) {
+            boolean on = sameWorkout(c, picked), plan = sameWorkout(c, planned);
+            Button b = ui.chip(c.optString("name") + (plan ? " · today" : ""), on, v -> {
+                prefs.edit().putString("workoutPick", today + "|" + (on ? "" : workoutKey(c))).apply();
+                render();
+            });
+            row.addView(b);
+        }
+        scroll.addView(row);
+        card.addView(scroll);
+        return card;
     }
     /** The next planned session, read-only: what to do and what you lifted last time. Sets are entered on the day. */
     View planPreview(JSONObject day) {
@@ -1546,14 +1598,20 @@ public final class BridgeActivity extends Activity {
                 if (weight < 0 || weight > 500 || r < 1 || r > 100) { toast("Check the weight and reps."); return; }
                 try {
                     engine.recordLog(new JSONObject().put("type", "set").put("exerciseID", e.getString("id")).put("setIndex", index).put("weight", weight).put("reps", r));
-                    JSONObject t = engine.today(), wk = t.optJSONObject("workout");
-                    JSONArray list = wk == null ? null : wk.optJSONArray("exercises");
-                    for (int i = 0; list != null && i < list.length(); i++) {
-                        JSONObject x2 = list.getJSONObject(i);
-                        if (!x2.optString("id").equals(e.optString("id"))) continue;
-                        JSONArray td = x2.optJSONArray("today"); if (td == null) { td = new JSONArray(); x2.put("today", td); }
-                        JSONObject s = new JSONObject().put("weight", weight).put("reps", r);
-                        if (index < td.length()) td.put(index, s); else td.put(s);
+                    JSONObject t = engine.today();
+                    List<JSONObject> copies = new ArrayList<>();
+                    if (t.optJSONObject("workout") != null) copies.add(t.optJSONObject("workout"));
+                    JSONArray all = t.optJSONArray("sessions");
+                    for (int k = 0; all != null && k < all.length(); k++) if (all.optJSONObject(k) != null) copies.add(all.optJSONObject(k));
+                    for (JSONObject wk : copies) {
+                        JSONArray list = wk.optJSONArray("exercises");
+                        for (int i = 0; list != null && i < list.length(); i++) {
+                            JSONObject x2 = list.getJSONObject(i);
+                            if (!x2.optString("id").equals(e.optString("id"))) continue;
+                            JSONArray td = x2.optJSONArray("today"); if (td == null) { td = new JSONArray(); x2.put("today", td); }
+                            JSONObject s = new JSONObject().put("weight", weight).put("reps", r);
+                            if (index < td.length()) td.put(index, s); else td.put(s);
+                        }
                     }
                     engine.saveToday(t);
                 } catch (Exception ex) { toast("Couldn’t save that on this phone."); return; }

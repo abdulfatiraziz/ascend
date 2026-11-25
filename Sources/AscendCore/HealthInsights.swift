@@ -133,6 +133,8 @@ public struct PhoneToday: Codable, Equatable, Sendable {
     public var workout: PhoneWorkout? = nil
     /// Today and the next six days of the training plan.
     public var week: [PhonePlanDay]? = nil
+    /// Every session in the plan, so the phone can pick what you're training instead of only the weekday's session.
+    public var sessions: [PhoneWorkout]? = nil
     public var urgesActedToday: Int? = nil
     public var urgesActedWeekAverage: Double? = nil
     public var spotVisitsUnanswered: Int? = nil

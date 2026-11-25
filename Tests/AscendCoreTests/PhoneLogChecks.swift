@@ -86,6 +86,13 @@ func runPhoneLogChecks() -> (count: Int, failures: Int) {
         let week = a.phoneWeek(now: now, calendar: cal)
         try expect(week.count == 7 && week[0].workout?.name == "Push" && week[1].workout?.name == "Legs" && week[2].workout == nil)
         try expect(week[1].workout?.exercises.first?.today.isEmpty == true && week[1].workout?.exercises.first?.last.map(\.reps) == [10, 8])
+        // Every session, measured against today: tomorrow's Legs can be trained today and shows today's sets; rest days and repeats are left out.
+        var rest = TrainingSession(); rest.weekday = cal.component(.weekday, from: now.addingTimeInterval(2 * 86400)); rest.kind = .rest; rest.name = "Rest"
+        var legsAgain = legs; legsAgain.id = UUID(); legsAgain.weekday = cal.component(.weekday, from: now.addingTimeInterval(3 * 86400))
+        a.plan += [rest, legsAgain]
+        let sessions = a.phoneSessions(now: now, calendar: cal)
+        try expect(sessions.map(\.name).sorted() == ["Legs", "Push"] && sessions.allSatisfy { $0.id != nil })
+        try expect(sessions.first { $0.name == "Legs" }?.exercises.first?.today.map(\.reps) == [10, 8])
         try rejects { try a.applyPhoneSet(exerciseID: UUID(), index: 0, set: TrainingSet(weight: 10, reps: 5), date: now, calendar: cal) }
         try rejects { _ = try PhoneLogEntry(id: id, takenAt: now.timeIntervalSince1970, type: "set", exerciseID: e.id.uuidString, setIndex: 0, weight: 20, reps: 0).validated(now: now) }
     }

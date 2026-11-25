@@ -78,6 +78,8 @@ public struct PhoneWorkoutExercise: Codable, Equatable, Sendable {
 }
 /// Today's planned session from the Body tab.
 public struct PhoneWorkout: Codable, Equatable, Sendable {
+    /// The plan session's ID, so the phone can remember which one you picked.
+    public var id: String? = nil
     public var name: String
     /// "strength" or "cardio".
     public var kind: String
@@ -110,6 +112,18 @@ extension TrainingArchive {
     }
     public func phoneWorkout(now: Date, calendar: Calendar) -> PhoneWorkout? {
         guard let session = today(now, calendar: calendar), session.kind != .rest else { return nil }
+        return phoneWorkout(session, now: now, calendar: calendar)
+    }
+    /// Every session in the plan (rest days left out, repeats of the same session shown once), with sets measured against `now`,
+    /// so the phone can train any of them today: "last" is before today and "today" is what's logged today.
+    public func phoneSessions(now: Date, calendar: Calendar) -> [PhoneWorkout] {
+        var seen = Set<String>()
+        return plan.sorted { $0.weekday < $1.weekday }.compactMap { s in
+            guard s.kind != .rest, seen.insert(s.kind.rawValue + "|" + s.name.lowercased() + "|" + s.exercises.map(\.uuidString).joined()).inserted else { return nil }
+            return phoneWorkout(s, now: now, calendar: calendar)
+        }
+    }
+    func phoneWorkout(_ session: TrainingSession, now: Date, calendar: Calendar) -> PhoneWorkout {
         let start = calendar.startOfDay(for: now)
         let list: [PhoneWorkoutExercise] = session.exercises.compactMap { id in
             guard let e = exercises.first(where: { $0.id == id }) else { return nil }
@@ -125,7 +139,7 @@ extension TrainingArchive {
         let detail = session.kind == .cardio
             ? ([session.cardioType] + (session.incline > 0 ? ["incline \(n(session.incline))"] : []) + (session.speed > 0 ? ["speed \(n(session.speed))"] : [])).joined(separator: " · ")
             : nil
-        return PhoneWorkout(name: session.name, kind: session.kind.rawValue, minutes: session.kind == .cardio ? session.minutes : nil, detail: detail, exercises: list)
+        return PhoneWorkout(id: session.id.uuidString, name: session.name, kind: session.kind.rawValue, minutes: session.kind == .cardio ? session.minutes : nil, detail: detail, exercises: list)
     }
     /// Saves one set from the phone into today's log for that exercise. The same index again replaces that set.
     public mutating func applyPhoneSet(exerciseID: UUID, index: Int, set: TrainingSet, date: Date, calendar: Calendar) throws {
