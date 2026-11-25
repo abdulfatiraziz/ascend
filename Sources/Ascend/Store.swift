@@ -415,11 +415,18 @@ import UniformTypeIdentifiers
         }
         meals.enqueue(id)
     }
+    /// Meals confirm themselves with Claude's estimate as soon as it arrives (on by default); Edit reopens one to adjust.
+    var autoConfirmMeals: Bool {
+        get { UserDefaults.standard.object(forKey: "meals.autoConfirm") as? Bool ?? true }
+        set { objectWillChange.send(); UserDefaults.standard.set(newValue, forKey: "meals.autoConfirm") }
+    }
     func setMealEstimate(_ id: UUID, estimate: MealEstimate?, error: String?) {
+        let today = today, approve = autoConfirmMeals
         change { doc in
             guard let i = doc.meals.entries.firstIndex(where: { $0.id == id }) else { return }
             if let estimate { doc.meals.entries[i].estimate = estimate }
             doc.meals.entries[i].error = error.map { String($0.prefix(600)) }
+            if estimate != nil, error == nil, approve { doc.acceptMealEstimate(id, today: today) }
         }
     }
     /// Confirming logs the meal and sets that day's Calorie and Protein check-ins to the confirmed totals.

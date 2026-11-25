@@ -385,6 +385,22 @@ func runLinkChecks() async -> (count: Int, failures: Int) {
         var rest = doc; rest.restDays.insert(day); rest.meals.entries = [lunch]; rest.meals.entries[0].confirmed = true
         rest.applyMealTotals(on: day, today: day); try expect(rest.checkIns.isEmpty)
     }
+    check("auto-approving a meal confirms Claude's estimate and fills that day's totals once") {
+        var doc = original
+        let habits = doc.mealHabits
+        let at = TrackerEngine(document: doc).date(day)!.timeIntervalSince1970 + 13 * 3600
+        var lunch = MealEntry(takenAt: at, day: day, photo: "a.jpg", source: "phone")
+        doc.meals.entries = [lunch]
+        try expect(!doc.acceptMealEstimate(lunch.id, today: day), "No estimate yet, nothing to approve")
+        lunch.estimate = MealEstimate(name: "Dal rice", kcal: 649.6, kcalLow: 550, kcalHigh: 800, protein: 22.4, carbs: 100, fat: 15)
+        doc.meals.entries = [lunch]
+        try expect(doc.acceptMealEstimate(lunch.id, today: day))
+        let e = TrackerEngine(document: doc)
+        try expect(doc.meals.entries[0].confirmed && doc.meals.entries[0].kcal == 650 && doc.meals.entries[0].protein == 22)
+        try expect(e.entry(for: habits.calories!, day: day)?.value == 650 && e.entry(for: habits.protein!, day: day)?.value == 22)
+        try expect(!doc.acceptMealEstimate(lunch.id, today: day), "Already confirmed")
+        try expect(!doc.acceptMealEstimate(UUID(), today: day))
+    }
     check("watch sleep and steps fill their habits; typed and changed values are kept") {
         var doc = original
         let engine = TrackerEngine(document: doc)

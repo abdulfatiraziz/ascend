@@ -108,6 +108,16 @@ extension TrackerDocument {
         return (metrics.first { $0.latest.target?.unit.lowercased() == "kcal" },
                 metrics.first { $0.latest.target?.unit.lowercased() == "g" && $0.latest.title.localizedCaseInsensitiveContains("protein") })
     }
+    /// Confirms a meal with Claude's estimate as is (auto-approve) and updates that day's totals.
+    /// Returns false when the meal is missing, already confirmed or has no estimate.
+    @discardableResult public mutating func acceptMealEstimate(_ id: UUID, today: String) -> Bool {
+        guard let i = meals.entries.firstIndex(where: { $0.id == id }), !meals.entries[i].confirmed, let e = meals.entries[i].estimate else { return false }
+        meals.entries[i].kcal = e.kcal.rounded(); meals.entries[i].protein = e.protein.rounded()
+        meals.entries[i].carbs = e.carbs.rounded(); meals.entries[i].fat = e.fat.rounded()
+        meals.entries[i].confirmed = true
+        applyMealTotals(on: meals.entries[i].day, today: today)
+        return true
+    }
     /// Sets that day's Calorie and Protein check-ins to the confirmed meal totals. When no confirmed meals remain,
     /// clears only values that meals wrote earlier, never a number typed by hand.
     public mutating func applyMealTotals(on day: String, today: String) {

@@ -14,8 +14,10 @@ struct MealsView: View {
             VStack(alignment: .leading, spacing: 18) {
                 HStack {
                     VStack(alignment: .leading, spacing: 6) {
-                        Kicker("Photo → Claude estimate → your review")
+                        Kicker(store.autoConfirmMeals ? "Photo → Claude estimate → logged" : "Photo → Claude estimate → your review")
                         Text("Snap meals in Ascend Bridge or drop photos here. Confirmed meals set your Calorie and Protein check-ins for that day.").font(.bt(size: 12)).foregroundStyle(Ink.muted)
+                        Toggle("Approve estimates automatically", isOn: Binding(get: { store.autoConfirmMeals }, set: { store.autoConfirmMeals = $0 }))
+                            .toggleStyle(.switch).controlSize(.mini).font(.bt(size: 11)).help("When on, a meal is confirmed as soon as Claude's estimate arrives. Use Edit on a meal to adjust it.")
                     }
                     Spacer()
                     Button { day = store.engine.adding(-1, to: day) } label: { Image(systemName: "chevron.left") }.buttonStyle(.plain).accessibilityLabel("Previous day")
@@ -33,7 +35,7 @@ struct MealsView: View {
                     }.frame(maxWidth: .infinity, alignment: .leading).panel()
                 }
                 ForEach(entries) { MealCard(store: store, meals: meals, meal: $0) }
-                Text("Photo estimates are rough, often 20–30% off, mostly from oil and portion size. Adjust the numbers before confirming. Photos stay on this Mac; each estimate sends that photo and its note to Claude through your personal Claude profile.").font(.bt(size: 11)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
+                Text("Photo estimates are rough, often 20–30% off, mostly from oil and portion size. Use Edit on a meal to adjust the numbers. Photos stay on this Mac; each estimate sends that photo and its note to Claude through your personal Claude profile.").font(.bt(size: 11)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
             }.padding(.bottom, 10)
         }
         .dropDestination(for: URL.self) { urls, _ in add(urls.filter(ChatPhotos.isImage)); return true }
@@ -144,7 +146,8 @@ private struct MealCard: View {
             }
         }.panel(padding: 14)
             .onAppear(perform: load)
-            .onChange(of: meal.estimate) { _, _ in if !meal.confirmed { load() } }
+            .onChange(of: meal.estimate) { _, _ in load() }
+            .onChange(of: meal.confirmed) { _, _ in load() }
             .confirmationDialog("Delete this meal?", isPresented: $confirmDelete, titleVisibility: .visible) {
                 Button("Delete meal", role: .destructive) { store.deleteMeal(meal.id) }; Button("Cancel", role: .cancel) {}
             } message: { Text(meal.confirmed ? "Its calories and protein are removed from that day's totals. Undo is available until your next edit." : "Undo is available until your next edit.") }
