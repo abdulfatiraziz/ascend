@@ -291,3 +291,111 @@ public enum Debrief {
         return DebriefMemo(wins: Array(wins.prefix(4)), misses: Array(misses.prefix(4)), order: order)
     }
 }
+
+// MARK: - M's daily memo
+
+/// Yesterday's facts and where each goal stands, for the morning memo. Urges are never part of it.
+public struct DailyMemoFacts: Equatable, Sendable {
+    public struct Goal: Equatable, Sendable {
+        public var name: String, status: String, line: String, onTrack: Bool?
+        public init(name: String, status: String, line: String, onTrack: Bool?) { self.name = name; self.status = status; self.line = line; self.onTrack = onTrack }
+    }
+    public var day: String                  // yesterday
+    public var checkIns: Score
+    public var missed: [String]             // habit titles left undone yesterday
+    public var sleepMinutes: Int?           // last night, asleep
+    public var onsetMinute: Int?            // minutes after midnight of the evening, may exceed 1440
+    public var steps: Double?
+    public var kcal: Double?                // nil when no meal was logged
+    public var kcalLimit: Double?
+    public var protein: Double?
+    public var proteinGoal: Double?
+    public var gymDone: Bool?               // nil when yesterday wasn't a gym day
+    public var gymToday: Bool
+    public var weightKg: Double?
+    public var weightWeekAgoKg: Double?
+    public var goals: [Goal]
+    public var daysLeft: Int
+    public var cycleEnd: String             // "31 Dec"
+    public init(day: String, checkIns: Score, missed: [String] = [], sleepMinutes: Int? = nil, onsetMinute: Int? = nil, steps: Double? = nil,
+                kcal: Double? = nil, kcalLimit: Double? = nil, protein: Double? = nil, proteinGoal: Double? = nil, gymDone: Bool? = nil, gymToday: Bool = false,
+                weightKg: Double? = nil, weightWeekAgoKg: Double? = nil, goals: [Goal] = [], daysLeft: Int = 0, cycleEnd: String = "") {
+        self.day = day; self.checkIns = checkIns; self.missed = missed; self.sleepMinutes = sleepMinutes; self.onsetMinute = onsetMinute
+        self.steps = steps; self.kcal = kcal; self.kcalLimit = kcalLimit; self.protein = protein; self.proteinGoal = proteinGoal
+        self.gymDone = gymDone; self.gymToday = gymToday; self.weightKg = weightKg; self.weightWeekAgoKg = weightWeekAgoKg
+        self.goals = goals; self.daysLeft = daysLeft; self.cycleEnd = cycleEnd
+    }
+}
+
+public struct DailyMemo: Equatable, Sendable {
+    public struct Line: Equatable, Sendable {
+        public var label: String, text: String, good: Bool?
+        public init(label: String, text: String, good: Bool?) { self.label = label; self.text = text; self.good = good }
+    }
+    public var opening: String
+    public var yesterday: [Line]
+    public var goals: [Line]
+    public var orders: [String]
+    public var text: String {
+        ([opening, "", "Yesterday:"] + yesterday.map { "- \($0.label): \($0.text)" }
+            + ["", "Goals:"] + goals.map { "- \($0.label): \($0.text)" }
+            + ["", "Today:"] + orders.enumerated().map { "\($0.offset + 1). \($0.element)" }).joined(separator: "\n")
+    }
+
+    static func hours(_ minutes: Int) -> String {
+        let h = minutes / 60, m = minutes % 60
+        return m == 0 ? "\(h) h" : "\(h) h \(m) min"
+    }
+    static func whole(_ v: Double) -> String { Int(v.rounded()).formatted() }
+
+    /// Every number comes straight from the facts; at most three orders, weakest area first.
+    public static func compose(_ f: DailyMemoFacts) -> DailyMemo {
+        var y: [Line] = []
+        if let r = f.checkIns.ratio {
+            var text = "\(f.checkIns.completed) of \(f.checkIns.scheduled) (\(f.checkIns.percentLabel))."
+            if !f.missed.isEmpty { text += " Missed: " + f.missed.prefix(3).joined(separator: ", ") + (f.missed.count > 3 ? " and \(f.missed.count - 3) more." : ".") }
+            y.append(Line(label: "Check-ins", text: text, good: r >= 0.75))
+        } else { y.append(Line(label: "Check-ins", text: "Nothing was scheduled.", good: nil)) }
+        if let s = f.sleepMinutes {
+            let onset = f.onsetMinute.map { ", asleep at \(Debrief.clock($0))" } ?? ""
+            y.append(Line(label: "Sleep", text: "\(hours(s))\(onset).", good: s >= 420 && (f.onsetMinute ?? 0) <= 1500))
+        } else { y.append(Line(label: "Sleep", text: "Last night hasn't synced yet. Open Ascend Bridge.", good: nil)) }
+        if let s = f.steps { y.append(Line(label: "Steps", text: whole(s) + (s >= 7000 ? "." : ". The floor is 7,000."), good: s >= 7000)) }
+        if let k = f.kcal {
+            var text = "\(whole(k)) kcal" + (f.kcalLimit.map { " of \(whole($0))" } ?? "")
+            if let p = f.protein { text += ", \(whole(p)) g protein" + (f.proteinGoal.map { " of \(whole($0))" } ?? "") }
+            let good = (f.kcalLimit.map { k <= $0 } ?? true) && (zip2(f.protein, f.proteinGoal).map { $0 >= $1 } ?? true)
+            y.append(Line(label: "Food", text: text + ".", good: good))
+        } else { y.append(Line(label: "Food", text: "No meals logged.", good: false)) }
+        if let g = f.gymDone { y.append(Line(label: "Gym", text: g ? "Done." : "Skipped.", good: g)) }
+        if let w = f.weightKg {
+            var text = String(format: "%.1f kg", w)
+            if let a = f.weightWeekAgoKg {
+                let d = w - a
+                text += abs(d) < 0.05 ? ", same as a week ago" : String(format: ", %@ %.1f in a week", d < 0 ? "down" : "up", abs(d))
+            }
+            y.append(Line(label: "Weight", text: text + ".", good: f.weightWeekAgoKg.map { w < $0 }))
+        }
+
+        var g = f.goals.map { Line(label: $0.name, text: "\($0.status). \($0.line)", good: $0.onTrack) }
+        if f.daysLeft > 0, !f.cycleEnd.isEmpty { g.append(Line(label: "Clock", text: "\(f.daysLeft) days to \(f.cycleEnd).", good: nil)) }
+
+        var orders: [String] = []
+        if let o = f.onsetMinute, o > 1500 { orders.append("Lights out by 1 am tonight. Phone off the bed at 12:30.") }
+        else if let s = f.sleepMinutes, s < 390 { orders.append("You're short on sleep. Nothing hard after 9 pm; bed by 1 am.") }
+        if f.gymToday { orders.append("Gym today. Pick the hour now and keep it.") }
+        if f.kcal == nil { orders.append("Photograph every meal today. I can't advise on what I can't see.") }
+        else if let k = f.kcal, let l = f.kcalLimit, k > l { orders.append("Hold under \(whole(l)) kcal today; yesterday ran \(whole(k - l)) over.") }
+        else if let p = f.protein, let goal = f.proteinGoal, p < goal { orders.append("Protein first at every meal: \(whole(goal)) g by tonight.") }
+        if let s = f.steps, s < 7000 { orders.append("Reach 7,000 steps. A 30-minute walk covers most of it.") }
+        if let r = f.checkIns.ratio, r < 0.75 { orders.append("Close the day before bed: every check-in logged.") }
+        if orders.isEmpty { orders.append("Same again. Hold the line.") }
+
+        let good = y.filter { $0.good == true }.count, bad = y.filter { $0.good == false }.count
+        let opening = bad == 0 ? "A clean day. Don't let it go to your head."
+            : good >= bad ? "A fair day, with loose ends. Tie them off."
+            : "Not your best day. Today corrects it."
+        return DailyMemo(opening: opening, yesterday: y, goals: g, orders: Array(orders.prefix(3)))
+    }
+    private static func zip2(_ a: Double?, _ b: Double?) -> (Double, Double)? { if let a, let b { return (a, b) }; return nil }
+}

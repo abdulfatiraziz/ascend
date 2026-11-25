@@ -24,6 +24,7 @@ struct TodayView: View {
                         lifestyle.update { $0.seenLevel = status.level.rawValue }
                     }
                 }
+                if day == store.today { DailyMemoCard(store: store) }
                 if memoDay, day == store.today, let m = weeks.debriefMonday { DebriefCard(store: store, monday: m, memo: Debrief.compose(weeks.debriefWeek(m))) }
                 HStack(alignment: .top, spacing: 22) {
                     TodayTapsCard(store: store, day: day, editor: $editor, open: open).frame(maxWidth: .infinity)

@@ -385,6 +385,22 @@ func runLinkChecks() async -> (count: Int, failures: Int) {
         var rest = doc; rest.restDays.insert(day); rest.meals.entries = [lunch]; rest.meals.entries[0].confirmed = true
         rest.applyMealTotals(on: day, today: day); try expect(rest.checkIns.isEmpty)
     }
+    check("M's daily memo reports yesterday with real numbers and gives at most three orders") {
+        let rough = DailyMemoFacts(day: "2026-11-24", checkIns: Score(completed: 5, scheduled: 10), missed: ["Wind down", "Meds", "Read", "Stretch"],
+            sleepMinutes: 340, onsetMinute: 1644, steps: 2618, kcal: nil, gymDone: false, gymToday: true, weightKg: 78.4, weightWeekAgoKg: 78.4,
+            goals: [.init(name: "Op. Reveal", status: "Behind", line: "Needs 0.9 kg a week.", onTrack: false)], daysLeft: 36, cycleEnd: "31 Dec")
+        let m = DailyMemo.compose(rough)
+        try expect(m.orders.count == 3 && m.orders[0].contains("1 am") && m.orders[1].contains("Gym") && m.orders[2].contains("Photograph"))
+        try expect(m.yesterday.first?.text == "5 of 10 (50%). Missed: Wind down, Meds, Read and 1 more.")
+        try expect(m.yesterday.contains { $0.label == "Sleep" && $0.text == "5 h 40 min, asleep at 3:24 am." && $0.good == false })
+        try expect(m.yesterday.contains { $0.label == "Weight" && $0.text == "78.4 kg, same as a week ago." })
+        try expect(m.goals.last?.text == "36 days to 31 Dec." && m.opening.hasPrefix("Not your best"))
+        try expect(!m.text.lowercased().contains("urge"))
+        let clean = DailyMemoFacts(day: "2026-11-24", checkIns: Score(completed: 10, scheduled: 10), sleepMinutes: 450, onsetMinute: 1450, steps: 9000,
+            kcal: 1650, kcalLimit: 1700, protein: 140, proteinGoal: 130, gymDone: true)
+        let c = DailyMemo.compose(clean)
+        try expect(c.orders == ["Same again. Hold the line."] && c.opening.hasPrefix("A clean day") && c.yesterday.allSatisfy { $0.good != false })
+    }
     check("auto-approving a meal confirms Claude's estimate and fills that day's totals once") {
         var doc = original
         let habits = doc.mealHabits
