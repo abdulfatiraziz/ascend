@@ -27,6 +27,9 @@ import AppKit
             CommandGroup(after: .appSettings) {
                 Button("Export backup…") { store.exportBackup() }.keyboardShortcut("e", modifiers: [.command, .shift])
             }
+            CommandGroup(before: .windowArrangement) {
+                Button("Watch screen") { WatchScreen.shared.toggle(store: store) }.keyboardShortcut("d", modifiers: [.command, .shift])
+            }
         }
         MenuBarExtra(isInserted:.constant(ProcessInfo.processInfo.environment["ASCEND_DATA_DIR"] == nil)) {
             StatusMenu(store:store)

@@ -95,6 +95,8 @@ import UniformTypeIdentifiers
         assistant.bodySummary = { [weak self] in [self.map { MissionFacts(store: $0).summary }, self?.bodyAssistantSummary(), self?.lifestyle.lifestyle.assistantSummary].compactMap { $0 }.joined(separator: "\n\n") }; meals.store = self; phoneLink.store = self; medsReader.store = self; photoReviews.store = self; xiaomi.store = self; claudeSignIn.store = self
         removeOrphanMealPhotos(); removeOrphanMedPhotos(); removeOrphanProgressPhotos()
         meals.estimatePending(); medsReader.resumePending()
+        // The always-on watch screen comes back after a restart or login if it was showing.
+        DispatchQueue.main.async { [weak self] in if let self { WatchScreen.shared.restore(store: self) } }
         // Once, when automatic approval arrived: approve the estimates that were waiting from before (asked for on 25 Nov 2026).
         if !recoveryLocked, autoConfirmMeals, ProcessInfo.processInfo.environment["ASCEND_DATA_DIR"] == nil,
            !UserDefaults.standard.bool(forKey: "meals.approvedWaiting.v1") {

@@ -16,7 +16,12 @@ struct RoutineView: View {
                     }
                     HStack(alignment: .top, spacing: 22) {
                         VStack(spacing: 10) {
-                            HStack { CardTitle("The day on one dial"); Spacer(); Button("Edit times") { editor = .routine }.font(.bt(size: 11)).buttonStyle(.borderless) }
+                            HStack {
+                                CardTitle("The day on one dial"); Spacer()
+                                Button { WatchScreen.shared.toggle(store: store) } label: { Label("Full screen", systemImage: "arrow.up.left.and.arrow.down.right") }
+                                    .font(.bt(size: 11)).buttonStyle(.borderless).help("Show the dial on a screen of its own, always on (⌘⇧D). Esc closes it.")
+                                Button("Edit times") { editor = .routine }.font(.bt(size: 11)).buttonStyle(.borderless)
+                            }
                             WatchDial(facts: facts).frame(width: 392, height: 392)
                             DialLegend()
                         }

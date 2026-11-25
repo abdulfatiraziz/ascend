@@ -15,6 +15,7 @@ struct StatusMenu: View {
     Button("Health") { open("Health") }
     Button("Screen time") { open("ScreenTime") }
     Button("Routine") { open("Routine") }
+    Button("Watch screen") { WatchScreen.shared.toggle(store: store) }
     Button("Meals") { open("Meals") }
     Button("Medicines") { open("Meds") }
     Button("Notes") { open("Notes") }
