@@ -3,7 +3,7 @@ import AppKit
 import UniformTypeIdentifiers
 import AscendCore
 
-/// Ask Ascend as a full screen: saved chats on the left, the conversation in a centred column and a composer at the bottom.
+/// Q as a full screen: saved chats on the left, the conversation in a centred column and a composer at the bottom.
 struct ChatView: View {
     @ObservedObject var store: TrackerStore
     @ObservedObject var controller: ChatController
@@ -325,7 +325,7 @@ struct ChatView: View {
                 .overlay(RoundedRectangle(cornerRadius: 18).stroke(composerFocused ? Ink.accent.opacity(0.45) : Color.white.opacity(0.12)))
                 .onTapGesture { composerFocused = true }
             if draft.count > ClaudeAssistant.maxPromptLength { Text("Use \(ClaudeAssistant.maxPromptLength.formatted()) characters or fewer.").font(.bt(size: 11)).foregroundStyle(.orange) }
-            Text("Ascend can make mistakes. Plan changes are only saved after you review them.").font(.bt(size: 10)).foregroundStyle(Ink.muted).frame(maxWidth: .infinity)
+            Text("Q can make mistakes. Plan changes are only saved after you review them.").font(.bt(size: 10)).foregroundStyle(Ink.muted).frame(maxWidth: .infinity)
         }
     }
     private var privacy: some View {

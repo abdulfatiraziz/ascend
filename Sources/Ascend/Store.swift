@@ -498,7 +498,7 @@ import UniformTypeIdentifiers
             doc.photos.photos[i].note = String(note.trimmingCharacters(in: .whitespacesAndNewlines).prefix(500))
         }
     }
-    /// Attaches album photos to the next Ask Ascend message and opens the chat.
+    /// Attaches album photos to the next Q message and opens the chat.
     func askAscend(about photos: [ProgressPhoto]) {
         assistant.attachProgressPhotos(photos.map { (progressPhotoURL($0), document.caption($0)) })
         pendingScreen = "Assistant"

@@ -247,7 +247,7 @@ struct SettingsEditor: View {
             Text("Goals using the cycle’s dates move with it. Custom goal windows keep their dates. Rest days are excluded from consistency.").font(.bt(size: 11)).foregroundStyle(Ink.muted)
             Line(); Kicker("Routine & assistant")
             HStack { Button("Set routine clock…") { store.pendingScreen = "RoutineSettings" }; Button("Claude settings…") { store.pendingScreen = "AISettings" } }.font(.bt(size: 12))
-            Text("Routine and urge tracking stay local. Ask Ascend is optional and uses your personal Claude Code account.").font(.bt(size: 11)).foregroundStyle(Ink.muted)
+            Text("Routine and urge tracking stay local. Q is optional and uses your personal Claude Code account.").font(.bt(size: 11)).foregroundStyle(Ink.muted)
             ClaudeSignInPanel(service: store.claudeSignIn)
             Line(); Kicker("Health sources & devices")
             Text("Moved here from Health and Screen time. Your readings and history stay where they were.").font(.bt(size: 11)).foregroundStyle(Ink.muted)
@@ -256,7 +256,7 @@ struct SettingsEditor: View {
             if !store.document.health.errors.isEmpty {
                 VStack(alignment: .leading, spacing: 7) { Kicker("Some types could not refresh"); ForEach(store.document.health.errors.keys.sorted(), id: \.self) { key in Text("\(HealthMetric(rawValue: key)?.title ?? key): \(store.document.health.errors[key] ?? "")").font(.bt(size: 12)).foregroundStyle(Ink.watch) } }
             }
-            Text("Heart rate, SpO2, stress and resting heart rate come from the Mi Fitness cloud; sleep, steps, calories and workouts from Health Connect via Ascend Bridge. Stored on this Mac and left out of Ask Ascend. Sleep and step habits fill from these readings; a value you type yourself is kept.")
+            Text("Heart rate, SpO2, stress and resting heart rate come from the Mi Fitness cloud; sleep, steps, calories and workouts from Health Connect via Ascend Bridge. Stored on this Mac; Q reads a copy only while “Let Claude search all my Ascend data” is on. Sleep and step habits fill from these readings; a value you type yourself is kept.")
                 .font(.bt(size: 11)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
             MacScreenTimePanel(service: store.macScreenTime)
             if !store.screenTime.archive.devices.isEmpty { Button("Export screen-time backup…") { store.screenTime.export() }.font(.bt(size: 12)) }

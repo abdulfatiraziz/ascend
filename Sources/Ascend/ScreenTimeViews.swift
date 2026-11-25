@@ -127,7 +127,7 @@ struct ScreenTimeView: View {
                                 }.padding(.vertical,5)
                             }
                         }.panel()
-                        Text(isMac ? "Mac totals are a union of recorded app-use intervals, not display-on time or a guaranteed match to Apple’s Screen Time report. Historical retention and delayed writes can leave gaps. Missing days remain unknown. History is local and excluded from Ask Ascend and the main tracker backup." : "Screen-on time includes the lock screen. Event retention, restarts and multi-window activity can cause differences from Digital Wellbeing. No screenshots or app content are collected. A rolling 90-day history is kept on this Mac when syncing and is excluded from Ask Ascend and the main tracker backup.")
+                        Text(isMac ? "Mac totals are a union of recorded app-use intervals, not display-on time or a guaranteed match to Apple’s Screen Time report. Historical retention and delayed writes can leave gaps. Missing days remain unknown. History is local, left out of the main tracker backup, and read by Q only with full data access on." : "Screen-on time includes the lock screen. Event retention, restarts and multi-window activity can cause differences from Digital Wellbeing. No screenshots or app content are collected. A rolling 90-day history is kept on this Mac when syncing, left out of the main tracker backup, and read by Q only with full data access on.")
                             .font(.bt(size:11)).foregroundStyle(Ink.muted).fixedSize(horizontal:false,vertical:true)
                     } else { setup }
                 } else { setup }

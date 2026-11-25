@@ -18,7 +18,7 @@ struct NotesView: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 6) {
                         Kicker("Plans, decisions and reflections worth keeping")
-                        Text("Save a chat with Ask Ascend as a note, or write one here. Notes marked “Ascend can see” are remembered in later chats.").font(.bt(size: 12)).foregroundStyle(Ink.muted)
+                        Text("Save a chat with Q as a note, or write one here. Notes marked “Ascend can see” are remembered in later chats.").font(.bt(size: 12)).foregroundStyle(Ink.muted)
                     }
                     Spacer()
                     PrimaryButton(label: "New note") { editing = JournalNote(kind: .journal, day: store.today) }
@@ -34,7 +34,7 @@ struct NotesView: View {
                 if visible.isEmpty {
                     VStack(alignment: .leading, spacing: 10) {
                         Text(store.document.notes.notes.isEmpty ? "No notes yet." : "No notes match.").font(.bt(size: 18, weight: .semibold))
-                        Text("In Ask Ascend, open a chat’s ••• menu → Save chat as note, or right-click a reply → Save reply as note. Claude drafts a summary; you edit it before saving.").font(.bt(size: 12)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
+                        Text("In Q, open a chat’s ••• menu → Save chat as note, or right-click a reply → Save reply as note. Claude drafts a summary; you edit it before saving.").font(.bt(size: 12)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
                     }.frame(maxWidth: .infinity, alignment: .leading).panel()
                 }
                 ForEach(visible) { note in

@@ -25,7 +25,7 @@ struct DossierView: View {
                                      add: { editing = DossierItem(section: section, title: "", tag: section.tags[0], progress: section == .skills ? 0 : nil) })
                     }
                 }
-                Text("Placeholders are marked. Click any line to make it yours; the Dossier stays on this Mac and Ask Ascend can read it.")
+                Text("Placeholders are marked. Click any line to make it yours; the Dossier stays on this Mac and Q can read it.")
                     .font(.bt(size: 11)).foregroundStyle(Ink.muted)
             }
         }

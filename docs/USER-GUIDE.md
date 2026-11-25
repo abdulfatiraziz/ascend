@@ -136,7 +136,7 @@ also drop photos on **Meds** on the Mac, or **Add by name**.
 
 Check each card and add the schedule your doctor gave you: every day, certain weekdays,
 every few days or as needed; 1–4 times a day; amount; before, with or after food; start
-and optional end date. Or tell Ask Ascend (“Vitamin D3 1 tablet once daily after breakfast”)
+and optional end date. Or tell Q (“Vitamin D3 1 tablet once daily after breakfast”)
 and apply the preview. Claude only copies what's printed or what you say; it never sets
 a dose. **Stop taking** keeps history; **Delete** removes it.
 
@@ -152,7 +152,7 @@ its scheduled time and updates that day's medication habit.
 
 ## Notes
 
-Keep what a chat settled. In Ask Ascend, click **Save as note** (or ••• → Save chat as note)
+Keep what a chat settled. In Q, click **Save as note** (or ••• → Save chat as note)
 and Claude drafts a summary: type (Journal, Plan, Decision or Insight), title, a few bullets
 and action items. Edit it and save. Right-click a single reply → **Save reply as note** to
 keep just that answer. Claude may also offer a `save_note` change at the end of a planning
@@ -180,22 +180,22 @@ differ enough to mislead. **Save as note** keeps the result as an Insight note t
 chats can see.
 
 Comparisons are only fair from the same angle in the same light; each area shows a tip.
-To talk them through with Ask Ascend, click **Ask Ascend** on the comparison (or right-click
-a photo → Ask Ascend about this photo), or in the chat use **Photo ▾ → From progress photos…**.
+To talk them through with Q, click **Q** on the comparison (or right-click
+a photo → Ask Q about this photo), or in the chat use **Photo ▾ → From progress photos…**.
 Up to four album photos attach to your next message, each labelled with its area, angle and
-date. Ask Ascend otherwise knows only which areas, angles and dates your album has, so if
+date. Q otherwise knows only which areas, angles and dates your album has, so if
 you ask it to look without attaching, it tells you which photos to attach.
 
 Copies are stored up to 2048 px in `Progress/` beside tracker.json, with location and camera
 data removed. Images reach Claude only when you compare or attach them. The phone app
 doesn't take progress photos.
 
-## Ask Ascend (Claude)
+## Q (Claude)
 
-Ask Ascend uses Claude Code with your personal account, the same as `claude --personal`.
+Q uses Claude Code with your personal account, the same as `claude --personal`.
 
 1. Sign in once: run `claude --personal` in Terminal if you haven't already.
-2. Open **Chat** in the sidebar (or press **⌘J** / **Ask Ascend**). **Claude settings**, at the
+2. Open **Q** in the sidebar (or press **⌘J** or **⌘5**). **Claude settings**, at the
    bottom of the chat list, shows the detected
    Claude Code path, the profile folder (`~/.claude-personal`), the model for new chats
    and whether to share recent check-ins. **Send test message** confirms it works.
@@ -282,7 +282,7 @@ preserved, and a valid backup is recovered when available.
 ## Shortcuts
 
 - **⌘⇧K:** Quick check-in
-- **⌘J:** Open the Chat screen
+- **⌘J:** Open Q
 - **⌘N:** New chat (on the Chat screen)
 - **⌘⇧U:** Log an urge while Ascend is active
 - **⌘Return:** Send a chat message
@@ -343,7 +343,7 @@ Training lives in a separate versioned `training.json` alongside the tracker.
 Writes are atomic and corrupt/unsupported files are preserved with an error;
 there are no per-save training backups. Copy this file and the separate body
 backup when making a full manual backup. Main tracker export does not include it.
-Ask Ascend receives a short Body goal, pace, weekly scorecard, today's session
+Q receives a short Body goal, pace, weekly scorecard, today's session
 and recent-lifts summary when sending a chat. No Body file paths or photo data
 are added to that summary. Android gym logging is not part of this release.
 
@@ -407,7 +407,7 @@ Formula reference: [Mifflin et al., 1990](https://pubmed.ncbi.nlm.nih.gov/230571
 For a dynamic physiological planning model, see the
 [NIDDK Body Weight Planner](https://www.niddk.nih.gov/bwp).
 Height, formula coefficient and full-day override marks stay in `training.json`;
-they are not added to the existing short Ask Ascend Body summary.
+they are not added to the existing short Q Body summary.
 
 
 ## Diet planning

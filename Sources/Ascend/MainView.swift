@@ -6,18 +6,19 @@ enum Screen: String, CaseIterable {
     case today = "Today", chat = "Chat", goals = "Goals", routine = "Routine", meals = "Meals", meds = "Meds", notes = "Notes", photos = "Photos", screenTime = "Screen time", health = "Health", body = "Body", patterns = "Patterns", urges = "Urges", dossier = "Dossier"
     var symbol: String { switch self { case .today: "circle.hexagongrid"; case .chat: "sparkles"; case .goals: "scope"; case .routine: "clock"; case .meals: "fork.knife"; case .meds: "pills"; case .notes: "note.text"; case .photos: "person.crop.rectangle.stack"; case .screenTime: "hourglass"; case .health: "heart.text.square"; case .body: "figure.strengthtraining.traditional"; case .patterns: "point.3.connected.trianglepath.dotted"; case .urges: "circle.dotted"; case .dossier: "folder" } }
 }
-/// The four sidebar tabs. Every old screen lives inside one of them as a sub-tab; Chat opens from Ask Ascend.
+/// The sidebar tabs. Every old screen lives inside one of them as a sub-tab; Q is the chat.
 enum Tab: String, CaseIterable {
-    case brief = "Brief", condition = "Condition", fieldLog = "Field log", dossier = "Dossier"
+    case brief = "Brief", condition = "Condition", fieldLog = "Field log", dossier = "Dossier", q = "Q"
     var screens: [Screen] {
         switch self {
         case .brief: [.goals, .today, .routine]
         case .condition: [.health, .body, .screenTime]
         case .fieldLog: [.meals, .meds, .urges, .notes]
         case .dossier: [.dossier]
+        case .q: [.chat]
         }
     }
-    var symbol: String { switch self { case .brief: "doc.text"; case .condition: "waveform.path.ecg"; case .fieldLog: "square.and.pencil"; case .dossier: "folder" } }
+    var symbol: String { switch self { case .brief: "doc.text"; case .condition: "waveform.path.ecg"; case .fieldLog: "square.and.pencil"; case .dossier: "folder"; case .q: "q.circle" } }
     static func of(_ screen: Screen) -> Tab? { allCases.first { $0.screens.contains(screen) } }
 }
 extension Screen {
@@ -190,6 +191,8 @@ struct MainView: View {
                     .help("\(tab.rawValue) · ⌘\(Tab.allCases.firstIndex(of: tab)! + 1)")
                 }
             }
+            Button { screen = .chat } label: { EmptyView() }.buttonStyle(.plain).frame(width: 0, height: 0).opacity(0)
+                .keyboardShortcut("j", modifiers: .command).accessibilityHidden(true)
             Spacer(minLength: 0)
             Button { setEyesOnly(true) } label: { Image(systemName: "eye.slash").font(.bt(size: 17)).frame(width: 44, height: 44) }
                 .buttonStyle(.plain).foregroundStyle(Ink.muted).keyboardShortcut("e", modifiers: [.command, .shift])

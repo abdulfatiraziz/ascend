@@ -71,7 +71,7 @@ public struct PreparedProposal: Identifiable, Equatable, Sendable {
     public var isDestructive: Bool { changes.contains { $0.destructive } }
     public func resolve(current: TrackerDocument, today: String) throws -> TrackerDocument {
         guard current == baseline, today == day else {
-            throw ValidationError(message: "Your plan or date changed since this preview. Ask Ascend again to create a fresh proposal.")
+            throw ValidationError(message: "Your plan or date changed since this preview. Ask Q again to create a fresh proposal.")
         }
         try candidate.validate()
         return candidate

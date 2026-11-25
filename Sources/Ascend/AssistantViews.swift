@@ -25,7 +25,7 @@ struct ClaudeSettingsEditor: View {
     init(store: TrackerStore) { controller = store.assistant; signIn = store.claudeSignIn }
     var body: some View {
         EditorShell(title: "Claude settings") {
-            Text("Ask Ascend runs on your own Claude Code install and account, the same as `claude --personal` in Terminal. There is no API key to manage.").font(.bt(size: 12)).foregroundStyle(Ink.muted)
+            Text("Q runs on your own Claude Code install and account, the same as `claude --personal` in Terminal. There is no API key to manage.").font(.bt(size: 12)).foregroundStyle(Ink.muted)
             FieldGroup(label: "Claude Code") {
                 Text(controller.executable?.path ?? "Not found. Install Claude Code or enter its path below.").font(.bt(size: 11, design: .monospaced)).foregroundStyle(controller.executable == nil ? .orange : Ink.muted).textSelection(.enabled)
             }

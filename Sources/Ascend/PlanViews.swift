@@ -53,7 +53,7 @@ struct MenuBarPanel: View {
                     Divider()
                     Button("Daily routine") { open("Routine") }
                     Button("Urge history") { open("Urges") }
-                    Button("Ask Ascend") { open("Assistant") }
+                    Button("Ask Q") { open("Assistant") }
                     Toggle("Show routine clock", isOn: $showClock)
                     Button("Reminders & settings") { open("Settings") }
                     Divider()

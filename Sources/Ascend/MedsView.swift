@@ -294,7 +294,7 @@ private struct MedScheduleEditor: View {
                 HStack {
                     Text("No schedule yet").font(.bt(size: 12)).foregroundStyle(Ink.muted)
                     Button("Add the doctor's schedule") { schedule = MedSchedule(start: today) }.font(.bt(size: 12))
-                    Text("or tell Ask Ascend, e.g. “once daily after breakfast”").font(.bt(size: 11)).foregroundStyle(Ink.muted)
+                    Text("or tell Q, e.g. “once daily after breakfast”").font(.bt(size: 11)).foregroundStyle(Ink.muted)
                 }
             }
         }.padding(10).background(Ink.panel.opacity(0.6)).clipShape(RoundedRectangle(cornerRadius: 8))

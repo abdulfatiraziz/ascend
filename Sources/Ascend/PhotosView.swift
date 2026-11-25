@@ -83,7 +83,7 @@ struct PhotosView: View {
                 if let currentAngle { compare(currentAngle) }
                 timeline
             }
-            Text("Photos stay on this Mac in Ascend’s Progress folder with their location data removed. Ask Ascend sees only which areas, angles and dates you have; an image reaches Claude only when you compare it or attach it to a chat, through your personal Claude profile.").font(.bt(size: 11)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
+            Text("Photos stay on this Mac in Ascend’s Progress folder with their location data removed. Q sees only which areas, angles and dates you have; an image reaches Claude only when you compare it or attach it to a chat, through your personal Claude profile.").font(.bt(size: 11)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
         }.padding(.bottom, 10)
     }
     private var areaTabs: some View {
@@ -133,7 +133,7 @@ struct PhotosView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(label(only)).font(.bt(size: 15, weight: .semibold))
                     Text("Your first \(angle.label.lowercased()) photo of your \(area.label.lowercased()). Add another from the same angle in a week or two to compare.").font(.bt(size: 12)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
-                    Button { store.askAscend(about: [only]) } label: { Label("Ask Ascend about it", systemImage: "sparkles").font(.bt(size: 11)) }
+                    Button { store.askAscend(about: [only]) } label: { Label("Ask Q about it", systemImage: "sparkles").font(.bt(size: 11)) }
                 }
             }.frame(maxWidth: .infinity, alignment: .leading).panel(padding: 16)
         } else if let first = list.first, let last = list.last {
@@ -147,7 +147,7 @@ struct PhotosView: View {
                     picker("After", list: list, selection: after) { afterID = $0 }
                     Text(days == 0 ? "Same day" : "\(abs(days)) day\(abs(days) == 1 ? "" : "s") \(days > 0 ? "apart" : "earlier")").font(.bt(size: 11)).foregroundStyle(Ink.muted)
                     Spacer()
-                    Button { store.askAscend(about: before.id == after.id ? [after] : [before, after]) } label: { Label("Ask Ascend", systemImage: "sparkles").font(.bt(size: 11)) }
+                    Button { store.askAscend(about: before.id == after.id ? [after] : [before, after]) } label: { Label("Ask Q", systemImage: "sparkles").font(.bt(size: 11)) }
                         .help("Attach these photos to a chat message so you can discuss them with Claude")
                     Picker("View", selection: $overlay) { Text("Side by side").tag(false); Text("Overlay").tag(true) }.pickerStyle(.segmented).labelsHidden().fixedSize()
                 }
@@ -230,7 +230,7 @@ struct PhotosView: View {
                         .contextMenu {
                             Button("Compare as before") { angle = photo.angle; beforeID = photo.id; if afterID.flatMap({ id in album.photos(area, angle: photo.angle).first { $0.id == id } }) == nil { afterID = nil } }
                             Button("Compare as after") { angle = photo.angle; afterID = photo.id; if beforeID.flatMap({ id in album.photos(area, angle: photo.angle).first { $0.id == id } }) == nil { beforeID = nil } }
-                            Button("Ask Ascend about this photo") { store.askAscend(about: [photo]) }
+                            Button("Ask Q about this photo") { store.askAscend(about: [photo]) }
                             Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([store.progressPhotoURL(photo)]) }
                         }
                 }
@@ -367,7 +367,7 @@ private struct PhotoEditor: View {
     }
 }
 
-/// Picks album photos to attach to an Ask Ascend message.
+/// Picks album photos to attach to an Q message.
 struct ProgressPhotoPicker: View {
     @ObservedObject var store: TrackerStore
     var limit: Int
