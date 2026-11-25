@@ -8,27 +8,29 @@ for stage in obsidian titanium ascendant; do
 done
 swift build -c "$configuration" --disable-sandbox --cache-path "${TMPDIR:-/private/tmp/}ascend-swift-cache" --scratch-path .build
 bin_dir=$(swift build -c "$configuration" --show-bin-path --disable-sandbox --cache-path "${TMPDIR:-/private/tmp/}ascend-swift-cache" --scratch-path .build)
-app_dir="$PWD/build/Ascend.app"
+app_dir="$PWD/build/Cipher.app"
+# The app was called Ascend; keep the same folder (and its Dock entry) by renaming it once.
+[[ -d build/Ascend.app && ! -e "$app_dir" ]] && mv build/Ascend.app "$app_dir"
 mkdir -p "$app_dir/Contents/MacOS" "$app_dir/Contents/Resources"
 cp "$bin_dir/Ascend" "$app_dir/Contents/MacOS/Ascend"
 ditto "$bin_dir/Ascend_Ascend.bundle" "$app_dir/Contents/Resources/Ascend_Ascend.bundle"
-rm -rf "$app_dir/Contents/Resources/Ascend_Ascend.bundle/Avatar"
-swift scripts/make-icon.swift "$PWD/build"
-iconutil -c icns build/AppIcon.iconset -o "$app_dir/Contents/Resources/Ascend.icns"
+rm -rf "$app_dir/Contents/Resources/Ascend_Ascend.bundle/Avatar" "$app_dir/Contents/Resources/Ascend.icns"
+swift scripts/make-icon.swift "$PWD/build" scripts/AppIcon.svg
+iconutil -c icns build/AppIcon.iconset -o "$app_dir/Contents/Resources/Cipher.icns"
 cat > "$app_dir/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
 <key>CFBundleExecutable</key><string>Ascend</string>
 <key>CFBundleIdentifier</key><string>com.abdul.ascend</string>
-<key>CFBundleName</key><string>Ascend</string>
-<key>CFBundleDisplayName</key><string>Ascend</string>
+<key>CFBundleName</key><string>Cipher</string>
+<key>CFBundleDisplayName</key><string>Cipher</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleShortVersionString</key><string>0.6.0</string>
 <key>CFBundleVersion</key><string>8</string>
-<key>NSLocalNetworkUsageDescription</key><string>Ascend receives health data and meal photos from Ascend Bridge on your phone over your Wi-Fi.</string>
+<key>NSLocalNetworkUsageDescription</key><string>Cipher receives health data and meal photos from Ascend Bridge on your phone over your Wi-Fi.</string>
 <key>NSBonjourServices</key><array><string>_ascend-sync._tcp</string></array>
-<key>CFBundleIconFile</key><string>Ascend</string>
+<key>CFBundleIconFile</key><string>Cipher</string>
 <key>LSMinimumSystemVersion</key><string>14.0</string>
 <key>NSHighResolutionCapable</key><true/>
 <key>NSPrincipalClass</key><string>NSApplication</string>

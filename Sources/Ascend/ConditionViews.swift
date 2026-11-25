@@ -696,7 +696,7 @@ struct ConditionScreenTimeView: View {
                 }.font(.bt(size: 12.5)).lineSpacing(3).fixedSize(horizontal: false, vertical: true)
             }
             if stopped {
-                Text(mac.needsAccess ? "Ascend has lost Full Disk Access. macOS drops it each time the app is rebuilt; add Ascend again in Privacy & Security → Full Disk Access." : "Likely cause: macOS dropped Full Disk Access when Ascend was rebuilt.")
+                Text(mac.needsAccess ? "Cipher has lost Full Disk Access. macOS drops it each time the app is rebuilt; add Cipher again in Privacy & Security → Full Disk Access." : "Likely cause: macOS dropped Full Disk Access when Cipher was rebuilt.")
                     .font(.bt(size: 11.5)).foregroundStyle(Ink.watch).fixedSize(horizontal: false, vertical: true)
                 if mac.failed, let status = mac.status { Text(status).font(.bt(size: 11)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true) }
             }

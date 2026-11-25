@@ -61,7 +61,7 @@ import AscendCore
         let settings = await center.notificationSettings()
         guard settings.authorizationStatus == .authorized else { status = "Allow notifications in macOS Settings first."; return }
         let content = UNMutableNotificationContent()
-        content.title = "Ascend is ready"; content.body = "Your next version starts with a check-in."
+        content.title = "Cipher is ready"; content.body = "Your next version starts with a check-in."
         if sound { content.sound = .default }
         do {
             try await center.add(UNNotificationRequest(identifier: "ascend.test", content: content,
@@ -89,7 +89,7 @@ import AscendCore
                 return
             }
             NotificationCenter.default.post(name: .ascendNotificationOpened, object: nil)
-            NSApp.windows.first { $0.title == "Ascend" }?.makeKeyAndOrderFront(nil)
+            NSApp.windows.first { $0.title == "Cipher" }?.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
         }
         completionHandler()

@@ -129,6 +129,6 @@ struct XiaomiCloudPanel: View {
             .confirmationDialog("Sign out of the Mi Fitness cloud?", isPresented: $confirmSignOut, titleVisibility: .visible) {
                 Button("Sign out", role: .destructive) { cloud.signOut() }
                 Button("Cancel", role: .cancel) {}
-            } message: { Text("Ascend forgets the sign-in. Readings already imported stay; heart rate and SpO2 come from the phone again.") }
+            } message: { Text("Cipher forgets the sign-in. Readings already imported stay; heart rate and SpO2 come from the phone again.") }
     }
 }

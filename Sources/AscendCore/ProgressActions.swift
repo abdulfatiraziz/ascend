@@ -71,7 +71,7 @@ public extension TrackerEngine {
                       let fire = calendar.date(bySettingHour: minute / 60, minute: minute % 60, second: 0, of: date), fire > now else { continue }
                 result.append(PlannedReminder(id: "ascend.\(day).\(slot)", date: fire,
                     title: slot == "morning" ? "Your morning protocol" : "A moment for yourself",
-                    body: slot == "morning" ? "Open Ascend for your morning check-in." : "Review today’s protocol and log what you’ve done."))
+                    body: slot == "morning" ? "Open Cipher for your morning check-in." : "Review today’s protocol and log what you’ve done."))
             }
         }
         return result

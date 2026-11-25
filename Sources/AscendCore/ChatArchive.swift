@@ -77,7 +77,7 @@ public struct ChatArchive: Codable, Equatable, Sendable {
         if let data = try? Data(contentsOf: url), let archive = try? decoder.decode(ChatArchive.self, from: data) { return (archive, nil) }
         let aside = url.deletingLastPathComponent().appendingPathComponent("chats-unreadable-\(Int(Date().timeIntervalSince1970)).json")
         try? fileManager.moveItem(at: url, to: aside)
-        return (ChatArchive(), "Your saved chats could not be read, so Ascend started a fresh list. The old file was kept as \(aside.lastPathComponent).")
+        return (ChatArchive(), "Your saved chats could not be read, so Cipher started a fresh list. The old file was kept as \(aside.lastPathComponent).")
     }
     public func save(to url: URL) throws {
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)

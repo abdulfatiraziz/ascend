@@ -44,7 +44,7 @@ struct MenuBarPanel: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("ASCEND ↗").font(.bt(size: 13, weight: .semibold)).tracking(3)
+                Text("CIPHER").font(.bt(size: 13, weight: .semibold)).tracking(3)
                 Spacer()
                 Menu {
                     Button("Daily check-in") { open("DailyCheckIn") }
@@ -58,7 +58,7 @@ struct MenuBarPanel: View {
                     Button("Reminders & settings") { open("Settings") }
                     Divider()
                     Button("Export backup…") { store.exportBackup() }
-                    Button("Quit Ascend") { NSApp.terminate(nil) }.keyboardShortcut("q")
+                    Button("Quit Cipher") { NSApp.terminate(nil) }.keyboardShortcut("q")
                 } label: { Image(systemName: "ellipsis.circle") }.menuStyle(.borderlessButton).fixedSize().accessibilityLabel("Quick menu")
                 if isModal { Button { dismiss() } label: { Image(systemName: "xmark") }.buttonStyle(.plain).accessibilityLabel("Close quick check-in").keyboardShortcut(.cancelAction) }
             }

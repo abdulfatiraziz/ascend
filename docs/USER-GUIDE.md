@@ -1,6 +1,6 @@
-# Ascend user guide
+# Cipher user guide
 
-Ascend is a personal macOS tracker. Your plan, check-ins, routine and urge logs
+Cipher (formerly Ascend) is a personal macOS tracker. Your plan, check-ins, routine and urge logs
 are stored on your Mac. Your portrait avatar is a cosmetic reflection of check-ins.
 
 ## Daily use
@@ -83,7 +83,7 @@ All comparisons run locally. [Complete Patterns guide](PATTERNS.md).
 Open **Health** to connect your Android phone over Wi-Fi. Use **Install phone app…**
 to install or update Ascend Bridge from a QR code, then **Pair phone…** and confirm the
 matching 6-digit code. After that, Ascend Bridge syncs when you open it (or tap the sync pill on
-Today), and hourly in the background if you turn that on in its Settings; Ascend must
+Today), and hourly in the background if you turn that on in its Settings; Cipher must
 be open on the Mac and both devices on the same Wi-Fi. No
 developer options are needed. [Complete setup and limitations](HEALTH-SYNC.md).
 
@@ -96,13 +96,13 @@ The phone and Mi Fitness cloud connections sit under **Sources** at the bottom.
 
 Mi Fitness passes only workout heart rate on to Health Connect. For all-day heart
 rate, stress (1–100) and Mi Fitness's daily resting heart rate, click **Sign in with
-Xiaomi…** under the phone panel. Ascend opens Xiaomi's sign-in page in your browser;
+Xiaomi…** under the phone panel. Cipher opens Xiaomi's sign-in page in your browser;
 if the browser is already signed in to Xiaomi it's approved straight away, otherwise
-sign in there and click the button again. Ascend then reads those types from your
+sign in there and click the button again. Cipher then reads those types from your
 Xiaomi account every hour (14 days the first time) while the phone keeps supplying
 sleep, steps and workouts. The sign-in is kept in the Keychain; **Sign out…** forgets
 it and hands heart rate back to the phone. This uses Xiaomi's unofficial app API, so a
-change on Xiaomi's side can stop it until Ascend is updated.
+change on Xiaomi's side can stop it until Cipher is updated.
 
 Health data stays separate from habit scores and AI context. Importing activity
 calories does not log food intake. Each sync creates a backup and offers Undo.
@@ -159,15 +159,15 @@ keep just that answer. Claude may also offer a `save_note` change at the end of 
 chat, which you review like any other edit. Write notes by hand with **New note** in Notes.
 
 Notes lists everything newest first, pinned on top, with type filters and search; each note
-links back to its chat. Turn on **Ascend can see this** (on by default for Plans and
-Decisions) and later chats include that note, so Ascend can follow up on it. Only shared
+links back to its chat. Turn on **Cipher can see this** (on by default for Plans and
+Decisions) and later chats include that note, so Cipher can follow up on it. Only shared
 notes are sent: pinned first, then the 12 most recent. Notes live in your tracker data
 and backups.
 
 ## Progress photos
 
 Photos keeps dated pictures of your **Hair**, **Hairline**, **Face** and **Body**. Click
-**Add photos…** or drag photos onto the window. Ascend reads when each photo was taken from
+**Add photos…** or drag photos onto the window. Cipher reads when each photo was taken from
 the camera's data (or the file date), and you set the area, the angle (front, left, right,
 back, top) and an optional note before adding. Click a photo later to fix its date, area,
 angle or note, or to delete it (Undo is available until your next edit).
@@ -236,7 +236,7 @@ Example requests:
 - “Set wake time to 08:00, bedtime to midnight, and wind-down to two hours.”
 - “Start a new 90-day cycle today.”
 
-Ascend validates the entire proposal before saving. A bad operation rejects the
+Cipher validates the entire proposal before saving. A bad operation rejects the
 whole proposal. Changing the plan or date while a proposal is open makes it stale;
 send the request again to generate a fresh preview. Destructive changes receive an
 additional confirmation. Every applied proposal creates a dated backup and Undo.
@@ -247,7 +247,7 @@ and current cycle to Anthropic through Claude Code. With **Share recent check-in
 and habit notes** on (the default), it also sends cycle progress, the last 14 days of
 check-ins and rest days, and habit notes. Photos are sent only with the message you attach them to.
 
-With **Let Claude search all my Ascend data** on (the default), Ascend writes a read-only copy of
+With **Let Claude search all my Cipher data** on (the default), Cipher writes a read-only copy of
 all your data into the chat's folder before each message: the full check-in history, meals,
 medicines, notes you share with Claude, urges, journal, watch health records, training, body
 measurements and screen time. Location coordinates, anything that looks like a password or token,
@@ -270,11 +270,11 @@ The other app features remain available offline.
 - **Reset all check-in history:** clears habit check-ins and rest markers while
   keeping goals, habits, routine settings and urge logs.
 
-Resets/restarts create dated backups. Undo lasts until the next successful edit or until you quit Ascend.
+Resets/restarts create dated backups. Undo lasts until the next successful edit or until you quit Cipher.
 An unchanged save does not consume Undo. If a disk write fails, the in-memory change
 is rolled back, the error is shown, and Settings provides Retry saving.
 
-Data lives at `~/Library/Application Support/Ascend/tracker.json`. The previous
+Data lives at `~/Library/Application Support/Ascend/tracker.json` (the folder kept the old name, so nothing moved). The previous
 valid file is `tracker.json.backup`; resets and AI changes create additional dated
 JSON backups. Export/restore and Show data are in Settings. An unreadable file is
 preserved, and a valid backup is recovered when available.
@@ -284,11 +284,11 @@ preserved, and a valid backup is recovered when available.
 - **⌘⇧K:** Quick check-in
 - **⌘J:** Open Q
 - **⌘N:** New chat (on the Chat screen)
-- **⌘⇧U:** Log an urge while Ascend is active
+- **⌘⇧U:** Log an urge while Cipher is active
 - **⌘Return:** Send a chat message
 - **⌘⇧E:** Export backup
 
-The app is locally ad-hoc signed. Keep using `build/Ascend.app`; no account,
+The app is locally ad-hoc signed. Keep using `build/Cipher.app`; no account,
 notarized installer or background server is required for local tracking.
 
 ## Body: goals, training and steps

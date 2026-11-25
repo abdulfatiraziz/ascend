@@ -217,7 +217,7 @@ struct TodayGlanceCard: View {
         let lines = Self.lines(store: store, day: day)
         let score = store.engine.score(on: day)
         VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .firstTextBaseline) { CardTitle("Ascend is tracking"); Spacer(); Text("Nothing to tap here").font(.bt(size: 12)).foregroundStyle(Ink.muted) }
+            HStack(alignment: .firstTextBaseline) { CardTitle("Cipher is tracking"); Spacer(); Text("Nothing to tap here").font(.bt(size: 12)).foregroundStyle(Ink.muted) }
                 .padding(.bottom, 6)
             ForEach(Array(lines.enumerated()), id: \.element.id) { i, line in
                 if i > 0 { Line() }

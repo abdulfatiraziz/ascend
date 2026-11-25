@@ -35,7 +35,7 @@ import UniformTypeIdentifiers
     }
     func chooseImport() {
         let panel = NSOpenPanel()
-        panel.title = "Import Dr Trust measurements or an Ascend body backup"
+        panel.title = "Import Dr Trust measurements or a Cipher body backup"
         panel.allowedContentTypes = [.json]; panel.allowsMultipleSelection = false
         guard panel.runModal() == .OK, let source = panel.url else { return }
         do {
@@ -54,7 +54,7 @@ import UniformTypeIdentifiers
     }
     func exportArchive() {
         let panel = NSSavePanel(); panel.title = "Export body measurements"
-        panel.nameFieldStringValue = "Ascend-body-measurements.json"; panel.allowedContentTypes = [.json]
+        panel.nameFieldStringValue = "Cipher-body-measurements.json"; panel.allowedContentTypes = [.json]
         guard panel.runModal() == .OK, let destination = panel.url else { return }
         do {
             let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]

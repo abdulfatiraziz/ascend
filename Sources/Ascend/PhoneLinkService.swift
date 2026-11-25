@@ -56,7 +56,7 @@ private struct KeychainPhoneKeyStore: PhoneKeyStore {
         macName = Host.current().localizedName ?? "Mac"
         phones = (defaults.data(forKey: "phoneLink.phones").flatMap { try? JSONDecoder().decode([PairedPhone].self, from: $0) }) ?? []
         hub = PhoneLinkHub(macName: macName, keyStore: keys) { [weak self] event in
-            await self?.receive(event) ?? PhoneLinkResult(ok: false, message: "Ascend is closing.")
+            await self?.receive(event) ?? PhoneLinkResult(ok: false, message: "Cipher is closing.")
         }
         if enabled { start() }
     }
@@ -70,7 +70,7 @@ private struct KeychainPhoneKeyStore: PhoneKeyStore {
         } catch { status = "Wi-Fi link unavailable: \(error.localizedDescription)" }
     }
     private func update(_ state: String) {
-        FileHandle.standardError.write(Data("Ascend phone link: \(state)\n".utf8))
+        FileHandle.standardError.write(Data("Cipher phone link: \(state)\n".utf8))
         switch state {
         case "ready":
             listening = true; port = server?.port
@@ -79,7 +79,7 @@ private struct KeychainPhoneKeyStore: PhoneKeyStore {
             advertised = true; status = "Ready on Wi-Fi as “\(macName)”"
         default:
             listening = false; advertised = false
-            status = "Wi-Fi link unavailable (\(state)). Check Local Network access for Ascend in System Settings → Privacy & Security."
+            status = "Wi-Fi link unavailable (\(state)). Check Local Network access for Cipher in System Settings → Privacy & Security."
         }
     }
     func openPairing() { pairingOpen = true; pairing = nil; Task { await hub.openPairing() } }
@@ -134,7 +134,7 @@ private struct KeychainPhoneKeyStore: PhoneKeyStore {
         case .hello(let phoneID):
             touch(phoneID); return PhoneLinkResult(ok: true, message: "Connected to \(macName)")
         case .screenTime(let snapshot, let phoneID):
-            guard let store else { return PhoneLinkResult(ok:false,message:"Ascend isn’t ready.") }
+            guard let store else { return PhoneLinkResult(ok:false,message:"Cipher isn’t ready.") }
             do {
                 try store.screenTime.receive(snapshot,phoneID:phoneID,phoneName:name(phoneID))
                 store.refreshAutoTicks()
@@ -142,7 +142,7 @@ private struct KeychainPhoneKeyStore: PhoneKeyStore {
                 return PhoneLinkResult(ok:true,message:snapshot.status=="allowed" ? "Screen time synced" : "Screen-time status updated; earlier readings retained")
             } catch { return PhoneLinkResult(ok:false,message:error.localizedDescription) }
         case .snapshot(let snapshot, let phoneID):
-            guard let store else { return PhoneLinkResult(ok: false, message: "Ascend isn’t ready.") }
+            guard let store else { return PhoneLinkResult(ok: false, message: "Cipher isn’t ready.") }
             if store.importHealth(snapshot, requestID: snapshot.requestID) {
                 touch(phoneID)
                 let count = snapshot.records.filter { snapshot.errors[$0.metric.rawValue] == nil }.count
@@ -153,7 +153,7 @@ private struct KeychainPhoneKeyStore: PhoneKeyStore {
             store.notice = nil
             return PhoneLinkResult(ok: false, message: reason)
         case .meal(let meal, let phoneID):
-            guard let store else { return PhoneLinkResult(ok: false, message: "Ascend isn’t ready.") }
+            guard let store else { return PhoneLinkResult(ok: false, message: "Cipher isn’t ready.") }
             do {
                 let (id, data, group) = try meal.validated()
                 let file = FileManager.default.temporaryDirectory.appendingPathComponent("ascend-meal-\(id.uuidString).\(meal.mediaType == "image/png" ? "png" : "jpg")")
@@ -176,7 +176,7 @@ private struct KeychainPhoneKeyStore: PhoneKeyStore {
                 return PhoneLinkResult(ok: true, message: "Meal received")
             } catch { return PhoneLinkResult(ok: false, message: error.localizedDescription) }
         case .urge(let urge, let phoneID):
-            guard let store else { return PhoneLinkResult(ok: false, message: "Ascend isn’t ready.") }
+            guard let store else { return PhoneLinkResult(ok: false, message: "Cipher isn’t ready.") }
             do {
                 let log = try urge.validated()
                 guard let saved = store.addPhoneUrge(log) else { return PhoneLinkResult(ok: true, message: "Already received") }
@@ -185,7 +185,7 @@ private struct KeychainPhoneKeyStore: PhoneKeyStore {
                 return PhoneLinkResult(ok: true, message: "Urge logged")
             } catch { return PhoneLinkResult(ok: false, message: error.localizedDescription) }
         case .medPhoto(let photo, let phoneID):
-            guard let store else { return PhoneLinkResult(ok: false, message: "Ascend isn’t ready.") }
+            guard let store else { return PhoneLinkResult(ok: false, message: "Cipher isn’t ready.") }
             do {
                 let (id, batch, data) = try photo.validated()
                 let file = FileManager.default.temporaryDirectory.appendingPathComponent("ascend-med-\(id.uuidString).\(photo.mediaType == "image/png" ? "png" : "jpg")")
@@ -198,7 +198,7 @@ private struct KeychainPhoneKeyStore: PhoneKeyStore {
                 return PhoneLinkResult(ok: true, message: "Medicine photo received")
             } catch { return PhoneLinkResult(ok: false, message: error.localizedDescription) }
         case .dose(let dose, let phoneID):
-            guard let store else { return PhoneLinkResult(ok: false, message: "Ascend isn’t ready.") }
+            guard let store else { return PhoneLinkResult(ok: false, message: "Cipher isn’t ready.") }
             guard let medID = UUID(uuidString: dose.medID), store.engine.date(dose.day) != nil, (0..<1440).contains(dose.minute), dose.takenAt.isFinite else {
                 return PhoneLinkResult(ok: false, message: "The phone sent an invalid dose.")
             }
@@ -211,7 +211,7 @@ private struct KeychainPhoneKeyStore: PhoneKeyStore {
             touch(phoneID)
             return PhoneLinkResult(ok: true, message: dose.taken ? "Dose logged" : "Dose cleared")
         case .checkIn(let checkIn, let phoneID):
-            guard let store else { return PhoneLinkResult(ok: false, message: "Ascend isn’t ready.") }
+            guard let store else { return PhoneLinkResult(ok: false, message: "Cipher isn’t ready.") }
             guard store.applyPhoneCheckIn(checkIn) else {
                 let reason = store.notice ?? store.saveError ?? "The Mac couldn’t save this check-in."
                 store.notice = nil
@@ -220,7 +220,7 @@ private struct KeychainPhoneKeyStore: PhoneKeyStore {
             touch(phoneID)
             return PhoneLinkResult(ok: true, message: "Check-in saved")
         case .log(let entry, let phoneID):
-            guard let store else { return PhoneLinkResult(ok: false, message: "Ascend isn’t ready.") }
+            guard let store else { return PhoneLinkResult(ok: false, message: "Cipher isn’t ready.") }
             do {
                 switch try entry.validated() {
                 case .weight(let id, let kg, let date):

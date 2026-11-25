@@ -35,7 +35,7 @@ public enum ClaudeDataSnapshot {
             listed.append("- `\(name)`: \(about)")
         }
         let readme = """
-        # Ascend data (read-only copy, refreshed before every message)
+        # Cipher data (read-only copy, refreshed before every message)
 
         \(listed.joined(separator: "\n"))
 

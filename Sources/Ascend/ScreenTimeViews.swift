@@ -26,7 +26,7 @@ import UniformTypeIdentifiers
         archive=candidate;error=nil
     }
     func export() {
-        let panel=NSSavePanel();panel.nameFieldStringValue="Ascend-screen-time.json";panel.allowedContentTypes=[.json]
+        let panel=NSSavePanel();panel.nameFieldStringValue="Cipher-screen-time.json";panel.allowedContentTypes=[.json]
         guard panel.runModal() == .OK,let destination=panel.url else { return }
         do {
             let encoder=JSONEncoder();encoder.outputFormatting=[.prettyPrinted,.sortedKeys]

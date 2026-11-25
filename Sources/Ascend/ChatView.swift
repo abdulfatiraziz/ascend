@@ -43,7 +43,7 @@ struct ChatView: View {
         .confirmationDialog("Delete “\(deleting?.title ?? "")”?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible) {
             Button("Delete chat", role: .destructive) { if let id = deleting?.id { controller.delete(id) }; deleting = nil }
             Button("Cancel", role: .cancel) { deleting = nil }
-        } message: { Text("Removes the chat from Ascend, its photos and its Claude Code session. Your plan is not affected.") }
+        } message: { Text("Removes the chat from Cipher, its photos and its Claude Code session. Your plan is not affected.") }
         .sheet(item: $controller.noteDraft) { NoteEditor(store: store, note: $0) }
         .sheet(isPresented: $pickingProgress) {
             ProgressPhotoPicker(store: store, limit: max(1, ChatPhotos.maxPerMessage - controller.pendingPhotos.count)) { store.askAscend(about: $0) }
@@ -293,7 +293,7 @@ struct ChatView: View {
                         Text("\(controller.pendingPhotos.count)/\(ChatPhotos.maxPerMessage)").font(.bt(size: 10)).foregroundStyle(Ink.muted)
                     }
                 }
-                TextField(controller.pendingPhotos.isEmpty ? "Message Ascend…" : "Add a message (optional)…", text: $draft, axis: .vertical)
+                TextField(controller.pendingPhotos.isEmpty ? "Message Cipher…" : "Add a message (optional)…", text: $draft, axis: .vertical)
                     .textFieldStyle(.plain).font(.bt(size: 14)).lineLimit(1...10).focused($composerFocused).disabled(controller.working)
                 HStack(spacing: 12) {
                     Menu {
@@ -305,7 +305,7 @@ struct ChatView: View {
                         .disabled(controller.working || controller.pendingPhotos.count >= ChatPhotos.maxPerMessage)
                         .help("Attach up to \(ChatPhotos.maxPerMessage) photos, or drag them here")
                     Button { showPrivacy.toggle() } label: { Image(systemName: "lock").font(.bt(size: 11)) }.buttonStyle(.plain).foregroundStyle(Ink.muted)
-                        .help("What Ascend sends to Claude")
+                        .help("What Cipher sends to Claude")
                         .popover(isPresented: $showPrivacy, arrowEdge: .bottom) { privacy }
                     if copied { Text("Command copied. Paste it in Terminal.").font(.bt(size: 10)).foregroundStyle(Ink.muted) }
                     Spacer()
@@ -329,7 +329,7 @@ struct ChatView: View {
         }
     }
     private var privacy: some View {
-        Text((controller.fullDataAccess ? "Sends your plan to Claude through your personal Claude profile, and lets it search a read-only copy of all your Ascend data (full history, health, meals, urges, journal, training, body, screen time; locations and notes you keep private are left out) and the web." : controller.shareHistory ? "Sends your plan, progress, last 14 days of check-ins and habit notes to Claude through your personal Claude profile. Urges, health and daily journal entries stay on this Mac." : "Sends your plan to Claude through your personal Claude profile. Check-ins, habit notes, urges, health and daily journal entries stay on this Mac.") + " Notes you let Ascend see are included. Your Body goal, pace, weekly scorecard, today’s session and recent lifts are included. Photos are sent only when you attach them; location data is removed. From your Photos album, Claude sees only areas, angles and dates until you attach one.")
+        Text((controller.fullDataAccess ? "Sends your plan to Claude through your personal Claude profile, and lets it search a read-only copy of all your Cipher data (full history, health, meals, urges, journal, training, body, screen time; locations and notes you keep private are left out) and the web." : controller.shareHistory ? "Sends your plan, progress, last 14 days of check-ins and habit notes to Claude through your personal Claude profile. Urges, health and daily journal entries stay on this Mac." : "Sends your plan to Claude through your personal Claude profile. Check-ins, habit notes, urges, health and daily journal entries stay on this Mac.") + " Notes you let Cipher see are included. Your Body goal, pace, weekly scorecard, today’s session and recent lifts are included. Photos are sent only when you attach them; location data is removed. From your Photos album, Claude sees only areas, angles and dates until you attach one.")
             .font(.bt(size: 11)).fixedSize(horizontal: false, vertical: true).frame(width: 320).padding(14)
     }
     private var canSend: Bool {

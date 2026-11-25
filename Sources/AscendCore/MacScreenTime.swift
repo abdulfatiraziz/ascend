@@ -5,7 +5,7 @@ public enum MacScreenTimeError: LocalizedError {
     case access, missing, schema, busy, invalid, limit
     public var errorDescription:String? {
         switch self {
-        case .access: "macOS blocked the activity database. Allow Full Disk Access for Ascend, quit and reopen the app, then refresh Mac history."
+        case .access: "macOS blocked the activity database. Allow Full Disk Access for Cipher, quit and reopen the app, then refresh Mac history."
         case .missing: "The Mac activity database is not available. Enable App & Website Activity in macOS Screen Time, use a few apps, then try again."
         case .schema: "This macOS activity database has an unsupported layout. Earlier history is retained."
         case .busy: "The Mac activity database is busy. Try refreshing again shortly."

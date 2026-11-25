@@ -13,7 +13,7 @@ import AppKit
         return min(1800,max(minimum,value))
     }
     var body: some Scene {
-        Window("Ascend", id: "main") {
+        Window("Cipher", id: "main") {
             MainView(store: store).preferredColorScheme(.dark)
                 .environment(\.calendar, store.engine.calendar)
                 .environment(\.timeZone, store.engine.calendar.timeZone)

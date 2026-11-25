@@ -188,7 +188,7 @@ struct DrTrustCloudPanel: View {
                 }
             }
             if cloud.connected {
-                Toggle("Sync automatically every hour while Ascend is open", isOn: Binding(get: { cloud.automatic }, set: { cloud.setAutomatic($0) }))
+                Toggle("Sync automatically every hour while Cipher is open", isOn: Binding(get: { cloud.automatic }, set: { cloud.setAutomatic($0) }))
                     .font(.bt(size: 12))
                 if let date = cloud.lastSync { Text("Last sync \(date.formatted(date: .abbreviated, time: .shortened))").font(.bt(size: 11)).foregroundStyle(Ink.muted) }
             }
@@ -197,7 +197,7 @@ struct DrTrustCloudPanel: View {
         .sheet(isPresented: $showLogin, onDismiss: { cloud.cancelLogin(); code = ""; phone = "" }) {
             VStack(alignment: .leading, spacing: 14) {
                 Text("Connect Dr Trust 360").font(.title2)
-                Text("Your sign-in is saved in this Mac’s Keychain. Ascend reads your scale history on connection and checks hourly while open.")
+                Text("Your sign-in is saved in this Mac’s Keychain. Cipher reads your scale history on connection and checks hourly while open.")
                     .font(.bt(size: 13)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
                 if cloud.awaitingCode {
                     SecureField("Code from Dr Trust", text: $code).textFieldStyle(.roundedBorder)

@@ -762,7 +762,7 @@ import UniformTypeIdentifiers
     }
     func finish(_ value: String) { change { $0.avatarFinish = value } }
     func exportBackup() {
-        let panel = NSSavePanel(); panel.nameFieldStringValue = "Ascend-backup-\(today).json"
+        let panel = NSSavePanel(); panel.nameFieldStringValue = "Cipher-backup-\(today).json"
         panel.allowedContentTypes = [.json]
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {

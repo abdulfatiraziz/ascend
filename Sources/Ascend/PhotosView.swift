@@ -83,7 +83,7 @@ struct PhotosView: View {
                 if let currentAngle { compare(currentAngle) }
                 timeline
             }
-            Text("Photos stay on this Mac in Ascend’s Progress folder with their location data removed. Q sees only which areas, angles and dates you have; an image reaches Claude only when you compare it or attach it to a chat, through your personal Claude profile.").font(.bt(size: 11)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
+            Text("Photos stay on this Mac in Cipher’s Progress folder with their location data removed. Q sees only which areas, angles and dates you have; an image reaches Claude only when you compare it or attach it to a chat, through your personal Claude profile.").font(.bt(size: 11)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
         }.padding(.bottom, 10)
     }
     private var areaTabs: some View {
@@ -105,7 +105,7 @@ struct PhotosView: View {
     private var empty: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("No \(area.label.lowercased()) photos yet.").font(.bt(size: 18, weight: .semibold))
-            Text("Choose Add photos… or drag photos onto this window. Ascend reads the date each photo was taken, and you pick the area and angle (\(area.angles.map { $0.label.lowercased() }.joined(separator: ", "))). Take the same angles every week or two to see real change.").font(.bt(size: 12)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
+            Text("Choose Add photos… or drag photos onto this window. Cipher reads the date each photo was taken, and you pick the area and angle (\(area.angles.map { $0.label.lowercased() }.joined(separator: ", "))). Take the same angles every week or two to see real change.").font(.bt(size: 12)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
         }.frame(maxWidth: .infinity, alignment: .leading).panel()
     }
     private var angleChips: some View {

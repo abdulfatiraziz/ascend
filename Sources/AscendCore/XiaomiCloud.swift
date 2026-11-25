@@ -38,7 +38,7 @@ public enum XiaomiCloudError: LocalizedError, Equatable {
         case .securityCheck: "Xiaomi wants you to confirm this sign-in. Open the page it showed, confirm, then sign in again."
         case .refused(let why): "Xiaomi refused the request: \(why)"
         case .network(let why): "Couldn’t reach Xiaomi: \(why)"
-        case .unreadable: "Xiaomi sent a reply Ascend couldn’t read."
+        case .unreadable: "Xiaomi sent a reply Cipher couldn’t read."
         }
     }
 }

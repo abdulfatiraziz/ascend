@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<!-- Cipher app icon: a black satin bow tie on a gold disc, on felt green. -->
+<defs>
+    <linearGradient id="ground" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#174536"/><stop offset=".55" stop-color="#0B2A21"/><stop offset="1" stop-color="#04110D"/></linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F7E2B0"/><stop offset=".45" stop-color="#D9B46E"/><stop offset="1" stop-color="#8E7144"/></linearGradient>
+    <radialGradient id="goldDisc" cx=".38" cy=".32" r=".8"><stop offset="0" stop-color="#F7E2B0"/><stop offset=".5" stop-color="#D9B46E"/><stop offset="1" stop-color="#7A5F36"/></radialGradient>
+    <linearGradient id="satinBlack" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#0A0D0C"/><stop offset=".35" stop-color="#2C3331"/><stop offset=".62" stop-color="#121615"/><stop offset="1" stop-color="#3A423F"/></linearGradient>
+    <linearGradient id="satinGold" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8E7144"/><stop offset=".38" stop-color="#F7E2B0"/><stop offset=".66" stop-color="#C9A35E"/><stop offset="1" stop-color="#F0D49A"/></linearGradient>
+    <linearGradient id="knotBlack" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3A423F"/><stop offset=".5" stop-color="#151918"/><stop offset="1" stop-color="#2C3331"/></linearGradient>
+    <linearGradient id="knotGold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F7E2B0"/><stop offset=".5" stop-color="#B8954F"/><stop offset="1" stop-color="#E8C98A"/></linearGradient>
+    <linearGradient id="shirt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FBF5E8"/><stop offset="1" stop-color="#D9CDB2"/></linearGradient>
+    <clipPath id="disc"><circle cx="512" cy="512" r="262"/></clipPath>
+    <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F6EEDC"/><stop offset="1" stop-color="#DCCFB3"/></linearGradient>
+  </defs>
+<rect x="100" y="100" width="824" height="824" rx="185" fill="url(#ground)"/><rect x="112" y="112" width="800" height="800" rx="175" fill="none" stroke="#D9B46E" stroke-opacity=".22" stroke-width="4"/><circle cx="512" cy="512" r="262" fill="url(#goldDisc)"/><circle cx="512" cy="512" r="236" fill="none" stroke="#5C4524" stroke-opacity=".35" stroke-width="5"/><g transform="translate(512 512) scale(.8) translate(-512 -512)"><g><path d="M550 480 C580 432 660 394 742 392 C772 392 790 410 786 436 C796 476 772 500 776 512 C772 524 796 548 786 588 C790 614 772 632 742 632 C660 630 580 592 550 544 Z" fill="url(#satinBlack)"/>
+    <path d="M566 488 C620 452 680 428 748 420" fill="none" stroke="#000" stroke-width="9" stroke-linecap="round" opacity=".55"/>
+    <path d="M570 496 C624 464 682 442 752 434" fill="none" stroke="#7F8A86" stroke-width="5" stroke-linecap="round" opacity=".5"/>
+    <path d="M568 512 C640 512 700 512 768 512" fill="none" stroke="#000" stroke-width="7" stroke-linecap="round" opacity=".35"/>
+    <path d="M566 536 C620 572 680 596 748 604" fill="none" stroke="#000" stroke-width="9" stroke-linecap="round" opacity=".55"/>
+    <path d="M552 482 C566 500 566 524 552 542" fill="none" stroke="#000" stroke-width="10" opacity=".6"/></g><g transform="matrix(-1 0 0 1 1024 0)"><path d="M550 480 C580 432 660 394 742 392 C772 392 790 410 786 436 C796 476 772 500 776 512 C772 524 796 548 786 588 C790 614 772 632 742 632 C660 630 580 592 550 544 Z" fill="url(#satinBlack)"/>
+    <path d="M566 488 C620 452 680 428 748 420" fill="none" stroke="#000" stroke-width="9" stroke-linecap="round" opacity=".55"/>
+    <path d="M570 496 C624 464 682 442 752 434" fill="none" stroke="#7F8A86" stroke-width="5" stroke-linecap="round" opacity=".5"/>
+    <path d="M568 512 C640 512 700 512 768 512" fill="none" stroke="#000" stroke-width="7" stroke-linecap="round" opacity=".35"/>
+    <path d="M566 536 C620 572 680 596 748 604" fill="none" stroke="#000" stroke-width="9" stroke-linecap="round" opacity=".55"/>
+    <path d="M552 482 C566 500 566 524 552 542" fill="none" stroke="#000" stroke-width="10" opacity=".6"/></g>
+    <path d="M478 470 C500 462 524 462 546 470 C556 498 556 526 546 554 C524 562 500 562 478 554 C468 526 468 498 478 470 Z" fill="url(#knotBlack)"/>
+    <path d="M492 476 C488 500 488 524 492 548" fill="none" stroke="#7F8A86" stroke-width="6" stroke-linecap="round" opacity=".55"/>
+    <path d="M512 468 C516 496 516 528 512 556" fill="none" stroke="#000" stroke-width="5" opacity=".45"/></g>
+</svg>

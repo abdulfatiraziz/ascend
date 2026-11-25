@@ -7,7 +7,7 @@ struct StatusMenu: View {
   @ObservedObject var store: TrackerStore
   @Environment(\.openWindow) private var openWindow
   var body: some View {
-    Button("Open Ascend") { open("Today") }
+    Button("Open Cipher") { open("Today") }
     Button("Quick check-in…") { open("QuickCheckIn") }.keyboardShortcut(
       "k", modifiers: [.command, .shift])
     Divider()
@@ -20,7 +20,7 @@ struct StatusMenu: View {
     Button("Notes") { open("Notes") }
     Divider()
     Button("Settings…") { open("Settings") }
-    Button("Quit Ascend") { NSApp.terminate(nil) }.keyboardShortcut("q")
+    Button("Quit Cipher") { NSApp.terminate(nil) }.keyboardShortcut("q")
   }
   private func open(_ destination: String) {
     DispatchQueue.main.async {

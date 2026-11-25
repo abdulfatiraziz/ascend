@@ -37,7 +37,7 @@ public struct PhoneLogEntry: Codable, Equatable, Sendable {
             }
             return .set(exerciseID: exerciseID, index: index, set: TrainingSet(weight: (weight * 100).rounded() / 100, reps: reps), date: date)
         default:
-            throw ValidationError(message: "This version of Ascend doesn’t know that log type. Update the Mac app.")
+            throw ValidationError(message: "This version of Cipher doesn’t know that log type. Update the Mac app.")
         }
     }
 }

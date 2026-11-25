@@ -73,7 +73,7 @@ struct DailyMemoCard: View {
                 }
             }
             HStack {
-                Text("Written from your Ascend data · urges stay in the Urges tab").font(.bt(size: 10)).foregroundStyle(ink.opacity(0.55))
+                Text("Written from your Cipher data · urges stay in the Urges tab").font(.bt(size: 10)).foregroundStyle(ink.opacity(0.55))
                 Spacer()
                 Text("— M").font(.custom(Typeface.serif, fixedSize: 18).italic()).foregroundStyle(ink.opacity(0.8))
             }

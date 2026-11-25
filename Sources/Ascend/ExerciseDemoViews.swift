@@ -112,7 +112,7 @@ struct ExerciseDemoSheet: View {
         "Illustrative artwork, not a form demonstration. GIF motion gently moves the illustration; it does not show a repetition."
       ).font(.bt(size: 11)).foregroundStyle(Ink.muted)
       Text(
-        "AI-generated for Ascend. No personal photos or measurements used. Motion is off by default and stays off when Reduce Motion is enabled."
+        "AI-generated for Cipher. No personal photos or measurements used. Motion is off by default and stays off when Reduce Motion is enabled."
       ).font(.bt(size: 10)).foregroundStyle(Ink.muted)
     }.padding(24).frame(width: 800, height: 620).onAppear {
       moving = false

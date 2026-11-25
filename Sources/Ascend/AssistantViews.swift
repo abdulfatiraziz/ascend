@@ -42,7 +42,7 @@ struct ClaudeSettingsEditor: View {
             Text("Applies to every model. Medium suits most chats; higher effort thinks longer and uses more of your plan. Each chat’s effort can be changed from its menu.").font(.bt(size: 11)).foregroundStyle(Ink.muted)
             Toggle("Share recent check-ins, progress and habit notes", isOn: $controller.shareHistory).font(.bt(size: 12))
             Text("Lets Claude discuss how your cycle is actually going. Your plan is always shared. Urge logs, health data and journal or caffeine entries are shared only with the option below.").font(.bt(size: 11)).foregroundStyle(Ink.muted)
-            Toggle("Let Claude search all my Ascend data", isOn: $controller.fullDataAccess).font(.bt(size: 12))
+            Toggle("Let Claude search all my Cipher data", isOn: $controller.fullDataAccess).font(.bt(size: 12))
             Text("A read-only copy of your full history, health, meals, urges, journal, training, body and screen time, refreshed each message. Locations and notes you keep private are left out. Claude can also search the web.").font(.bt(size: 11)).foregroundStyle(Ink.muted)
             HStack {
                 Button(controller.working ? "Testing…" : "Send test message") { controller.testConnection() }.disabled(controller.working || controller.executable == nil)

@@ -120,7 +120,7 @@ struct MainView: View {
                 }
             }.preferredColorScheme(.dark).environment(\.calendar, store.engine.calendar).environment(\.timeZone, store.engine.calendar.timeZone).onAppear{sheetIsPresented=true}
         }
-        .alert("Ascend", isPresented: Binding(get: { store.notice != nil }, set: { if !$0 { store.notice = nil } })) { Button("OK") { store.notice = nil } } message: { Text(store.notice ?? "") }
+        .alert("Cipher", isPresented: Binding(get: { store.notice != nil }, set: { if !$0 { store.notice = nil } })) { Button("OK") { store.notice = nil } } message: { Text(store.notice ?? "") }
         .onChange(of: store.today) { old, new in if selectedDay == old { selectedDay = new } }
         .onChange(of: store.pendingLog, initial: true) { _, id in
             if let id, let habit = store.document.habits.first(where: { $0.id == id }) { present(.metric(habit, store.today)); store.pendingLog = nil }
@@ -177,7 +177,7 @@ struct MainView: View {
     }
     private var sidebar: some View {
         VStack(spacing: 12) {
-            Text("A↗").font(.bt(size: 26, weight: .bold)).tracking(-3).foregroundStyle(.white)
+            Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 44, height: 44).accessibilityLabel("Cipher")
             // Thirteen screens don't fit a short window; the list scrolls instead of clipping.
             VStack(spacing: 6) {
                 ForEach(Tab.allCases, id: \.self) { tab in

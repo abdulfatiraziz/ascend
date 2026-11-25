@@ -231,7 +231,7 @@ public actor PhoneLinkHub {
     public func handle(_ request: LinkRequest) async -> LinkResponse {
         switch (request.method, request.path) {
         case ("GET", "/bridge.apk"):
-            guard let apk, apk.until > clock() else { return LinkResponse(status: 404, contentType: "text/plain", body: Data("Open Ascend on your Mac → Health → Install phone app, then scan the code again.".utf8)) }
+            guard let apk, apk.until > clock() else { return LinkResponse(status: 404, contentType: "text/plain", body: Data("Open Cipher on your Mac → Health → Install phone app, then scan the code again.".utf8)) }
             return LinkResponse(status: 200, contentType: "application/vnd.android.package-archive", body: apk.data)
         case ("POST", "/pair/start"): return await pairStart(request)
         case ("POST", "/pair/confirm"): return pairConfirm(request)
@@ -240,7 +240,7 @@ public actor PhoneLinkHub {
         }
     }
     private func pairStart(_ request: LinkRequest) async -> LinkResponse {
-        guard pairingOpen else { return .error(403, "Pairing is off. On your Mac, open Ascend → Health → Pair phone, then try again.") }
+        guard pairingOpen else { return .error(403, "Pairing is off. On your Mac, open Cipher → Health → Pair phone, then try again.") }
         guard let json = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any],
               let phoneID = json["phoneID"] as? String, UUID(uuidString: phoneID) != nil,
               let name = (json["phoneName"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty, name.count <= 60,

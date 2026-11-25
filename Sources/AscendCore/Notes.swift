@@ -92,7 +92,7 @@ extension ClaudeAssistant {
         return draft
     }
     public static let noteSystemPrompt = """
-    You turn a conversation between the user and Ascend (their personal growth coach app) into one saved note they and Ascend can refer back to later.
+    You turn a conversation between the user and Cipher (their personal growth coach app) into one saved note they and Cipher can refer back to later.
     Pick kind: plan (steps or a routine they intend to follow), decision (something they chose, with the reason), insight (something they realised or learned about themselves), or journal (a reflection on how things are going).
     title: specific and short, under 70 characters, like "Morning gym switch from November" rather than "Chat summary".
     body: Markdown, 3–8 tight bullets written to the user in second person ("You decided…"). Keep concrete numbers, dates, names and reasons; drop small talk and anything not settled. If something was left open, end with a bullet starting "Open:".

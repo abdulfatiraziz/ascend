@@ -43,7 +43,7 @@ struct EyesOnlyCover: View {
                     .foregroundStyle(phase == .denied ? Ink.offTrack : phase == .cleared ? Ink.lamp : Ink.accent)
                     .symbolEffect(.pulse, isActive: phase == .checking)
             }.frame(width: 120, height: 120)
-            Text(phase == .cleared ? "Welcome back, Abdul." : "Ascend is sealed.").font(.bt(size: 30)).foregroundStyle(Ink.ivory)
+            Text(phase == .cleared ? "Welcome back, Abdul." : "Cipher is sealed.").font(.bt(size: 30)).foregroundStyle(Ink.ivory)
             Text(phase == .denied ? "Not recognised. Try again." : "Numbers, photos and logs are hidden until Touch ID or your Mac password opens it.")
                 .font(.bt(size: 12)).foregroundStyle(phase == .denied ? Ink.offTrack : Ink.muted).multilineTextAlignment(.center)
             Button(action: unlock) {
@@ -96,7 +96,7 @@ struct EyesOnlyCover: View {
         var error: NSError?
         guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else { cleared(); return }
         phase = .checking
-        context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: "open Ascend") { ok, _ in
+        context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: "open Cipher") { ok, _ in
             DispatchQueue.main.async { ok ? cleared() : denied() }
         }
     }

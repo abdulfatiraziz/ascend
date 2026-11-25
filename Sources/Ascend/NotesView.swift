@@ -18,7 +18,7 @@ struct NotesView: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 6) {
                         Kicker("Plans, decisions and reflections worth keeping")
-                        Text("Save a chat with Q as a note, or write one here. Notes marked “Ascend can see” are remembered in later chats.").font(.bt(size: 12)).foregroundStyle(Ink.muted)
+                        Text("Save a chat with Q as a note, or write one here. Notes marked “Cipher can see” are remembered in later chats.").font(.bt(size: 12)).foregroundStyle(Ink.muted)
                     }
                     Spacer()
                     PrimaryButton(label: "New note") { editing = JournalNote(kind: .journal, day: store.today) }
@@ -41,11 +41,11 @@ struct NotesView: View {
                     Button { editing = note } label: { NoteRow(note: note, engine: store.engine) }.buttonStyle(.plain)
                         .contextMenu {
                             Button(note.pinned ? "Unpin" : "Pin") { var n = note; n.pinned.toggle(); store.saveNote(n) }
-                            Button(note.shareWithClaude ? "Hide from Ascend" : "Let Ascend see this") { var n = note; n.shareWithClaude.toggle(); store.saveNote(n) }
+                            Button(note.shareWithClaude ? "Hide from Cipher" : "Let Cipher see this") { var n = note; n.shareWithClaude.toggle(); store.saveNote(n) }
                             if let chat = note.chatID, store.assistant.archive.thread(chat) != nil { Button("Open chat") { openChat(chat) } }
                         }
                 }
-                Text("Notes are saved in your tracker data and backups. Only notes marked “Ascend can see” (pinned first, then the 12 most recent) are sent with your chats.").font(.bt(size: 11)).foregroundStyle(Ink.muted)
+                Text("Notes are saved in your tracker data and backups. Only notes marked “Cipher can see” (pinned first, then the 12 most recent) are sent with your chats.").font(.bt(size: 11)).foregroundStyle(Ink.muted)
             }.padding(.bottom, 10)
         }
         .sheet(item: $editing) { NoteEditor(store: store, note: $0, openChat: openChat) }
@@ -62,7 +62,7 @@ private struct NoteRow: View {
                 if note.pinned { Image(systemName: "pin.fill").font(.bt(size: 10)).foregroundStyle(Ink.muted) }
                 Text(note.title).font(.bt(size: 14, weight: .semibold)).lineLimit(1)
                 Spacer()
-                if note.shareWithClaude { Image(systemName: "sparkles").font(.bt(size: 10)).foregroundStyle(Ink.muted).help("Ascend can see this note") }
+                if note.shareWithClaude { Image(systemName: "sparkles").font(.bt(size: 10)).foregroundStyle(Ink.muted).help("Cipher can see this note") }
                 Text(dateText(note.day, engine: engine, pattern: "d MMM")).font(.bt(size: 11)).foregroundStyle(Ink.muted)
             }
             if !note.body.isEmpty {
@@ -105,7 +105,7 @@ struct NoteEditor: View {
             FieldGroup(label: "Action items (one per line)") {
                 TextEditor(text: $actions).font(.bt(size: 12)).frame(minHeight: 60).scrollContentBackground(.hidden).padding(6).background(Ink.panel, in: RoundedRectangle(cornerRadius: 6))
             }
-            Toggle("Ascend can see this in later chats", isOn: $note.shareWithClaude).font(.bt(size: 12))
+            Toggle("Cipher can see this in later chats", isOn: $note.shareWithClaude).font(.bt(size: 12))
             Toggle("Pin to the top", isOn: $note.pinned).font(.bt(size: 12))
             HStack {
                 Text(dateText(note.day, engine: store.engine)).font(.bt(size: 11)).foregroundStyle(Ink.muted)

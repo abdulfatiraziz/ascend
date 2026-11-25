@@ -256,7 +256,7 @@ struct SettingsEditor: View {
             if !store.document.health.errors.isEmpty {
                 VStack(alignment: .leading, spacing: 7) { Kicker("Some types could not refresh"); ForEach(store.document.health.errors.keys.sorted(), id: \.self) { key in Text("\(HealthMetric(rawValue: key)?.title ?? key): \(store.document.health.errors[key] ?? "")").font(.bt(size: 12)).foregroundStyle(Ink.watch) } }
             }
-            Text("Heart rate, SpO2, stress and resting heart rate come from the Mi Fitness cloud; sleep, steps, calories and workouts from Health Connect via Ascend Bridge. Stored on this Mac; Q reads a copy only while “Let Claude search all my Ascend data” is on. Sleep and step habits fill from these readings; a value you type yourself is kept.")
+            Text("Heart rate, SpO2, stress and resting heart rate come from the Mi Fitness cloud; sleep, steps, calories and workouts from Health Connect via Ascend Bridge. Stored on this Mac; Q reads a copy only while “Let Claude search all my Cipher data” is on. Sleep and step habits fill from these readings; a value you type yourself is kept.")
                 .font(.bt(size: 11)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
             MacScreenTimePanel(service: store.macScreenTime)
             if !store.screenTime.archive.devices.isEmpty { Button("Export screen-time backup…") { store.screenTime.export() }.font(.bt(size: 12)) }
@@ -335,7 +335,7 @@ struct ReminderSettings: View {
                 Button("Send test notification") { Task { await service.test(sound: store.document.reminders.sound) } }.disabled(!service.authorized)
                 Button("macOS settings ↗") { if let url = URL(string: "x-apple.systempreferences:com.apple.preference.notifications") { NSWorkspace.shared.open(url) } }
             }.font(.bt(size: 11))
-            Text("Morning nudges for morning habits; evening nudges for unfinished recurring tasks. Rest days and completed days are skipped. Scheduled locally for the next 30 days, refreshed when you open Ascend. Times use \(store.document.timeZoneID). macOS Focus and notification settings control delivery.").font(.bt(size: 11)).foregroundStyle(Ink.muted)
+            Text("Morning nudges for morning habits; evening nudges for unfinished recurring tasks. Rest days and completed days are skipped. Scheduled locally for the next 30 days, refreshed when you open Cipher. Times use \(store.document.timeZoneID). macOS Focus and notification settings control delivery.").font(.bt(size: 11)).foregroundStyle(Ink.muted)
         }
         .onChange(of: morning) { _, _ in saveTimes() }
         .onChange(of: evening) { _, _ in saveTimes() }
