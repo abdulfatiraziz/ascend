@@ -50,7 +50,7 @@ public final class BridgeActivity extends Activity {
     static String subLabel(Screen s) { return s == Screen.SCREEN_TIME ? "Screen time" : s.name().charAt(0) + s.name().substring(1).toLowerCase(Locale.ROOT); }
     static final String LOCAL_NETWORK = "android.permission.ACCESS_LOCAL_NETWORK";
     static final int REQ_HEALTH = 7, REQ_NETWORK = 8, REQ_CAMERA = 11, REQ_PICK = 12, REQ_NOTIFY = 13, REQ_BACKGROUND = 14, REQ_LOCATION = 15, REQ_BACKGROUND_LOCATION = 16, REQ_SPOT_FINE = 17;
-    static final String VERSION = "0.10.0";
+    static final String VERSION = "0.10.1";
 
     SyncEngine engine;
     Ui ui;
@@ -181,8 +181,17 @@ public final class BridgeActivity extends Activity {
 
     void openExerciseDemos(){startActivity(new Intent(this,ExerciseDemoActivity.class));}
     void show(Screen s) { screen = s; int g = group(s); if (g >= 0) lastInTab[g] = s; render(); }
+    /** The screen on display, so a refresh of the same screen (after a tap or a log) keeps where you had scrolled to. */
+    Screen shown;
+    static ScrollView firstScroll(View v) {
+        if (v instanceof ScrollView) return (ScrollView) v;
+        if (v instanceof ViewGroup) { ViewGroup g = (ViewGroup) v; for (int i = 0; i < g.getChildCount(); i++) { ScrollView s = firstScroll(g.getChildAt(i)); if (s != null) return s; } }
+        return null;
+    }
     void render() {
         if (root == null) return;
+        ScrollView old = screen == shown && content.getChildCount() > 0 ? firstScroll(content.getChildAt(0)) : null;
+        int keepY = old == null ? 0 : old.getScrollY();
         content.removeAllViews();
         View page;
         switch (screen) {
@@ -201,6 +210,14 @@ public final class BridgeActivity extends Activity {
             default: page = today();
         }
         content.addView(page, new FrameLayout.LayoutParams(Ui.MATCH, Ui.MATCH));
+        shown = screen;
+        ScrollView fresh = keepY > 0 ? firstScroll(page) : null;
+        if (fresh != null) {
+            // Restore once the new page is laid out; before that the scroll range is zero and the position would be lost.
+            fresh.getViewTreeObserver().addOnGlobalLayoutListener(new android.view.ViewTreeObserver.OnGlobalLayoutListener() {
+                @Override public void onGlobalLayout() { fresh.getViewTreeObserver().removeOnGlobalLayoutListener(this); fresh.scrollTo(0, keepY); }
+            });
+        }
         boolean tabs = group(screen) >= 0;
         nav.setVisibility(tabs ? View.VISIBLE : View.GONE);
         if (tabs) buildNav();
