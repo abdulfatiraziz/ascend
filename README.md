@@ -225,3 +225,126 @@ The first build creates a local signing key in `build/android/` (never commit it
 
 MIT. See [LICENSE](LICENSE). The avatar portraits are the author's own likeness;
 please replace them with your own images in forks or redistributions.
+
+## Dr Trust body measurements
+
+Health now has a separate **Body measurements** panel. Use **Import body JSON…** to
+import a Dr Trust API history export or an Ascend body backup. Matching Dr Trust
+record IDs update existing readings; repeating an import creates no duplicates.
+The panel shows the recorded date, weight history, and body-composition estimates.
+All original scale fields (including nulls and zeroes) are retained.
+
+Body measurements live in `~/Library/Application Support/Ascend/body-measurements.json`.
+Use **Export body backup…** in that panel to back them up, and **Import body JSON…**
+to restore. The existing tracker backup does not include this separate file.
+Each changed import preserves the previous body file as `body-before-import-<UUID>.json`.
+Invalid/incomplete exports and mixed profiles are rejected before saving. Data is
+local, excluded from Ask Ascend, and does not update habit check-ins.
+
+Use **Connect Dr Trust…** below the body panel to sign in with your phone number
+and a one-time code. The sign-in is stored in this Mac's Keychain, excluded from
+backups. Ascend fetches the full scale history on connection, then checks hourly
+while open and catches up when activated or woken after an overdue sync. **Sync now**
+refreshes manually; the automatic toggle pauses scheduled checks. **Disconnect…**
+removes the sign-in and retains imported readings. No ADB or phone connection is
+needed for Dr Trust cloud sync. A revoked/expired refresh token requires a new code.
+
+Token renewal retries a rejected access token once. All pages and profile IDs are
+validated before saving; failed/partial reads retain existing history. Sync upserts
+stable IDs, so corrections are updated and duplicates are avoided. It intentionally
+retains previously imported readings if they are absent from a later API result.
+Empty results do not erase history. Automatic failed attempts are throttled for
+15 minutes; normal checks remain hourly. No sync runs after Ascend quits.
+
+Body data is not yet sent to Android. Mi Fitness, watch history, phone pairing and
+phone sync continue using their existing formats. `drtrust-sync.json` beside the
+body archive stores the automatic toggle and last successful sync time, never tokens.
+Isolated QA data folders disable real Dr Trust credentials/network by default;
+`ASCEND_DRTRUST=1` explicitly opts in.
+
+A local import utility uses the same validator/storage code as the Mac UI:
+
+```sh
+swift run AscendBodyImport /path/to/drtrust-export.json /path/to/body-measurements.json
+```
+
+The destination should be the body file in the desired Ascend data folder; keep
+the original API export separately. Private exports and credentials must not be
+added to the repository or app bundle.
+
+### Body dashboard artwork
+
+The body dashboard includes native front/back reference anatomy, measurement cards,
+previous-reading comparisons, and selectable history charts. Click a card or the chart
+metric menu to change the series; drag the chart or use the reading arrows to inspect
+recorded measurements. Connection and import/export controls are under **Connection & data**.
+The illustration is a reference, not a body scan or regional body-composition map.
+
+Body polygons are adapted from [react-body-highlighter](https://github.com/giavinh79/react-body-highlighter)
+(commit `28035c2c11d49038026e5c7e038c623f331edb60`, copyright 2020 GV79), under the MIT license.
+Coordinates render directly with SwiftUI; no React/WebView runtime is added. The original
+license and provenance are bundled in `Sources/Ascend/Resources/BodyMap/`.
+
+## Phone screen time
+
+Ascend Bridge 0.7.0 adds optional screen-time sharing. On the phone open **Settings →
+Share screen time with Mac**, allow **Usage access** for Ascend Bridge in Android
+Settings, return to Bridge and tap **Sync now**. The Mac's **Screen time** tab shows
+daily screen-on time, observed foreground time per app, hourly activity, and recent
+days. Screen-on includes the lock screen. App times can overlap in multi-window;
+the app totals are not summed to calculate device time.
+
+Optional **Screen time in background** schedules approximately hourly transfers on
+unmetered Wi-Fi when the paired Mac is available. This is independent of Health
+Connect's background permission. Android controls the exact job timing. Foreground
+screen-time sync uses the existing app-open/manual sync. Sharing defaults off.
+Disabling sharing or revoking Usage access preserves history already on the Mac.
+
+The collector uses Android usage events (not Digital Wellbeing's private database).
+Detailed events may exist for only a few days. Missing prefixes, contradictory
+screen states and restart gaps are marked incomplete; unknown totals stay blank.
+Unmatched open sessions across shutdown/restart are discarded. No screen images,
+message text, URLs or activity/class names are sent. Only per-day/hour totals and
+app package names/labels go through the existing paired AES-GCM connection.
+
+Data is stored separately in `~/Library/Application Support/Ascend/screen-time.json`
+with a `.backup` file. Sync keeps roughly 90 days per phone and avoids replacing
+complete observations with incomplete later queries. It is excluded from Ask
+Ascend and the main tracker backup; use **Export screen-time backup…** separately.
+Existing phones keep working with the new Mac app. New Bridge clients tolerate an
+older Mac lacking the screen-time endpoint and continue other transfers.
+
+Reference: [Android usage statistics](https://developer.android.com/reference/android/app/usage/UsageStatsManager)
+and [usage event semantics](https://developer.android.com/reference/android/app/usage/UsageEvents.Event).
+
+## This Mac's app-usage history
+
+The **Screen time** tab also has **This Mac's history**. Ascend reads only local
+`/app/usage` intervals from the Mac's `knowledgeC.db`, using the system SQLite
+library in read-only mode. It filters out source rows tagged as other Apple
+devices and does not query website, notification or media streams.
+
+macOS protects that database. To activate historical sync, add this exact Ascend
+app to **System Settings → Privacy & Security → Full Disk Access**, quit and reopen
+Ascend, then click **Refresh Mac history**. **Show this Ascend app in Finder** helps
+locate the current build. Full Disk Access is a broad OS permission; this connector
+uses it only for the local app-usage query. No TCC grants are modified by code.
+
+Mac history refreshes every 15 minutes while Ascend is open, with overdue
+activation/wake catch-up. Pause it using the toggle. It rereads up to 28 days,
+deduplicates overlaps, retains earlier useful observations when source retention
+shrinks, and keeps roughly 90 days during sync. Failures preserve prior history.
+Select the Mac using the **Device** picker; phone and Mac totals stay separate.
+
+Mac totals represent the **union of recorded app-use intervals**, not display-on
+time and not a guaranteed match to Apple's Screen Time report. Missing intervals
+and days stay unknown. Retention and delayed database updates can leave gaps.
+No new activity tracker, login item, screenshots, window titles or URLs are added.
+Local source ID/preferences live in `mac-screen-time-sync.json`; records share the
+existing separate `screen-time.json` archive and remain excluded from Ask Ascend.
+Isolated QA folders do not read real Mac history unless `ASCEND_MAC_SCREEN_TIME=1`.
+
+This is an undocumented on-disk format, guarded by schema/error checks. Schema
+and local-device conventions were researched from the MIT projects
+[macos-screen-time](https://github.com/iamEvanYT/macos-screen-time) and
+[screentime-archive](https://github.com/tobias-x/screentime-archive).

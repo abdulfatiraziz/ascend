@@ -11,3 +11,8 @@ assets/avatar/source/human-base-meshes-bundle-v1.4.1/
 *.apk
 *.p12
 *.keystore
+
+# Personal notes kept out of the public repo
+FOR-CLAUDE-DRTRUST.md
+INCIDENT-SUMMARY-MENU-BEEPING-2026-11-04.md
+docs/QA-DRTRUST-IMPORT.md
