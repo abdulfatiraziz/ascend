@@ -18,6 +18,10 @@ struct MealsView: View {
                         Text("Snap meals in Cipher Bridge or drop photos here. Confirmed meals set your Calorie and Protein check-ins for that day.").font(.bt(size: 12)).foregroundStyle(Ink.muted)
                         Toggle("Approve estimates automatically", isOn: Binding(get: { store.autoConfirmMeals }, set: { store.autoConfirmMeals = $0 }))
                             .toggleStyle(.switch).controlSize(.mini).font(.bt(size: 11)).help("When on, a meal is confirmed as soon as Claude's estimate arrives. Use Edit on a meal to adjust it.")
+                        if store.mealsWaitingForApproval > 0 {
+                            Button("Approve \(store.mealsWaitingForApproval) waiting \(store.mealsWaitingForApproval == 1 ? "estimate" : "estimates")") { store.approveWaitingMeals() }
+                                .buttonStyle(.plain).font(.bt(size: 11, weight: .semibold)).foregroundStyle(Ink.accent)
+                        }
                     }
                     Spacer()
                     Button { day = store.engine.adding(-1, to: day) } label: { Image(systemName: "chevron.left") }.buttonStyle(.plain).accessibilityLabel("Previous day")

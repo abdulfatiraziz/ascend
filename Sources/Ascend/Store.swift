@@ -95,6 +95,13 @@ import UniformTypeIdentifiers
         assistant.bodySummary = { [weak self] in [self.map { MissionFacts(store: $0).summary }, self?.bodyAssistantSummary(), self?.lifestyle.lifestyle.assistantSummary].compactMap { $0 }.joined(separator: "\n\n") }; meals.store = self; phoneLink.store = self; medsReader.store = self; photoReviews.store = self; xiaomi.store = self; claudeSignIn.store = self
         removeOrphanMealPhotos(); removeOrphanMedPhotos(); removeOrphanProgressPhotos()
         meals.estimatePending(); medsReader.resumePending()
+        // Once, when automatic approval arrived: approve the estimates that were waiting from before (asked for on 25 Nov 2026).
+        if !recoveryLocked, autoConfirmMeals, ProcessInfo.processInfo.environment["ASCEND_DATA_DIR"] == nil,
+           !UserDefaults.standard.bool(forKey: "meals.approvedWaiting.v1") {
+            let n = approveWaitingMeals()
+            UserDefaults.standard.set(true, forKey: "meals.approvedWaiting.v1")
+            if n > 0 { notice = "Approved \(n) waiting meal \(n == 1 ? "estimate" : "estimates") with Claude's numbers. Use Edit on a meal to adjust one." }
+        }
         if !recoveryLocked { xiaomi.start(); drTrust.start(); macScreenTime.start() }
     }
     /// Reads health.json (or its backup) into the document. Without one, the document keeps any watch data an older tracker.json held.
@@ -428,6 +435,21 @@ import UniformTypeIdentifiers
             doc.meals.entries[i].error = error.map { String($0.prefix(600)) }
             if estimate != nil, error == nil, approve { doc.acceptMealEstimate(id, today: today) }
         }
+    }
+    /// Meals with Claude's estimate that were never confirmed (from before approval was automatic).
+    var mealsWaitingForApproval: Int { document.meals.entries.filter { !$0.confirmed && $0.estimate != nil && $0.error == nil }.count }
+    /// Confirms every waiting meal with Claude's estimate, which also updates those days' Calorie and Protein check-ins. Undo restores them.
+    @discardableResult func approveWaitingMeals() -> Int {
+        refreshDay()
+        let previous = document, today = today
+        var count = 0
+        guard change({ doc in
+            for e in doc.meals.entries where !e.confirmed && e.estimate != nil && e.error == nil {
+                if doc.acceptMealEstimate(e.id, today: today) { count += 1 }
+            }
+        }), count > 0 else { return 0 }
+        undoDocument = previous; undoLabel = "meal approvals"
+        return count
     }
     /// Confirming logs the meal and sets that day's Calorie and Protein check-ins to the confirmed totals.
     @discardableResult func confirmMeal(_ id: UUID, kcal: Double, protein: Double, carbs: Double, fat: Double, note: String) -> Bool {
