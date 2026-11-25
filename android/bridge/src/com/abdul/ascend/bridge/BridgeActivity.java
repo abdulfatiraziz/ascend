@@ -50,7 +50,7 @@ public final class BridgeActivity extends Activity {
     static String subLabel(Screen s) { return s == Screen.SCREEN_TIME ? "Screen time" : s.name().charAt(0) + s.name().substring(1).toLowerCase(Locale.ROOT); }
     static final String LOCAL_NETWORK = "android.permission.ACCESS_LOCAL_NETWORK";
     static final int REQ_HEALTH = 7, REQ_NETWORK = 8, REQ_CAMERA = 11, REQ_PICK = 12, REQ_NOTIFY = 13, REQ_BACKGROUND = 14, REQ_LOCATION = 15, REQ_BACKGROUND_LOCATION = 16, REQ_SPOT_FINE = 17;
-    static final String VERSION = "0.10.2";
+    static final String VERSION = "0.10.3";
 
     SyncEngine engine;
     Ui ui;
@@ -104,6 +104,8 @@ public final class BridgeActivity extends Activity {
         boolean background = prefs.getBoolean("backgroundSync", false);
         SyncJob.schedule(this, background && engine.backgroundAllowed());
         SpotReceiver.register(this);
+        // Locking on every leave was too much (asked to remove on 25 Nov 2026): turn it off once. The eye button still locks on demand.
+        if (!prefs.getBoolean("eyesLockOff.v1", false)) prefs.edit().putBoolean("eyesLockOnLeave", false).putBoolean("eyesOnly", false).putBoolean("eyesLockOff.v1", true).apply();
         render();
         setRecentsScreenshotEnabled(!lockOnLeave());
         if (prefs.getBoolean("eyesOnly", false)) sealEyes(false);
@@ -114,7 +116,7 @@ public final class BridgeActivity extends Activity {
     EyesOnlyView eyes;
     /** True while the app itself opened the camera, photo picker or a Settings page, so coming back doesn't lock. */
     boolean ownTrip;
-    boolean lockOnLeave() { return prefs.getBoolean("eyesLockOnLeave", true); }
+    boolean lockOnLeave() { return prefs.getBoolean("eyesLockOnLeave", false); }
     @Override public void startActivityForResult(Intent intent, int request, Bundle options) { ownTrip = true; super.startActivityForResult(intent, request, options); }
     @Override protected void onStart() { super.onStart(); ownTrip = false; }
     /** Leaving the app (home, switching apps, screen off) seals it, so it always opens on the vault. */
@@ -2123,7 +2125,7 @@ public final class BridgeActivity extends Activity {
                 boolean scheduled = SyncJob.schedule(this, on);
                 toast(!on ? "Background sync off" : scheduled ? "Background sync on" : "Android didn’t allow the background job. Try again later."); render();
             }));
-        sync.addView(toggle("Lock when I leave the app", "Eyes only: opens on the vault every time; fingerprint or PIN to get in", lockOnLeave(), on -> {
+        sync.addView(toggle("Lock when I leave the app", "Off: it locks only when you tap the eye. On: opens on the vault every time", lockOnLeave(), on -> {
             prefs.edit().putBoolean("eyesLockOnLeave", on).apply(); setRecentsScreenshotEnabled(!on);
         }));
         sync.addView(toggle("Sync when I open the app", "Quietly sends anything waiting", prefs.getBoolean("autoSync", true), on -> prefs.edit().putBoolean("autoSync", on).apply()));
